@@ -1,0 +1,19 @@
+# Python virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/

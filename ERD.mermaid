@@ -1,0 +1,225 @@
+erDiagram
+    MACHINE {
+        string machine_id PK "Format: ACRONYM NUMBER"
+        string acronym FK
+        string number
+        string class_code FK
+        string mmo FK
+        float original_days_per_week
+        float original_tours_per_day
+        float adjusted_days_per_week
+        float adjusted_tours_per_day
+        boolean values_adjusted
+        string site
+        string psm_number
+        string terminal_type
+        string equipment_code
+    }
+
+    MACHINE_CLASS_CODE {
+        string acronym PK,FK
+        string class_code PK
+        string pub_num "MMO reference"
+        string description
+    }
+
+    MMO_DIRECTORY {
+        string mmo_id PK "Format: MMO-XXX-XX"
+        string directory_path
+        string machine_acronym
+        string class_code
+        boolean has_pdf
+        boolean has_labor_lookup
+        boolean has_staffing_table
+        boolean has_calculated_table
+    }
+
+    LABOR_LOOKUP_TABLE {
+        string lookup_id PK
+        string mmo FK
+        string operation_days_per_week
+        string tours_per_day
+        string stackers
+        string inductions
+        string transports
+        string lim_modules
+        string machine_type
+        string site
+        string psm_number
+        string terminal_type
+        string equipment_code
+        string machines
+        float total_hrs_per_year
+        float operational_maintenance_hrs_per_year
+    }
+
+    STAFFING_TABLE {
+        string staffing_id PK
+        string machine_id FK
+        string mmo FK
+        string class_code FK
+        float operation_days_per_week
+        float tours_per_day
+        float mm7_hours
+        float mpe9_hours
+        float et10_hours
+        float total_hrs_per_year
+        float operational_maintenance_hrs_per_year
+        datetime last_updated
+    }
+
+    CALCULATED_STAFFING_TABLE {
+        string calc_id PK
+        string machine_id FK
+        string mmo FK
+        string class_code FK
+        float operation_days_per_week
+        float tours_per_day
+        float mm7_hours
+        float mpe9_hours
+        float et10_hours
+        float total_hrs_per_year
+        float operational_maintenance_hrs_per_year
+        datetime calculated_date
+    }
+
+    WEBEOR_RAW_DATA {
+        string record_id PK
+        string site
+        string mtype
+        string mno
+        string op_no
+        string sort_program
+        integer tour
+        string run_number
+        datetime start_time
+        datetime end_time
+        integer fed_count
+        string mods
+        string dois
+    }
+
+    WEBEOR_PROCESSED_DATA {
+        string processed_id PK
+        string machine_id FK
+        date processing_date
+        integer active_days
+        float avg_tours_per_day
+        float avg_days_per_week
+        integer total_fed_count
+        integer total_records
+        float yearly_fed_projection
+    }
+
+    STAFFING_COMPARISON {
+        string comparison_id PK
+        string machine_id FK
+        string mmo FK
+        float staffing_total_hours
+        float calculated_total_hours
+        float difference_hours
+        float staffing_mm7
+        float calculated_mm7
+        float difference_mm7
+        float staffing_mpe9
+        float calculated_mpe9
+        float difference_mpe9
+        float staffing_et10
+        float calculated_et10
+        float difference_et10
+        datetime comparison_date
+    }
+
+    GRIEVANCE {
+        string grievance_id PK
+        string grievant_name
+        string address
+        string city
+        string state
+        string zip
+        string phone
+        string ein
+        string craft
+        string status
+        string level
+        string step
+        string duty_hours
+        string off_days
+        string email
+        string job_no
+        string postal_installation
+        string work_location
+        string seniority
+        boolean pref_eligible
+        string discipline
+        string contract
+        date grievance_date
+        string local_grievance_no
+        datetime incident_datetime
+        string usps_rep
+        string steward
+        text background
+        text corrective_action
+        text management_response
+    }
+
+    GRIEVANCE_MACHINE {
+        string grievance_id PK,FK
+        string machine_id PK,FK
+        string issue_type "staffing, maintenance, etc"
+    }
+
+    GRIEVANCE_ATTACHMENT {
+        string attachment_id PK
+        string grievance_id FK
+        string attachment_type "staffing_report, webeor_report"
+        string file_path
+        text content_html
+        datetime attached_date
+    }
+
+    AUDIT_REPORT {
+        string report_id PK
+        datetime generated_date
+        integer total_machines
+        integer included_machines
+        integer excluded_machines
+        float total_staffing_hours
+        float total_calculated_hours
+        float total_difference
+        string report_path
+        text excluded_machines_list
+    }
+
+    AUDIT_REPORT_MACHINE {
+        string report_id PK,FK
+        string machine_id PK,FK
+        boolean included_in_report
+        string exclusion_reason
+    }
+
+    %% Relationships
+    MACHINE ||--o{ MACHINE_CLASS_CODE : "has"
+    MACHINE ||--o{ MMO_DIRECTORY : "references"
+    MACHINE ||--o| STAFFING_TABLE : "has current"
+    MACHINE ||--o{ CALCULATED_STAFFING_TABLE : "has calculations"
+    MACHINE ||--o{ WEBEOR_PROCESSED_DATA : "has metrics"
+    MACHINE ||--o{ STAFFING_COMPARISON : "has comparisons"
+    MACHINE ||--o{ GRIEVANCE_MACHINE : "involved in"
+    
+    MMO_DIRECTORY ||--o{ LABOR_LOOKUP_TABLE : "contains"
+    MMO_DIRECTORY ||--o{ STAFFING_TABLE : "defines"
+    MMO_DIRECTORY ||--o{ CALCULATED_STAFFING_TABLE : "defines"
+    
+    MACHINE_CLASS_CODE }o--|| MMO_DIRECTORY : "maps to"
+    
+    STAFFING_TABLE ||--o| STAFFING_COMPARISON : "compared in"
+    CALCULATED_STAFFING_TABLE ||--o| STAFFING_COMPARISON : "compared in"
+    
+    WEBEOR_RAW_DATA }o--|| WEBEOR_PROCESSED_DATA : "aggregated into"
+    
+    GRIEVANCE ||--o{ GRIEVANCE_MACHINE : "involves"
+    GRIEVANCE ||--o{ GRIEVANCE_ATTACHMENT : "has"
+    
+    AUDIT_REPORT ||--o{ AUDIT_REPORT_MACHINE : "includes"
+    AUDIT_REPORT_MACHINE }o--|| MACHINE : "references"

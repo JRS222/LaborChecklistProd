@@ -1,0 +1,160 @@
+flowchart TD
+    Start([User Launches Machine Checker.ps1]) --> Init{Initialize System}
+    
+    Init --> LoadCSV[Load CSV Mappings<br/>- Machines_and_Acronyms.csv<br/>- Machine_PubNum_Mappings.csv]
+    LoadCSV --> |Success| CreateUI[Create Main UI Form<br/>- ListView for machines<br/>- Input controls<br/>- Action buttons]
+    LoadCSV --> |Failure| Error1[Show Error Message<br/>Exit Application]
+    
+    CreateUI --> MainMenu{Main Menu Options}
+    
+    %% Manual Entry Path
+    MainMenu --> |Manual Entry| ManualEntry[Select Machine Acronym<br/>Enter Machine Number]
+    ManualEntry --> SaveManual[Click Save Button]
+    SaveManual --> ValidateManual{Validate Input}
+    ValidateManual --> |Valid| AddToList[Add to ListView<br/>Empty parameters]
+    ValidateManual --> |Invalid| ErrorManual[Show Validation Error]
+    ErrorManual --> ManualEntry
+    AddToList --> Configure{Configure Machine?}
+    
+    %% Import Path
+    MainMenu --> |Import Directory| ImportDir[Select Directory with<br/>WebEOR CSV Files]
+    ImportDir --> ScanFiles[Scan Directory for<br/>CSV Files]
+    ScanFiles --> |Files Found| CombineCSV[Combine CSV Files<br/>- Add headers<br/>- Remove duplicates<br/>- Create WebEOR-Combined.csv]
+    ScanFiles --> |No Files| ErrorImport[Show Error Message]
+    
+    CombineCSV --> ProcessData[Process Combined Data<br/>- Parse dates and times<br/>- Group by machine<br/>- Calculate metrics]
+    ProcessData --> CalcMetrics[Calculate Machine Metrics<br/>- Average tours per day<br/>- Average days per week<br/>- Operational statistics]
+    CalcMetrics --> FilterData[Filter Data<br/>- Remove insufficient data<br/>- Check for duplicates]
+    FilterData --> AddMachines[Add Machines to ListView<br/>- Store original values<br/>- Mark as imported]
+    AddMachines --> ExportProcessed[Export Processed Data<br/>WebEOR-Processed-timestamp.csv]
+    ExportProcessed --> ShowResults[Show Import Summary<br/>- Files processed<br/>- Machines added<br/>- Data quality metrics]
+    ShowResults --> Configure
+    
+    %% Configuration Path
+    Configure --> |Yes| SelectMachine[Select Machine from ListView]
+    Configure --> |No| MainMenu
+    SelectMachine --> ConfigDialog[Open Configuration Dialog]
+    
+    ConfigDialog --> LoadMMO[Load Machine Class Codes<br/>Find MMO Directory<br/>Load Labor Lookup Table]
+    LoadMMO --> |Success| CreateParams[Create Dynamic Parameters<br/>- Operation days/week<br/>- Tours per day<br/>- Machine-specific params]
+    LoadMMO --> |Failure| ErrorConfig[Show Configuration Error]
+    ErrorConfig --> MainMenu
+    
+    CreateParams --> ShowDialog[Show Configuration Dialog<br/>- Class code dropdown<br/>- Dynamic parameter inputs<br/>- Original value indicators]
+    ShowDialog --> UserInput{User Input}
+    UserInput --> |Save| ValidateConfig{Validate Configuration}
+    UserInput --> |Cancel| MainMenu
+    
+    ValidateConfig --> |Valid| UpdateMachine[Update Machine in ListView<br/>- Set class code and MMO<br/>- Update all parameters<br/>- Mark adjusted values]
+    ValidateConfig --> |Invalid| ErrorValidation[Show Validation Error]
+    ErrorValidation --> ShowDialog
+    
+    UpdateMachine --> StoreOriginal[Store Original Values<br/>in ListView Tag Property]
+    StoreOriginal --> MainMenu
+    
+    %% View Details Path
+    MainMenu --> |View Details| SelectForDetails[Select Configured Machine]
+    SelectForDetails --> OpenDetails[Open View Details Dialog]
+    OpenDetails --> CreateTabs[Create Tabbed Interface<br/>- Labor Lookup Tab<br/>- Staffing Table Tab<br/>- Calculated Staffing Tab]
+    
+    CreateTabs --> LoadLaborTab[Load Labor Lookup Tab<br/>- Read MMO Labor-Lookup.csv<br/>- Display in DataGridView<br/>- Highlight matching rows]
+    LoadLaborTab --> LoadStaffingTab[Load Staffing Table Tab<br/>- Read MMO Staffing-Table.csv<br/>- Filter for current machine<br/>- Display editable data]
+    LoadStaffingTab --> LoadCalcTab[Load Calculated Staffing Tab<br/>- Initially empty<br/>- Calculate button available]
+    
+    LoadCalcTab --> TabSelection{Tab Selection}
+    
+    %% Staffing Table Editing
+    TabSelection --> |Edit Staffing| EditStaffing[Click Edit Staffing Data]
+    EditStaffing --> StaffingDialog[Open Staffing Table Dialog<br/>- Load existing data<br/>- Create editable form]
+    StaffingDialog --> EditData[User Edits Data<br/>- Machine parameters<br/>- Management hours<br/>- Output values]
+    EditData --> SaveStaffing{Save Staffing Data?}
+    SaveStaffing --> |Yes| UpdateStaffingFile[Update Staffing CSV File<br/>- Preserve other machines<br/>- Write to MMO directory]
+    SaveStaffing --> |No| TabSelection
+    UpdateStaffingFile --> RefreshStaffingTab[Refresh Staffing Tab<br/>Display Updated Data]
+    RefreshStaffingTab --> TabSelection
+    
+    %% Calculation Process
+    TabSelection --> |Calculate| CalcStaffing[Click Calculate Staffing]
+    CalcStaffing --> MatchParams[Match Machine Parameters<br/>to Labor Lookup Table<br/>- Score matching algorithm<br/>- Find best match]
+    MatchParams --> |Match Found| ExtractValues[Extract Output Values<br/>- Total hours per year<br/>- Operational maintenance hours]
+    MatchParams --> |No Match| ErrorCalc[Show Matching Error]
+    ErrorCalc --> TabSelection
+    
+    ExtractValues --> LoadStaffingData[Load Existing Staffing Data<br/>for Management Hours Distribution]
+    LoadStaffingData --> CalcManagement[Calculate Management Hours<br/>- MM7, MPE9, ET10<br/>- Based on ratios or equal distribution]
+    CalcManagement --> DisplayCalc[Display Calculated Values<br/>in Calculated Staffing Grid]
+    DisplayCalc --> SaveCalcOption{Save Calculated Data?}
+    SaveCalcOption --> |Yes| SaveCalculated[Save to Calculated-Staffing-Table.csv]
+    SaveCalcOption --> |No| TabSelection
+    SaveCalculated --> TabSelection
+    
+    %% Report Generation Path
+    MainMenu --> |Generate Report| StartReport[Start Report Generation]
+    StartReport --> VerifyMachines[Verify All Machines<br/>- Check for staffing tables<br/>- Check for calculated tables<br/>- Identify missing data]
+    VerifyMachines --> |Complete Data| GenerateHTML[Generate HTML Report<br/>- Machine data table<br/>- Staffing comparisons by MMO<br/>- Summary table with differences]
+    VerifyMachines --> |Missing Data| ShowWarning[Show Missing Data Warning<br/>Option to Continue]
+    ShowWarning --> |Continue| GenerateHTML
+    ShowWarning --> |Cancel| MainMenu
+    
+    GenerateHTML --> SaveReport[Save Machine Staffing Report<br/>to Completed Audits Directory]
+    SaveReport --> OfferGrievance{Open Grievance Form?}
+    OfferGrievance --> |Yes| OpenGrievance[Open Grievance Form.html<br/>in Default Browser]
+    OfferGrievance --> |No| MainMenu
+    
+    %% Grievance Form System
+    OpenGrievance --> GrievanceStart([Grievance Form Loads])
+    GrievanceStart --> GrievanceMenu{Grievance Form Actions}
+    
+    %% Import Report to Grievance
+    GrievanceMenu --> |Import Report| SelectReport[Click Import Report Button<br/>Open File Dialog to Completed Audits]
+    SelectReport --> ValidateReport{Validate Report File}
+    ValidateReport --> |Valid HTML Report| ParseReport[Parse HTML Report<br/>- Extract summary table<br/>- Find negative values<br/>- Get totals and breakdown]
+    ValidateReport --> |Invalid File| ErrorGrievance[Show Import Error]
+    ErrorGrievance --> GrievanceMenu
+    
+    ParseReport --> PopulateForm[Auto-Populate Form<br/>- Background section with facts<br/>- Corrective action with demands<br/>- Include machine list and totals]
+    PopulateForm --> FormReady[Form Ready for Editing]
+    FormReady --> GrievanceMenu
+    
+    %% Save Grievance
+    GrievanceMenu --> |Save Form| CollectFormData[Collect All Form Data<br/>- Manual entries<br/>- Populated content<br/>- Imported report path]
+    CollectFormData --> CreateGrievanceHTML[Create Complete HTML<br/>- Include form state<br/>- Attach full report with styling<br/>- Preserve formatting]
+    CreateGrievanceHTML --> DownloadGrievance[Download Grievance File<br/>Grievance_reportname_timestamp.html]
+    DownloadGrievance --> GrievanceMenu
+    
+    %% Print Grievance
+    GrievanceMenu --> |Print| PrepareForPrint[Prepare for Print<br/>- Show attached report<br/>- Apply print CSS<br/>- Preserve colors and borders]
+    PrepareForPrint --> PrintDialog[Open Browser Print Dialog]
+    PrintDialog --> CleanupPrint[Cleanup Print Display]
+    CleanupPrint --> GrievanceMenu
+    
+    %% Session Management
+    MainMenu --> |Restore Session| RestoreSession[Select Previous Session CSV]
+    RestoreSession --> LoadSession[Load Session Data<br/>- Restore all machines<br/>- Restore configurations<br/>- Restore original values]
+    LoadSession --> MainMenu
+    
+    MainMenu --> |Export| ExportCurrent[Export Current ListView<br/>to CSV with all data<br/>including original values]
+    ExportCurrent --> MainMenu
+    
+    %% Error Handling and Validation
+    ErrorManual --> MainMenu
+    ErrorImport --> MainMenu
+    ErrorConfig --> MainMenu
+    ErrorValidation --> ConfigDialog
+    ErrorCalc --> TabSelection
+    ErrorGrievance --> GrievanceMenu
+    
+    %% Styling for different node types
+    classDef startEnd fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef process fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef data fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef ui fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    
+    class Start,GrievanceStart startEnd
+    class LoadCSV,CreateUI,ProcessData,CalcMetrics,FilterData,AddMachines,ExportProcessed,LoadMMO,CreateParams,UpdateMachine,StoreOriginal,LoadLaborTab,LoadStaffingTab,LoadCalcTab,EditData,UpdateStaffingFile,RefreshStaffingTab,MatchParams,ExtractValues,LoadStaffingData,CalcManagement,DisplayCalc,SaveCalculated,GenerateHTML,SaveReport,ParseReport,PopulateForm,CollectFormData,CreateGrievanceHTML,DownloadGrievance,PrepareForPrint,PrintDialog,CleanupPrint,LoadSession,ExportCurrent process
+    class Init,MainMenu,Configure,ValidateManual,UserInput,ValidateConfig,TabSelection,SaveStaffing,SaveCalcOption,VerifyMachines,ShowWarning,OfferGrievance,GrievanceMenu,ValidateReport,SaveCalcOption decision
+    class Error1,ErrorManual,ErrorImport,ErrorConfig,ErrorValidation,ErrorCalc,ErrorGrievance error
+    class ScanFiles,CombineCSV,ShowResults,StaffingDialog,EditStaffing data
+    class SelectMachine,ConfigDialog,ShowDialog,SelectForDetails,OpenDetails,CreateTabs,SelectReport,FormReady,RestoreSession ui

@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFI Generator - Request for Information</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .form-section {
+            padding: 40px;
+        }
+
+        .template-selector {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+
+        .template-selector h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .facility-section {
+            background: #fff8e1;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #ffc107;
+        }
+
+        .facility-section h4 {
+            color: #f57f17;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .generate-section {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(40, 167, 69, 0.4);
+        }
+
+        .preview-btn {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .preview-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .output-section {
+            display: none;
+            background: #f8f9fa;
+            padding: 30px;
+            border-top: 3px solid #3498db;
+        }
+
+        .output-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+
+        .rfi-output {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-family: 'Calibri Light', Calibri, sans-serif;
+            line-height: 1.4;
+        }
+
+        /* RFI Document Styles */
+        .rfi-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .rfi-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            font-size: 12pt;
+        }
+
+        .rfi-header-table td {
+            height: 20px;
+        }
+
+        .rfi-content {
+            font-size: 12pt;
+            margin: 20px 0;
+        }
+
+        .rfi-request-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .rfi-request-table th {
+            background: #000;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #000;
+        }
+
+        .rfi-request-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            vertical-align: top;
+        }
+
+        .rfi-request-table .gray-row {
+            background: #d9d9d9;
+        }
+
+        .legal-text {
+            font-size: 8pt;
+            margin: 15px 0;
+        }
+
+        .legal-list {
+            margin-left: 20px;
+            font-size: 8pt;
+        }
+
+        .approval-section {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .copy-btn {
+            background: #17a2b8;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .copy-btn:hover {
+            background: #138496;
+        }
+
+        .copy-btn:last-child:hover {
+            background: #c82333 !important;
+        }
+
+        /* Hide approval section and bottom table in preview mode */
+        .rfi-output .approval-section,
+        .rfi-output .rfi-table:last-child {
+            display: none;
+        }
+
+        /* Show approval section and bottom table only when printing */
+        @media print {
+            .rfi-output .approval-section,
+            .rfi-output .rfi-table:last-child {
+                display: block !important;
+            }
+        }
+
+        /* APWU Header Styles */
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px 0;
+            border-bottom: 2px solid #0056a3;
+        }
+
+        .header-left {
+            flex: 0 0 auto;
+        }
+
+        .apwu-logo {
+            width: 120px;
+            height: auto;
+        }
+
+        .header-center {
+            flex: 1;
+            text-align: center;
+        }
+
+        .header-center h1 {
+            color: #0056a3;
+            font-size: 18pt;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .header-right {
+            flex: 0 0 auto;
+            text-align: right;
+        }
+
+        .header-right p {
+            color: #0056a3;
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .header-right .subtitle {
+            font-size: 12pt;
+            font-weight: normal;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .form-section {
+                padding: 20px;
+            }
+
+            .header-container {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .header-left, .header-right {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>RFI Generator</h1>
+            <p>Request for Information - Interactive Form Builder</p>
+        </div>
+
+        <div class="form-section">
+            <div class="template-selector">
+                <h3>📋 Select RFI Template</h3>
+                <div class="form-group">
+                    <label for="templateSelect">Template Type:</label>
+                        <select id="templateSelect" onchange="updateTemplateDescription()">
+                            <option value="ewhep_staffing">Challenge the eWHEP Staffing Package</option>
+                            <option value="general_understaffing">General Maintenance Understaffing</option>
+                            <option value="custodial_understaffing">Custodial Understaffing (MS-47)</option>
+                            <option value="preventive_maintenance">Bypassing Preventive Maintenance</option>
+                            <option value="maintenance_coverage">Lack of Maintenance Coverage During Operations</option>
+                            <option value="staffing_completion">Failure to Complete Staffing Package</option>
+                        </select>
+                </div>
+                <div class="form-group">
+                    <p id="templateDescription" style="font-style: italic; color: #666; margin-top: 10px;">
+                        Use when challenging the Electronic Workhour Estimator Program (eWHEP) staffing package for equipment inventory and tour discrepancies.
+                    </p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="toField">To:</label>
+                    <input type="text" id="toField" placeholder="e.g., Your Maintenance Manager's or Plant Manager's Name">
+                </div>
+
+                <div class="form-group">
+                    <label for="toTitle">To Title:</label>
+                    <input type="text" id="toTitle" placeholder="e.g., Maintenance Manager">
+                </div>
+
+                <div class="form-group">
+                    <label for="fromField">From:</label>
+                    <input type="text" id="fromField" placeholder="e.g., Your Name">
+                </div>
+
+                <div class="form-group">
+                    <label for="fromTitle">From Title:</label>
+                    <input type="text" id="fromTitle" placeholder="e.g., Shop Steward">
+                </div>
+
+                <div class="form-group">
+                    <label for="references">Reference(s):</label>
+                    <input type="text" id="references" placeholder="e.g., Article 19">
+                </div>
+
+                <div class="form-group">
+                    <label for="particularNeed">Particular Need:</label>
+                    <input type="text" id="particularNeed" placeholder="Spell out why/if it's urgent">
+                </div>
+            </div>
+
+            <div class="facility-section">
+                <h4>📋 Facility Information</h4>
+                <div class="form-group">
+                    <label for="facilityName">Installation or Facility Name:</label>
+                    <input type="text" id="facilityName" placeholder="Enter facility name (include satellite facilities and branches)">
+                </div>
+            </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="syncFields" checked onchange="toggleSync()"> 
+                        Auto-sync with header fields above
+                    </label>
+                </div>
+            </div>
+
+            <div class="generate-section">
+                <button class="generate-btn" onclick="generateRFI()">
+                    🚀 Generate RFI Document
+                </button>
+                <button class="preview-btn" onclick="previewRFI()">
+                    👁️ Preview
+                </button>
+            </div>
+        </div>
+
+        <div class="output-section" id="outputSection">
+            <h3>📄 Generated RFI Document</h3>
+            <div class="rfi-output" id="rfiOutput"></div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="copy-btn" onclick="saveAsHTML()" style="margin-right: 10px;">💾 Save as HTML</button>
+                <button class="copy-btn" onclick="printAsPDF()" style="background: #dc3545;">📄 Print as PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getCurrentDateTime() {
+            const now = new Date();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const year = now.getFullYear();
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const hoursStr = hours.toString();
+            
+            return `${month}/${day}/${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+        }
+
+        function getDueDate() {
+            const now = new Date();
+            const dueDate = new Date(now.getTime() + (5 * 24 * 60 * 60 * 1000)); // 5 days from now
+            const month = (dueDate.getMonth() + 1).toString().padStart(2, '0');
+            const day = dueDate.getDate().toString().padStart(2, '0');
+            const year = dueDate.getFullYear();
+            let hours = dueDate.getHours();
+            const minutes = dueDate.getMinutes().toString().padStart(2, '0');
+            const seconds = dueDate.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const hoursStr = hours.toString();
+            
+            return `${month}/${day}/${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+        }
+
+        function getAPWUHeader() {
+            return `
+                <div class="header-container">
+                    <div class="header-left">
+                        <svg class="apwu-logo" viewBox="0 0 129 33" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M99.517,3.821 L79.612,32.409 L72.224,32.409 L71.83,16.551 L61.094,32.409 L53.509,32.409 L53.017,15.073 C50.177,21.865 45.479,22.568 38.734,22.559 L38.734,32.409 L30.46,32.409 L30.46,0.101 C43.331,0.758 48.832,-1.992 52.702,6.652 L52.32,0.102 L60.896,0.102 L61.389,17.634 L73.11,0.102 L79.612,0.102 L79.809,18.225 L92.416,0.102 L110.541,0.102 L100.798,20.53 C98.242,25.892 105.776,27.278 108.358,21.896 L118.814,0.102 L128.073,0.102 C123.167,8.324 119.272,17.936 115.04,26.568 C111.242,34.311 93.759,35.745 91.038,27.09 C89.411,21.919 97.133,9.115 99.517,3.821 Z M38.734,7.981 L38.738,14.802 C38.738,14.802 41.61,14.813 42.871,14.581 C43.739,14.269 45.038,13.3 45.137,11.823 C45.298,10.642 45.054,9.993 44.349,8.966 C43.364,7.587 38.734,7.981 38.734,7.981 Z" fill="#0056a3"></path>
+                            <path d="M29.254,0.102 L29.254,32.508 L21.141,32.508 L21.141,28.075 L12.608,28.075 L9.85,32.409 L0,32.409 L21.473,0.102 L29.254,0.102 Z M21.215,13.02 L16.844,21.18 L21.215,21.18 L21.215,13.02 Z" fill="#0056a3"></path>
+                        </svg>
+                    </div>
+                    <div class="header-center">
+                        <h1>American Postal Workers Union, AFL-CIO</h1>
+                    </div>
+                    <div class="header-right">
+                        <p>Request for Information</p>
+                        <p class="subtitle">Initial Discovery</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateTemplateDescription() {
+            const template = document.getElementById('templateSelect').value;
+            const descriptions = {
+                'ewhep_staffing': 'Use when challenging the Electronic Workhour Estimator Program (eWHEP) staffing package for equipment inventory and tour discrepancies.',
+                'general_understaffing': 'Use when facility has approved staffing package but is below authorized complement (MMO-125-20).',
+                'custodial_understaffing': 'Use when custodial staffing is below MS-47 survey requirements and areas are not being properly cleaned.',
+                'preventive_maintenance': 'Use when required preventive maintenance is being bypassed (MI AS-530-90-5).',
+                'maintenance_coverage': 'Use when equipment operates without proper maintenance coverage during operational tours.',
+                'staffing_completion': 'Use when management fails to complete or update required staffing surveys.'
+            };
+            
+            // Update description if element exists
+            const descElement = document.getElementById('templateDescription');
+            if (descElement) {
+                descElement.textContent = descriptions[template] || '';
+            }
+        }
+
+        function generateEWHEPStaffingRFI() {
+            const toField = document.getElementById('toField').value || '[TO FIELD]';
+            const toTitle = document.getElementById('toTitle').value || '[TO TITLE]';
+            const fromField = document.getElementById('fromField').value || '[FROM FIELD]';
+            const fromTitle = document.getElementById('fromTitle').value || '[FROM TITLE]';
+            const references = document.getElementById('references').value || 'Article 19';
+            const particularNeed = document.getElementById('particularNeed').value || '';
+            const facilityName = document.getElementById('facilityName').value || '[FACILITY NAME]';
+            const currentDate = getCurrentDateTime();
+            const dueDate = getDueDate();
+
+            return `
+                <!-- RFI Document Generated - Replicating Word/Excel Macro Functionality -->
+                <div style="font-family: 'Calibri Light', Calibri, sans-serif; margin: 0; padding: 20px;">
+                    ${getAPWUHeader()}
+                    
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">To: ${toField}</td>
+                            <td style="width: 50%;">Title: ${toTitle}</td>
+                        </tr>
+                        <tr>
+                            <td>From: ${fromField}</td>
+                            <td>Title: ${fromTitle}</td>
+                        </tr>
+                    </table>
+
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">Date of Request: ${currentDate}</td>
+                            <td style="width: 50%;">Due Date: ${dueDate}</td>
+                        </tr>
+                        <tr>
+                            <td>Reference(s): ${references}</td>
+                            <td>Particular Need: ${particularNeed}</td>
+                        </tr>
+                    </table>
+
+                    <div class="rfi-content">
+                        <p>We request that the following documents and/or witnesses be made available to us in order to properly identify whether or not a grievance does exist and, if so, their relevancy to the grievance:</p>
+                    </div>
+
+                    <!-- RFI Table (replicating Excel "RFITable" range copy) -->
+                    <table class="rfi-request-table">
+                        <tr>
+                            <th style="width: 25%;">Individual/Document</th>
+                            <th style="width: 25%;">Denial Date</th>
+                            <th style="width: 25%;">Received Date</th>
+                            <th style="width: 25%;">Additional Info</th>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Section 2A</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Please deliver as a PDF</td>
+                        </tr>
+                        <tr>
+                            <td>Section 2B</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Please deliver as a PDF</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Section 2C</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Please Deliver as a PDF</td>
+                        </tr>
+                        <tr>
+                            <td>A copy of the current/complete/authorized eWHEP staffing package for ${facilityName}, to include all forms and worksheets.</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Deliver as a PDF</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>1 Year of WebEOR reports without maintenance Runs.</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Deliver as CSVs</td>
+                        </tr>
+                    </table>
+
+                    <div class="legal-text">
+                        <p><strong>Understaffing Impact:</strong> When the Postal Service operates below authorized complement as established by MMO-125-20, it compromises safety, service quality, and employee working conditions. The Service must staff consistent with its approved survey and provide monetary remedy for failure to properly staff.</p>
+                        
+                        <p><strong>Note: <u>Article 17, Section 3</u> and <u>Article 31, Section 2</u></strong> of our contract mandate that the Employer must provide access to all necessary documents, files, and records for grievance processing and collective bargaining. Failure to comply is a contract breach and a violation of <strong><u>39 CFR 266.6</u> and <u>Section 8(a)(5) of the NLRA</u></strong>.</p>
+                        
+                        <ul class="legal-list">
+                            <li>39 CFR 266.6: Non-compliance can lead to severe penalties. Requests for records must be made in writing. Non-Postal Service employees must designate a post office for reviewing records. Amendments to records must be contested for relevance, accuracy, timeliness, or completeness. The custodian must acknowledge receipt within 10 days.</li>
+                            <li>Section 8(a)(5) of the NLRA: Failure to supply relevant information for collective bargaining is an Unfair Labor Practice (ULP). Grievance processing is an extension of this process.</li>
+                        </ul>
+
+                        <p>Recent legal cases illustrate the consequences of non-compliance:</p>
+                        
+                        <ol class="legal-list">
+                            <li><strong><u>Case No. 16-1611</u></strong> (Fourth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 17-2561</u></strong> (Third Circuit)
+                                <ul>
+                                    <li>Fine: $20,000 + $100/day per violation</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-2010</u></strong> (First Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 86-6043, 10-2376</u></strong> (Sixth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-70118</u></strong> (Ninth Circuit)
+                                <ul>
+                                    <li>Fine: $50,000 per interference/coercion</li>
+                                    <li>Additional fines: $100/day per violation, up to $25,000 per future violation</li>
+                                </ul>
+                            </li>
+                        </ol>
+
+                        <p>Non-compliance has led to substantial fines and penalties, demonstrating the serious legal and financial repercussions. The Employer must comply with these legal requirements to avoid severe consequences.</p>
+                    </div>
+
+                    <div class="approval-section">
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST APPROVED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST DENIED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                    </div>
+
+                    <table class="rfi-table" style="margin-top: 20px;">
+                        <tr>
+                            <td>If the information is not received by the Step 3 appeal, write "Not Received" in this column</td>
+                        </tr>
+                        <tr style="height: 40px;">
+                            <td style="height: 40px;">&nbsp;</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        function generateCustodialUnderstaffingRFI() {
+        const toField = document.getElementById('toField').value || '[TO FIELD]';
+        const toTitle = document.getElementById('toTitle').value || '[TO TITLE]';
+        const fromField = document.getElementById('fromField').value || '[FROM FIELD]';
+        const fromTitle = document.getElementById('fromTitle').value || '[FROM TITLE]';
+        const references = document.getElementById('references').value || 'Article 19, MS-47, Article 14';
+        const particularNeed = document.getElementById('particularNeed').value || '';
+        const facilityName = document.getElementById('facilityName').value || '[FACILITY NAME]';
+        const currentDate = getCurrentDateTime();
+        const dueDate = getDueDate();
+
+        return `
+            <div style="font-family: 'ISOCPEUR', Calibri, sans-serif; margin: 0; padding: 20px;">
+                ${getAPWUHeader()}
+                
+                <table class="rfi-table rfi-header-table">
+                    <tr>
+                        <td style="width: 50%;">To: ${toField}</td>
+                        <td style="width: 50%;">Title: ${toTitle}</td>
+                    </tr>
+                    <tr>
+                        <td>From: ${fromField}</td>
+                        <td>Title: ${fromTitle}</td>
+                    </tr>
+                </table>
+
+                <table class="rfi-table rfi-header-table">
+                    <tr>
+                        <td style="width: 50%;">Date of Request: ${currentDate}</td>
+                        <td style="width: 50%;">Due Date: ${dueDate}</td>
+                    </tr>
+                    <tr>
+                        <td>Reference(s): ${references}</td>
+                        <td>Particular Need: ${particularNeed}</td>
+                    </tr>
+                </table>
+
+                <div class="rfi-content">
+                    <p>We request that the following documents and/or witnesses be made available to us in order to properly identify whether or not a grievance does exist and, if so, their relevancy to the grievance:</p>
+                </div>
+
+                <table class="rfi-request-table">
+                    <tr>
+                        <th style="width: 25%;">Individual/Document</th>
+                        <th style="width: 25%;">Denial Date</th>
+                        <th style="width: 25%;">Received Date</th>
+                        <th style="width: 25%;">Additional Info</th>
+                    </tr>
+                    <tr class="gray-row">
+                        <td>Complete custodial staffing package including Forms 4852, 4869, 4839, and 4776 for ${facilityName}</td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: center;">Deliver as PDF</td>
+                    </tr>
+                    <tr>
+                        <td>All housekeeping inspection reports (Forms 4851)</td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: center;">Last 6 months</td>
+                    </tr>
+                    <tr class="gray-row">
+                        <td>All bypassed custodial routes or work from NMICS/MARS</td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: center;">Last 90 days</td>
+                    </tr>
+                    <tr>
+                        <td>Current custodial staffing by occupational group and complement deficiency</td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: center;">Current report</td>
+                    </tr>
+                    <tr class="gray-row">
+                        <td>Documentation of any long-term custodial absences (204B details, sick leave, OWCP, removals)</td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: center;">Last 90 days</td>
+                    </tr>
+                </table>
+
+                <div class="legal-text">
+                    <p><strong>Custodial Health & Safety Impact:</strong> The MS-47 Handbook, as interpreted by Arbitrator Gamser and National settlements, requires the Postal Service to perform all cleaning indicated on its staffing survey, hire to the complement indicated (Section 243.u), and maintain that staffing once survey is completed (Section 116). Failure to maintain proper custodial staffing creates health and safety violations under Article 14.</p>
+                    
+                    <p><strong>Note: <u>Article 17, Section 3</u> and <u>Article 31, Section 2</u></strong> of our contract mandate that the Employer must provide access to all necessary documents, files, and records for grievance processing and collective bargaining. Failure to comply is a contract breach and a violation of <strong><u>39 CFR 266.6</u> and <u>Section 8(a)(5) of the NLRA</u></strong>.</p>
+                    
+                    <ul class="legal-list">
+                        <li>39 CFR 266.6: Non-compliance can lead to severe penalties. Requests for records must be made in writing. Non-Postal Service employees must designate a post office for reviewing records. Amendments to records must be contested for relevance, accuracy, timeliness, or completeness. The custodian must acknowledge receipt within 10 days.</li>
+                        <li>Section 8(a)(5) of the NLRA: Failure to supply relevant information for collective bargaining is an Unfair Labor Practice (ULP). Grievance processing is an extension of this process.</li>
+                    </ul>
+
+                    <p>Recent legal cases illustrate the consequences of non-compliance:</p>
+                    
+                    <ol class="legal-list">
+                        <li><strong><u>Case No. 16-1611</u></strong> (Fourth Circuit)
+                            <ul>
+                                <li>Fine: $17,500 + $100/day per violation</li>
+                                <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                            </ul>
+                        </li>
+                        <li><strong><u>Case No. 17-2561</u></strong> (Third Circuit)
+                            <ul>
+                                <li>Fine: $20,000 + $100/day per violation</li>
+                            </ul>
+                        </li>
+                        <li><strong><u>Case No. 14-2010</u></strong> (First Circuit)
+                            <ul>
+                                <li>Fine: $17,500 + $100/day per violation</li>
+                                <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                            </ul>
+                        </li>
+                        <li><strong><u>Case No. 86-6043, 10-2376</u></strong> (Sixth Circuit)
+                            <ul>
+                                <li>Fine: $17,500 + $100/day per violation</li>
+                                <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                            </ul>
+                        </li>
+                        <li><strong><u>Case No. 14-70118</u></strong> (Ninth Circuit)
+                            <ul>
+                                <li>Fine: $50,000 per interference/coercion</li>
+                                <li>Additional fines: $100/day per violation, up to $25,000 per future violation</li>
+                            </ul>
+                        </li>
+                    </ol>
+
+                    <p>Non-compliance has led to substantial fines and penalties, demonstrating the serious legal and financial repercussions. The Employer must comply with these legal requirements to avoid severe consequences.</p>
+                </div>
+
+                <div class="approval-section">
+                    <div>
+                        <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST APPROVED IN TOTAL</p>
+                        <br>
+                        <p>Date: _______________</p>
+                    </div>
+                    <div>
+                        <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST DENIED IN TOTAL</p>
+                        <br>
+                        <p>Date: _______________</p>
+                    </div>
+                </div>
+
+                <table class="rfi-table" style="margin-top: 20px;">
+                    <tr>
+                        <td>If the information is not received by the Step 3 appeal, write "Not Received" in this column</td>
+                    </tr>
+                    <tr style="height: 40px;">
+                        <td style="height: 40px;">&nbsp;</td>
+                    </tr>
+                </table>
+            </div>
+        `;
+    }
+
+        function generatePreventiveMaintenanceRFI() {
+            const toField = document.getElementById('toField').value || '[TO FIELD]';
+            const toTitle = document.getElementById('toTitle').value || '[TO TITLE]';
+            const fromField = document.getElementById('fromField').value || '[FROM FIELD]';
+            const fromTitle = document.getElementById('fromTitle').value || '[FROM TITLE]';
+            const references = document.getElementById('references').value || 'Article 19, MMO-125-20, MI AS-530-90-5, ASM 531.313';
+            const particularNeed = document.getElementById('particularNeed').value || '';
+            const facilityName = document.getElementById('facilityName').value || '[FACILITY NAME]';
+            const currentDate = getCurrentDateTime();
+            const dueDate = getDueDate();
+
+            return `
+                <div style="font-family: 'ISOCPEUR', Calibri, sans-serif; margin: 0; padding: 20px;">
+                    ${getAPWUHeader()}
+                    
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">To: ${toField}</td>
+                            <td style="width: 50%;">Title: ${toTitle}</td>
+                        </tr>
+                        <tr>
+                            <td>From: ${fromField}</td>
+                            <td>Title: ${fromTitle}</td>
+                        </tr>
+                    </table>
+
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">Date of Request: ${currentDate}</td>
+                            <td style="width: 50%;">Due Date: ${dueDate}</td>
+                        </tr>
+                        <tr>
+                            <td>Reference(s): ${references}</td>
+                            <td>Particular Need: ${particularNeed}</td>
+                        </tr>
+                    </table>
+
+                    <div class="rfi-content">
+                        <p>We request that the following documents and/or witnesses be made available to us in order to properly identify whether or not a grievance does exist and, if so, their relevancy to the grievance:</p>
+                    </div>
+
+                    <table class="rfi-request-table">
+                        <tr>
+                            <th style="width: 25%;">Individual/Document</th>
+                            <th style="width: 25%;">Denial Date</th>
+                            <th style="width: 25%;">Received Date</th>
+                            <th style="width: 25%;">Additional Info</th>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Bypassed PM routes from eMARS for ${facilityName}</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Last 90 days as CSV</td>
+                        </tr>
+                        <tr>
+                            <td>All preventive maintenance schedules and route sheets for mail processing equipment</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Current schedules</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Documentation of maintenance windows established per MI AS-530-90-5</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Posted schedules</td>
+                        </tr>
+                        <tr>
+                            <td>Records concerning preventive maintenance as required by ASM 531.313</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Last 6 months</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Equipment performance reports showing accept rates, error rates, and throughput</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Last 30 days</td>
+                        </tr>
+                        <tr>
+                            <td>All correspondence regarding preventive maintenance staffing adjustments</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">All available</td>
+                        </tr>
+                    </table>
+
+                    <div class="legal-text">
+                        <p><strong>Preventive Maintenance Requirements:</strong> Management Instruction AS-530-90-5 requires scheduled systematic inspection and servicing of equipment to maintain optimum condition. MMO-125-20 and ASM 531.313 mandate proper record keeping of preventive maintenance. Bypassing required preventive maintenance results in hazards, mail delay, and undermines the mission of the organization pursuant to the Postal Reorganization Act.</p>
+                        
+                        <p><strong>Equipment Performance Impact:</strong> Failure to perform preventive maintenance leads to:</p>
+                        <ul class="legal-list">
+                            <li>High machine error rates and low throughput</li>
+                            <li>Increased unplanned downtime</li>
+                            <li>Poor quality bar codes and high reject rates</li>
+                            <li>High frequency of jams and equipment malfunctions</li>
+                            <li>Failure to achieve operating performance objectives</li>
+                        </ul>
+                        
+                        <p><strong>Note: <u>Article 17, Section 3</u> and <u>Article 31, Section 2</u></strong> of our contract mandate that the Employer must provide access to all necessary documents, files, and records for grievance processing and collective bargaining. Failure to comply is a contract breach and a violation of <strong><u>39 CFR 266.6</u> and <u>Section 8(a)(5) of the NLRA</u></strong>.</p>
+                        
+                        <ul class="legal-list">
+                            <li>39 CFR 266.6: Non-compliance can lead to severe penalties. Requests for records must be made in writing. Non-Postal Service employees must designate a post office for reviewing records. Amendments to records must be contested for relevance, accuracy, timeliness, or completeness. The custodian must acknowledge receipt within 10 days.</li>
+                            <li>Section 8(a)(5) of the NLRA: Failure to supply relevant information for collective bargaining is an Unfair Labor Practice (ULP). Grievance processing is an extension of this process.</li>
+                        </ul>
+
+                        <p>Recent legal cases illustrate the consequences of non-compliance:</p>
+                        
+                        <ol class="legal-list">
+                            <li><strong><u>Case No. 16-1611</u></strong> (Fourth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 17-2561</u></strong> (Third Circuit)
+                                <ul>
+                                    <li>Fine: $20,000 + $100/day per violation</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-2010</u></strong> (First Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 86-6043, 10-2376</u></strong> (Sixth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-70118</u></strong> (Ninth Circuit)
+                                <ul>
+                                    <li>Fine: $50,000 per interference/coercion</li>
+                                    <li>Additional fines: $100/day per violation, up to $25,000 per future violation</li>
+                                </ul>
+                            </li>
+                        </ol>
+
+                        <p>Non-compliance has led to substantial fines and penalties, demonstrating the serious legal and financial repercussions. The Employer must comply with these legal requirements to avoid severe consequences.</p>
+                    </div>
+
+                    <div class="approval-section">
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST APPROVED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST DENIED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                    </div>
+
+                    <table class="rfi-table" style="margin-top: 20px;">
+                        <tr>
+                            <td>If the information is not received by the Step 3 appeal, write "Not Received" in this column</td>
+                        </tr>
+                        <tr style="height: 40px;">
+                            <td style="height: 40px;">&nbsp;</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        function generateMaintenanceCoverageRFI() {
+            const toField = document.getElementById('toField').value || '[TO FIELD]';
+            const toTitle = document.getElementById('toTitle').value || '[TO TITLE]';
+            const fromField = document.getElementById('fromField').value || '[FROM FIELD]';
+            const fromTitle = document.getElementById('fromTitle').value || '[FROM TITLE]';
+            const references = document.getElementById('references').value || 'Article 15, Article 19, USPS Headquarters Directive Nov 29, 1983';
+            const particularNeed = document.getElementById('particularNeed').value || '';
+            const facilityName = document.getElementById('facilityName').value || '[FACILITY NAME]';
+            const currentDate = getCurrentDateTime();
+            const dueDate = getDueDate();
+
+            return `
+                <div style="font-family: 'ISOCPEUR', Calibri, sans-serif; margin: 0; padding: 20px;">
+                    ${getAPWUHeader()}
+                    
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">To: ${toField}</td>
+                            <td style="width: 50%;">Title: ${toTitle}</td>
+                        </tr>
+                        <tr>
+                            <td>From: ${fromField}</td>
+                            <td>Title: ${fromTitle}</td>
+                        </tr>
+                    </table>
+
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">Date of Request: ${currentDate}</td>
+                            <td style="width: 50%;">Due Date: ${dueDate}</td>
+                        </tr>
+                        <tr>
+                            <td>Reference(s): ${references}</td>
+                            <td>Particular Need: ${particularNeed}</td>
+                        </tr>
+                    </table>
+
+                    <div class="rfi-content">
+                        <p>We request that the following documents and/or witnesses be made available to us in order to properly identify whether or not a grievance does exist and, if so, their relevancy to the grievance:</p>
+                    </div>
+
+                    <table class="rfi-request-table">
+                        <tr>
+                            <th style="width: 25%;">Individual/Document</th>
+                            <th style="width: 25%;">Denial Date</th>
+                            <th style="width: 25%;">Received Date</th>
+                            <th style="width: 25%;">Additional Info</th>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Mail processing equipment operating schedules for ${facilityName}</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Current schedules</td>
+                        </tr>
+                        <tr>
+                            <td>Maintenance coverage schedules during all operational tours</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Last 30 days</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Documentation of times equipment operated without maintenance coverage</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Specific dates/times</td>
+                        </tr>
+                        <tr>
+                            <td>All overtime usage and denials related to maintenance coverage</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Last 90 days</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Equipment malfunction reports during periods without maintenance coverage</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Incident reports</td>
+                        </tr>
+                        <tr>
+                            <td>Step 4 settlement H8T-4K-C 35791 and November 29, 1983 directive implementation records</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Compliance documentation</td>
+                        </tr>
+                    </table>
+
+                    <div class="legal-text">
+                        <p><strong>Preventive Maintenance Requirements:</strong> Management Instruction AS-530-90-5 requires scheduled systematic inspection and servicing of equipment to maintain optimum condition. MMO-125-20 and ASM 531.313 mandate proper record keeping of preventive maintenance. Bypassing required preventive maintenance results in hazards, mail delay, and undermines the mission of the organization pursuant to the Postal Reorganization Act.</p>
+                        
+                        <p><strong>Equipment Performance Impact:</strong> Failure to perform preventive maintenance leads to:</p>
+                        <ul class="legal-list">
+                            <li>High machine error rates and low throughput</li>
+                            <li>Increased unplanned downtime</li>
+                            <li>Poor quality bar codes and high reject rates</li>
+                            <li>High frequency of jams and equipment malfunctions</li>
+                            <li>Failure to achieve operating performance objectives</li>
+                        </ul>
+                        
+                        <p><strong>Note: <u>Article 17, Section 3</u> and <u>Article 31, Section 2</u></strong> of our contract mandate that the Employer must provide access to all necessary documents, files, and records for grievance processing and collective bargaining. Failure to comply is a contract breach and a violation of <strong><u>39 CFR 266.6</u> and <u>Section 8(a)(5) of the NLRA</u></strong>.</p>
+                        
+                        <ul class="legal-list">
+                            <li>39 CFR 266.6: Non-compliance can lead to severe penalties. Requests for records must be made in writing. Non-Postal Service employees must designate a post office for reviewing records. Amendments to records must be contested for relevance, accuracy, timeliness, or completeness. The custodian must acknowledge receipt within 10 days.</li>
+                            <li>Section 8(a)(5) of the NLRA: Failure to supply relevant information for collective bargaining is an Unfair Labor Practice (ULP). Grievance processing is an extension of this process.</li>
+                        </ul>
+
+                        <p>Recent legal cases illustrate the consequences of non-compliance:</p>
+                        
+                        <ol class="legal-list">
+                            <li><strong><u>Case No. 16-1611</u></strong> (Fourth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 17-2561</u></strong> (Third Circuit)
+                                <ul>
+                                    <li>Fine: $20,000 + $100/day per violation</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-2010</u></strong> (First Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 86-6043, 10-2376</u></strong> (Sixth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-70118</u></strong> (Ninth Circuit)
+                                <ul>
+                                    <li>Fine: $50,000 per interference/coercion</li>
+                                    <li>Additional fines: $100/day per violation, up to $25,000 per future violation</li>
+                                </ul>
+                            </li>
+                        </ol>
+
+                        <p>Non-compliance has led to substantial fines and penalties, demonstrating the serious legal and financial repercussions. The Employer must comply with these legal requirements to avoid severe consequences.</p>
+                    </div>
+
+                    <div class="approval-section">
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST APPROVED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST DENIED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                    </div>
+
+                    <table class="rfi-table" style="margin-top: 20px;">
+                        <tr>
+                            <td>If the information is not received by the Step 3 appeal, write "Not Received" in this column</td>
+                        </tr>
+                        <tr style="height: 40px;">
+                            <td style="height: 40px;">&nbsp;</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        function generateStaffingCompletionRFI() {
+            const toField = document.getElementById('toField').value || '[TO FIELD]';
+            const toTitle = document.getElementById('toTitle').value || '[TO TITLE]';
+            const fromField = document.getElementById('fromField').value || '[FROM FIELD]';
+            const fromTitle = document.getElementById('fromTitle').value || '[FROM TITLE]';
+            const references = document.getElementById('references').value || 'Article 19, MMO-125-20, ASM 531.7, MS-47';
+            const particularNeed = document.getElementById('particularNeed').value || '';
+            const facilityName = document.getElementById('facilityName').value || '[FACILITY NAME]';
+            const currentDate = getCurrentDateTime();
+            const dueDate = getDueDate();
+
+            return `
+                <div style="font-family: 'ISOCPEUR', Calibri, sans-serif; margin: 0; padding: 20px;">
+                    ${getAPWUHeader()}
+                    
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">To: ${toField}</td>
+                            <td style="width: 50%;">Title: ${toTitle}</td>
+                        </tr>
+                        <tr>
+                            <td>From: ${fromField}</td>
+                            <td>Title: ${fromTitle}</td>
+                        </tr>
+                    </table>
+
+                    <table class="rfi-table rfi-header-table">
+                        <tr>
+                            <td style="width: 50%;">Date of Request: ${currentDate}</td>
+                            <td style="width: 50%;">Due Date: ${dueDate}</td>
+                        </tr>
+                        <tr>
+                            <td>Reference(s): ${references}</td>
+                            <td>Particular Need: ${particularNeed}</td>
+                        </tr>
+                    </table>
+
+                    <div class="rfi-content">
+                        <p>We request that the following documents and/or witnesses be made available to us in order to properly identify whether or not a grievance does exist and, if so, their relevancy to the grievance:</p>
+                    </div>
+
+                    <table class="rfi-request-table">
+                        <tr>
+                            <th style="width: 25%;">Individual/Document</th>
+                            <th style="width: 25%;">Denial Date</th>
+                            <th style="width: 25%;">Received Date</th>
+                            <th style="width: 25%;">Additional Info</th>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Current status of all staffing surveys for ${facilityName} (completed, pending, in progress)</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Status report</td>
+                        </tr>
+                        <tr>
+                            <td>Timeline and correspondence regarding staffing package submission to Area Office</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">All correspondence</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>All Area Office review comments and suggested modifications to staffing packages</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Review documents</td>
+                        </tr>
+                        <tr>
+                            <td>District Complement Committee meeting minutes and decisions regarding staffing</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Meeting records</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Documentation of equipment installations or facility changes requiring staffing updates</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Installation records</td>
+                        </tr>
+                        <tr>
+                            <td>Current OMSS (Operational Management System Staffing) authorized positions vs. actual staffing</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">Current report</td>
+                        </tr>
+                        <tr class="gray-row">
+                            <td>Any incomplete staffing surveys including drafts and preliminary assessments</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: center;">All available drafts</td>
+                        </tr>
+                    </table>
+
+                    <div class="legal-text">
+                        <p><strong>Staffing Process Requirements:</strong> MMO-125-20 page 9 states that completed workhour estimating packages should be forwarded through appropriate channels promptly for signatures and Area Office approval. Local Management is responsible for ensuring packages are forwarded correctly and promptly.</p>
+                        
+                        <p><strong>Completion Timeline Requirements:</strong></p>
+                        <ul class="legal-list">
+                            <li>Staffing surveys must be completed for all USPS facilities and buildings</li>
+                            <li>Area approval is required to change survey from proposed to authorized complement</li>
+                            <li>Surveys should be completed preliminarily so employees are in place when equipment arrives</li>
+                            <li>Adjustments should be made within reasonable time based on experience and need</li>
+                            <li>90 days is considered reasonable time to fill vacancy through hiring process</li>
+                        </ul>
+                        
+                        <p><strong>Impact of Delays:</strong> Failure to complete staffing process results in understaffing, compromised safety, inadequate maintenance coverage, and inability to meet operational requirements.</p>
+                        
+                        <p><strong>Note: <u>Article 17, Section 3</u> and <u>Article 31, Section 2</u></strong> of our contract mandate that the Employer must provide access to all necessary documents, files, and records for grievance processing and collective bargaining. Failure to comply is a contract breach and a violation of <strong><u>39 CFR 266.6</u> and <u>Section 8(a)(5) of the NLRA</u></strong>.</p>
+                        
+                        <ul class="legal-list">
+                            <li>39 CFR 266.6: Non-compliance can lead to severe penalties. Requests for records must be made in writing. Non-Postal Service employees must designate a post office for reviewing records. Amendments to records must be contested for relevance, accuracy, timeliness, or completeness. The custodian must acknowledge receipt within 10 days.</li>
+                            <li>Section 8(a)(5) of the NLRA: Failure to supply relevant information for collective bargaining is an Unfair Labor Practice (ULP). Grievance processing is an extension of this process.</li>
+                        </ul>
+
+                        <p>Recent legal cases illustrate the consequences of non-compliance:</p>
+                        
+                        <ol class="legal-list">
+                            <li><strong><u>Case No. 16-1611</u></strong> (Fourth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 17-2561</u></strong> (Third Circuit)
+                                <ul>
+                                    <li>Fine: $20,000 + $100/day per violation</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-2010</u></strong> (First Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 86-6043, 10-2376</u></strong> (Sixth Circuit)
+                                <ul>
+                                    <li>Fine: $17,500 + $100/day per violation</li>
+                                    <li>Reduced fines after 6 months: $12,500 + $75/day; 12 months: $7,500 + $50/day</li>
+                                </ul>
+                            </li>
+                            <li><strong><u>Case No. 14-70118</u></strong> (Ninth Circuit)
+                                <ul>
+                                    <li>Fine: $50,000 per interference/coercion</li>
+                                    <li>Additional fines: $100/day per violation, up to $25,000 per future violation</li>
+                                </ul>
+                            </li>
+                        </ol>
+
+                        <p>Non-compliance has led to substantial fines and penalties, demonstrating the serious legal and financial repercussions. The Employer must comply with these legal requirements to avoid severe consequences.</p>
+                    </div>
+
+                    <div class="approval-section">
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST APPROVED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                        <div>
+                            <p>[ &nbsp; ] &nbsp;&nbsp;&nbsp; REQUEST DENIED IN TOTAL</p>
+                            <br>
+                            <p>Date: _______________</p>
+                        </div>
+                    </div>
+
+                    <table class="rfi-table" style="margin-top: 20px;">
+                        <tr>
+                            <td>If the information is not received by the Step 3 appeal, write "Not Received" in this column</td>
+                        </tr>
+                        <tr style="height: 40px;">
+                            <td style="height: 40px;">&nbsp;</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        function generateRFI() {
+            const template = document.getElementById('templateSelect').value;
+            let rfiContent = '';
+
+            switch (template) {
+                case 'ewhep_staffing':
+                    rfiContent = generateEWHEPStaffingRFI();
+                    break;
+                case 'general_understaffing':
+                    rfiContent = generateGeneralUnderstaffingRFI();
+                    break;
+                case 'custodial_understaffing':
+                    rfiContent = generateCustodialUnderstaffingRFI();
+                    break;
+                case 'preventive_maintenance':
+                    rfiContent = generatePreventiveMaintenanceRFI();
+                    break;
+                case 'maintenance_coverage':
+                    rfiContent = generateMaintenanceCoverageRFI();
+                    break;
+                case 'staffing_completion':
+                    rfiContent = generateStaffingCompletionRFI();
+                    break;
+                default:
+                    rfiContent = '<p>Template not found.</p>';
+            }
+
+            document.getElementById('rfiOutput').innerHTML = rfiContent;
+            document.getElementById('outputSection').style.display = 'block';
+            document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function previewRFI() {
+            generateRFI();
+        }
+
+        function saveAsHTML() {
+            const rfiContent = document.getElementById('rfiOutput').innerHTML;
+            
+            // Create full HTML with approval section and bottom table visible
+            const fullRFIContent = rfiContent.replace(
+                '<div class="approval-section">',
+                '<div class="approval-section" style="display: flex;">'
+            ).replace(
+                '<table class="rfi-table" style="margin-top: 20px;">',
+                '<table class="rfi-table" style="margin-top: 20px; display: table;">'
+            );
+
+            const fullHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Request for Information</title>
+    <style>
+        body { font-family: 'Calibri Light', Calibri, sans-serif; margin: 20px; line-height: 1.4; }
+        .rfi-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .rfi-table td { border: 1px solid #000; padding: 8px; font-size: 12pt; }
+        .rfi-header-table td { height: 20px; }
+        .rfi-content { font-size: 12pt; margin: 20px 0; }
+        .rfi-request-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .rfi-request-table th { background: #000; color: white; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; }
+        .rfi-request-table td { border: 1px solid #000; padding: 8px; vertical-align: top; }
+        .rfi-request-table .gray-row { background: #d9d9d9; }
+        .legal-text { font-size: 8pt; margin: 15px 0; }
+        .legal-list { margin-left: 20px; font-size: 8pt; }
+        .approval-section { display: flex; justify-content: space-around; margin: 30px 0; text-align: center; }
+        .header-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 15px 0; border-bottom: 2px solid #0056a3; }
+        .header-left { flex: 0 0 auto; }
+        .apwu-logo { width: 120px; height: auto; }
+        .header-center { flex: 1; text-align: center; }
+        .header-center h1 { color: #0056a3; font-size: 18pt; font-weight: bold; margin: 0; }
+        .header-right { flex: 0 0 auto; text-align: right; }
+        .header-right p { color: #0056a3; font-size: 14pt; font-weight: bold; margin: 0; }
+        .header-right .subtitle { font-size: 12pt; font-weight: normal; margin-top: 5px; }
+    </style>
+</head>
+<body>
+${fullRFIContent}
+</body>
+</html>`;
+
+            // Create and download the file
+            const blob = new Blob([fullHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate filename with current date
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' + 
+                          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(now.getDate()).padStart(2, '0');
+            
+            const facilityName = document.getElementById('facilityName').value || 'RFI';
+            const cleanFacilityName = facilityName.replace(/[^a-zA-Z0-9]/g, '_');
+            
+            a.download = `RFI_${cleanFacilityName}_${dateStr}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function printAsPDF() {
+            // Create a new window with the RFI content for printing
+            const rfiContent = document.getElementById('rfiOutput').innerHTML;
+            
+            // Create full RFI content with approval section and bottom table visible
+            const fullRFIContent = rfiContent.replace(
+                '<div class="approval-section">',
+                '<div class="approval-section" style="display: flex;">'
+            ).replace(
+                '<table class="rfi-table" style="margin-top: 20px;">',
+                '<table class="rfi-table" style="margin-top: 20px; display: table;">'
+            );
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Request for Information</title>
+    <style>
+        body { font-family: 'Calibri Light', Calibri, sans-serif; margin: 20px; line-height: 1.4; }
+        .rfi-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .rfi-table td { border: 1px solid #000; padding: 8px; font-size: 12pt; }
+        .rfi-header-table td { height: 20px; }
+        .rfi-content { font-size: 12pt; margin: 20px 0; }
+        .rfi-request-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .rfi-request-table th { background: #000; color: white; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; }
+        .rfi-request-table td { border: 1px solid #000; padding: 8px; vertical-align: top; }
+        .rfi-request-table .gray-row { background: #d9d9d9; }
+        .legal-text { font-size: 8pt; margin: 15px 0; }
+        .legal-list { margin-left: 20px; font-size: 8pt; }
+        .approval-section { display: flex; justify-content: space-around; margin: 30px 0; text-align: center; }
+        .header-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 15px 0; border-bottom: 2px solid #0056a3; }
+        .header-left { flex: 0 0 auto; }
+        .apwu-logo { width: 120px; height: auto; }
+        .header-center { flex: 1; text-align: center; }
+        .header-center h1 { color: #0056a3; font-size: 18pt; font-weight: bold; margin: 0; }
+        .header-right { flex: 0 0 auto; text-align: right; }
+        .header-right p { color: #0056a3; font-size: 14pt; font-weight: bold; margin: 0; }
+        .header-right .subtitle { font-size: 12pt; font-weight: normal; margin-top: 5px; }
+        @media print {
+            body { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+${fullRFIContent}
+</body>
+</html>`);
+            
+            printWindow.document.close();
+            
+            // Wait a moment for content to load, then print
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+
+        function copyToClipboard() {
+            const rfiContent = document.getElementById('rfiOutput').innerHTML;
+            const fullHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Request for Information</title>
+    <style>
+        body { font-family: 'Calibri Light', Calibri, sans-serif; margin: 20px; line-height: 1.4; }
+        .rfi-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .rfi-table td { border: 1px solid #000; padding: 8px; font-size: 12pt; }
+        .rfi-header-table td { height: 20px; }
+        .rfi-content { font-size: 12pt; margin: 20px 0; }
+        .rfi-request-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .rfi-request-table th { background: #000; color: white; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; }
+        .rfi-request-table td { border: 1px solid #000; padding: 8px; vertical-align: top; }
+        .rfi-request-table .gray-row { background: #d9d9d9; }
+        .legal-text { font-size: 8pt; margin: 15px 0; }
+        .legal-list { margin-left: 20px; font-size: 8pt; }
+        .approval-section { display: flex; justify-content: space-around; margin: 30px 0; text-align: center; }
+        .header-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 15px 0; border-bottom: 2px solid #0056a3; }
+        .header-left { flex: 0 0 auto; }
+        .apwu-logo { width: 120px; height: auto; }
+        .header-center { flex: 1; text-align: center; }
+        .header-center h1 { color: #0056a3; font-size: 18pt; font-weight: bold; margin: 0; }
+        .header-right { flex: 0 0 auto; text-align: right; }
+        .header-right p { color: #0056a3; font-size: 14pt; font-weight: bold; margin: 0; }
+        .header-right .subtitle { font-size: 12pt; font-weight: normal; margin-top: 5px; }
+    </style>
+</head>
+<body>
+${rfiContent}
+</body>
+</html>`;
+
+            navigator.clipboard.writeText(fullHTML).then(() => {
+                alert('RFI HTML copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = fullHTML;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('RFI HTML copied to clipboard!');
+            });
+        }
+
+        // Auto-populate current date and time on page load
+        window.addEventListener('load', function() {
+            // Initialize template description
+            updateTemplateDescription();
+            console.log('RFI Generator loaded successfully');
+        });
+    </script>
+</body>
+</html>
