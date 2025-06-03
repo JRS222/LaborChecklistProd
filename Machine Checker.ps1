@@ -4,13 +4,32 @@
 
 Add-Type -AssemblyName System.Windows.Forms
 
-# Paths to CSV files
-$equipmentCsvPath = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Mapping CSVs\Machines_and_Acronyms.csv"
-$machineClassCsvPath = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Mapping CSVs\Machine_PubNum_Mappings.csv"
+# Define the base project directory - THIS IS THE ONLY PATH THAT NEEDS TO BE SET
+$global:ProjectRoot = "C:\Users\JR\Desktop\LaborChecklistProd-main"
+
+# Define all paths relative to project root
+$global:Paths = @{
+    ProjectRoot = $global:ProjectRoot
+    MachineChecker = Join-Path $global:ProjectRoot "Machine Checker.ps1"
+    GrievanceForm = Join-Path $global:ProjectRoot "Grievance Form.html"
+    WebEORVisualizer = Join-Path $global:ProjectRoot "WebEOR Data Visualizer.html"
+    MappingCSVs = Join-Path $global:ProjectRoot "Mapping CSVs"
+    MachineLaborRubrics = Join-Path $global:ProjectRoot "Machine Labor Rubrics"
+    CompletedAudits = Join-Path $global:ProjectRoot "Completed audits"
+}
+
+# Define specific CSV paths
+$global:Paths.EquipmentCSV = Join-Path $global:Paths.MappingCSVs "Machines_and_Acronyms.csv"
+$global:Paths.MachineClassCSV = Join-Path $global:Paths.MappingCSVs "Machine_PubNum_Mappings.csv"
+
+# Create completed audits directory if it doesn't exist
+if (-not (Test-Path $global:Paths.CompletedAudits)) {
+    New-Item -Path $global:Paths.CompletedAudits -ItemType Directory -Force | Out-Null
+}
 
 # Load data
 try {
-    $machineClassCodes = Import-Csv -Path $machineClassCsvPath | Group-Object Acronym -AsHashTable -AsString
+    $machineClassCodes = Import-Csv -Path $global:Paths.MachineClassCSV | Group-Object Acronym -AsHashTable -AsString
 }
 catch {
     # Show error in a message box instead of console
@@ -22,6 +41,7 @@ catch {
     )
     return
 }
+
 
 ################################################################################
 #                        LOGGING FUNCTIONS                                     #
@@ -131,7 +151,7 @@ function Show-MachineConfigDialog {
         [string]$MachineAcronym = "",
         [string]$ClassCode = "",        # Added parameter for class code
         [string[]]$MMOHeaders = @(),
-        [string]$LookupTablePath = ""
+        [string]$LookupTablePath = $global:Paths.MachineLaborRubrics
     )
     
     Write-DebugLog "Starting Show-MachineConfigDialog" -Category "ConfigDialog"
@@ -305,11 +325,11 @@ function Show-MachineConfigDialog {
                 $global:UpdatedMMO = $mmoEntry.'Pub Num'
                 
                 # Try to find the lookup table for this MMO
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
                 
                 # Try alternate path if first one doesn't exist
                 if (-not (Test-Path $baseDir)) {
-                    $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                    $baseDir = $global:Paths.MachineLaborRubrics
                 }
                 
                 $mmoDirectories = Get-ChildItem $baseDir -Directory | Where-Object { $_.Name -like "*$($mmoEntry.'Pub Num')*" }
@@ -556,11 +576,11 @@ function Show-MachineConfigDialog {
             
             try {
                 # Find the MMO directory
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
                 
                 # Check if base directory exists
                 if (-not (Test-Path $baseDir)) {
-                    $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                    $baseDir = $global:Paths.MachineLaborRubrics
                     
                     # If still doesn't exist, try to create it
                     if (-not (Test-Path $baseDir)) {
@@ -705,7 +725,7 @@ function Get-RelevantParameters {
         [hashtable]$InitialValues = @{},
         [bool]$ExistingMachine = $false,
         [string[]]$MMOHeaders = @(),
-        [string]$LookupTablePath = ""
+        [string]$LookupTablePath = $global:Paths.MachineLaborRubrics
     )
     
     Write-DebugLog "Starting Get-RelevantParameters for MMO: $MMO, Machine: $MachineAcronym" -Category "ConfigDialog"
@@ -714,7 +734,7 @@ function Get-RelevantParameters {
     
     # Find the lookup table if not provided
     if ([string]::IsNullOrWhiteSpace($LookupTablePath) -and -not [string]::IsNullOrWhiteSpace($MMO)) {
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+        $baseDir = $global:Paths.MachineLaborRubrics
         
         # First try to find a directory that matches the MMO
         $mmoDirectories = Get-ChildItem $baseDir -Directory | Where-Object { $_.Name -like "*$MMO*" }
@@ -1198,18 +1218,7 @@ function Save-StaffingTable {
     
     try {
         # Find the MMO directory
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
-        
-        # Check if base directory exists
-        if (-not (Test-Path $baseDir)) {
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
-            
-            # If still doesn't exist, try to create it
-            if (-not (Test-Path $baseDir)) {
-                New-Item -Path $baseDir -ItemType Directory -Force | Out-Null
-                Write-DebugLog "Created base directory: $baseDir" -Category "StaffingTable"
-            }
-        }
+        $baseDir = $global:Paths.MachineLaborRubrics
         
         # [Directory search logic - keeping original code]
         $mmoDirectory = $null
@@ -1423,13 +1432,8 @@ function Load-StaffingTable {
     
     try {
         # Base directory path
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+        $baseDir = $global:Paths.MachineLaborRubrics
         
-        if (-not (Test-Path $baseDir)) {
-            Write-DebugLog "Base directory not found: $baseDir" -Category "StaffingTable"
-            return $null
-        }
-
         # Find MMO directory (exact match)
         $mmoDirectory = Get-ChildItem $baseDir -Directory | 
             Where-Object { $_.Name -like "*$MMO*" -and $_.Name -like "*-$ClassCode" } |
@@ -1549,7 +1553,7 @@ function Debug-StaffingTableBinding {
     Write-Host "  Class Code: '$ClassCode'"
     Write-Host "  Machine Acronym: '$MachineAcronym'"
     
-    $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+    $baseDir = $global:Paths.MachineLaborRubrics
     Write-Host "`nChecking base directory: $baseDir"
     $dirExists = Test-Path $baseDir
     Write-Host "  Base directory exists: $dirExists"
@@ -2701,11 +2705,11 @@ $btnConfigure.Add_Click({
     # Find the lookup table path for this MMO/machine
     $lookupTablePath = ""
     if (-not [string]::IsNullOrWhiteSpace($mmo)) {
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+        $baseDir = $global:Paths.MachineLaborRubrics
         
         # Try alternate path if first one doesn't exist
         if (-not (Test-Path $baseDir)) {
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
         }
         
         # First try to find a directory that matches the MMO and class code
@@ -2746,11 +2750,11 @@ $btnConfigure.Add_Click({
     
     # If MMO isn't available, try to find by machine acronym
     if ([string]::IsNullOrWhiteSpace($lookupTablePath) -and -not [string]::IsNullOrWhiteSpace($acronym)) {
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+        $baseDir = $global:Paths.MachineLaborRubrics
         
         # Try alternate path if first one doesn't exist
         if (-not (Test-Path $baseDir)) {
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
         }
         
         # Try to find directories with this machine acronym
@@ -2935,11 +2939,11 @@ $btnViewDetails.Add_Click({
     Write-DebugLog "Parsed values - MMO: '$mmo', Acronym: '$acronym', Class Code: '$classCode', Machine Number: '$machineNumber', Machine ID: '$machineID'" -Category "ViewDetails"
     
     # Base directory
-    $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+    $baseDir = $global:Paths.MachineLaborRubrics
     
     # Update paths if needed (check if they exist)
     if (-not (Test-Path $baseDir)) {
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+        $baseDir = $global:Paths.MachineLaborRubrics
     }
     
     Write-DebugLog "Base directory: $baseDir" -Category "ViewDetails"
@@ -3134,9 +3138,9 @@ $btnViewDetails.Add_Click({
             Write-DebugLog "Using MMO: '$mmo', Class Code: '$classCode', Machine Acronym: '$machineAcronym'" -Category "StaffingTab"
             
             # Find the appropriate staffing table file
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             if (-not (Test-Path $baseDir)) {
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
             }
             
             # Look for the most specific directory first
@@ -3378,9 +3382,9 @@ $btnViewDetails.Add_Click({
             Write-DebugLog "Loading calculated staffing table for MMO: $mmo, Machine ID: $machineID" -Category "CalculatedStaffing"
             
             # Find the appropriate calculated staffing table file
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             if (-not (Test-Path $baseDir)) {
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
             }
             
             # Look for the most specific directory first
@@ -3884,7 +3888,7 @@ $btnViewDetails.Add_Click({
             
             # --- FIND AND READ STAFFING FILE ---
             $machineAcronym = if ($MachineID -match "^([A-Za-z]+)") { $matches[1] } else { "" }
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             
             Write-DebugLog "Looking for staffing data for Machine ID: $MachineID" -Category "CalculatedStaffing"
             
@@ -4098,11 +4102,11 @@ $btnViewDetails.Add_Click({
         
         try {
             # Base directory path
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             
             if (-not (Test-Path $baseDir)) {
                 # Try the alternate path
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
                 
                 if (-not (Test-Path $baseDir)) {
                     Write-DebugLog "Base directory not found: $baseDir" -Category "CalculatedStaffing"
@@ -4263,9 +4267,9 @@ $btnViewDetails.Add_Click({
         
         try {
             # Base directory
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             if (-not (Test-Path $baseDir)) {
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
             }
             
             # Find suitable directory (same as staffing table)
@@ -4455,11 +4459,11 @@ $btnViewDetails.Add_Click({
         # Find the lookup table path for this MMO/machine
         $lookupTablePath = ""
         if (-not [string]::IsNullOrWhiteSpace($mmo)) {
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             
             # Try alternate path if first one doesn't exist
             if (-not (Test-Path $baseDir)) {
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
             }
             
             # First try to find a directory that matches the MMO and class code
@@ -4658,9 +4662,9 @@ $btnViewDetails.Add_Click({
         # Load staffing table data for management hours
         try {
             # Determine the base dir
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
             if (-not (Test-Path $baseDir)) {
-                $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+                $baseDir = $global:Paths.MachineLaborRubrics
             }
             
             # Extract machine acronym
@@ -5390,15 +5394,16 @@ $btnGenerateReport.Add_Click({
         
         $missingStaffingTables = @()
         $missingCalculatedTables = @()
-        $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+        $baseDir = $global:Paths.MachineLaborRubrics
         
         # Check alternate path if first one doesn't exist
         if (-not (Test-Path $baseDir)) {
-            $baseDir = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Machine Labor Rubrics"
+            $baseDir = $global:Paths.MachineLaborRubrics
         }
         
         # Create the Completed audits directory if it doesn't exist
-        $auditDir = Join-Path -Path (Split-Path $baseDir -Parent) -ChildPath "Completed audits"
+        $auditDir = $global:Paths.CompletedAudits
+        
         if (-not (Test-Path $auditDir)) {
             New-Item -Path $auditDir -ItemType Directory -Force | Out-Null
             Write-DebugLog "Created Completed audits directory: $auditDir" -Category "Report"
@@ -6223,7 +6228,7 @@ $btnGenerateReport.Add_Click({
         
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
             # Get the grievance form path
-            $grievanceFormPath = "C:\Users\JR\Documents\Work\Programming Projects\LaborChecklist\Powershell Scripts\UI\Grievance Form.html"
+            $grievanceFormPath = $global:Paths.GrievanceForm
             
             if (Test-Path $grievanceFormPath) {
                 # Open the grievance form in default browser

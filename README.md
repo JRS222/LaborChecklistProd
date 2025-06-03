@@ -22,7 +22,7 @@ A comprehensive PowerShell-based tool for analyzing machine staffing requirement
 ## File Structure
 
 ```
-Project Root/
+LaborChecklistProd-main/
 ├── Machine Checker.ps1                         # Main PowerShell application
 ├── Grievance Form.html                         # Self-contained grievance form (HTML/CSS/JS)
 ├── WebEOR Data Visualizer.html                 # Self-contained data analysis tool (HTML/CSS/JS)
