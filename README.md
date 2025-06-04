@@ -550,4 +550,16 @@ This system is maintained by APWU representatives. To contribute:
 
 ---
 
+### Planned Improvements
+- Python-based backend
+- Web interface for easier use
+- Support for building maintenance (MS-1)
+- Support for custodial (MS-47)
+- Automated WebEOR data fetching
+
+### Contact for Support
+- GitHub Issues: [Link to issues page]
+- Email: [Maintainer email]
+- APWU Maintenance Craft Facebook Group
+
 *APWU Grievance Documentation & Analysis System - Empowering union representatives with data-driven grievance tools*
