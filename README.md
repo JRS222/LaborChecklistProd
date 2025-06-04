@@ -14,17 +14,32 @@ This integrated system provides APWU representatives with everything needed to:
 
 ## Table of Contents
 1. [Quick Start Guide](#quick-start-guide)
-2. [System Components](#system-components)
-3. [Complete Workflow](#complete-workflow)
-4. [Installation & Setup](#installation--setup)
-5. [Component Details](#component-details)
-6. [Data Sources & Formats](#data-sources--formats)
-7. [Troubleshooting](#troubleshooting)
-8. [Technical Specifications](#technical-specifications)
+2. [Video Tutorial](#video-tutorial)
+3. [System Components](#system-components)
+4. [Complete Workflow](#complete-workflow)
+5. [Machine Configuration Best Practices](#machine-configuration-best-practices)
+6. [Installation & Setup](#installation--setup)
+7. [Component Details](#component-details)
+8. [Data Sources & Formats](#data-sources--formats)
+9. [WebEOR Data Collection](#webeor-data-collection-best-practices)
+10. [Troubleshooting](#troubleshooting)
+11. [Technical Specifications](#technical-specifications)
 
 ---
 
 ## Quick Start Guide
+
+### Time Requirements
+
+#### Initial Setup
+- Software installation: 15-30 minutes
+- WebEOR data collection: 30-60 minutes (52 weekly exports)
+- Machine configuration: 2-4 hours (depending on facility size) (As opposed to a month or more manually)
+- Report generation and review: 10 minutes
+
+#### Ongoing Maintenance
+- Weekly WebEOR updates: 15 minutes
+- Quarterly reviews: 1-2 hours
 
 ### For Grievance Documentation
 1. **Identify the Issue**: Determine the type of violation (staffing, maintenance, etc.)
@@ -40,7 +55,13 @@ This integrated system provides APWU representatives with everything needed to:
 - **RFI Creation**: Open `RFI Builder.html` → Select template → Fill details → Generate
 
 ---
+## Video Tutorial
 
+A comprehensive video tutorial (1:29:44) is available covering the entire system setup and usage:
+- [YouTube Tutorial Link] - Complete walkthrough from installation to grievance filing
+- Chapter timestamps available in video description for easy navigation
+
+---
 ## System Components
 
 ### 1. 📊 WebEOR Data Visualizer (`WebEOR Data Visualizer.html`)
@@ -144,9 +165,34 @@ graph LR
     E --> F
     F --> G[Complete Documentation]
 ```
-
 ---
+### Machine Configuration Best Practices
 
+#### Critical Steps
+1. **Always manually select the class code** even if it auto-populates correctly
+   - This ensures proper MMO linkage
+   - Prevents incorrect labor calculations
+
+2. **Rounding Rules for Tours/Days**:
+   - 2.5 or higher → Round up to 3
+   - Below 2.5 → Round down to 2
+   - 6.9 days → Round to 7
+   - Apply consistently across all machines
+
+3. **Special Machine Considerations**:
+   - **LAN/MPI**: Shows as "LAN" in system, represents Mail Processing Infrastructure
+   - **PSS**: May not have published MMO (check with national)
+   - **Renamed Equipment**: If facility renamed machines mid-year, data may be split
+---
+### Data Validation Checklist
+
+Before generating reports, verify:
+- [ ] All machines from eWHEP package are entered
+- [ ] Each machine has correct class code selected
+- [ ] Staffing data entered for all machines
+- [ ] Tours/days match WebEOR analysis (rounded appropriately)
+- [ ] All MMO folders contain required lookup tables
+---
 ## Installation & Setup
 
 ### Prerequisites
@@ -295,6 +341,19 @@ cd APWU-Grievance-System
 
 ## Data Sources & Formats
 
+### Labor Lookup Tables
+The system uses flattened lookup tables extracted from MMOs:
+- Located in `Machine Labor Rubrics/[MMO-XXX-XX]/`
+- Format: `*-Labor-Lookup.csv`
+- Contains operational maintenance hours calculations
+
+### Creating Missing Lookup Tables
+If an MMO is missing:
+1. Obtain PDF from management or APWU National
+2. Extract labor tables manually
+3. Create CSV with required columns
+4. Contact project maintainer for assistance
+
 ### WebEOR CSV Format
 ```csv
 Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS
@@ -324,7 +383,40 @@ Operational Days,Tours/Day,Operational Maintenance (hrs/yr),Total (hrs/yr)
 ```
 
 ---
+### WebEOR Data Collection Best Practices
 
+#### CRITICAL: Filter Settings
+- **Always select "Without Maintenance Runs"** when exporting WebEOR data
+- Using "All Runs" will incorrectly inflate tour calculations
+- Maintenance test runs should be excluded from operational data
+
+#### Data Collection Process
+1. Navigate to WebEOR in Microsoft Edge (internal network only)
+2. Select your facility
+3. Set date range to 7 days (maximum allowed)
+4. **Filter: Without Maintenance Runs** ← Critical setting
+5. Export as CSV
+6. Repeat for 52 weeks (one year of data)
+7. Save all files in a single "WebEOR Data" folder
+
+**Note**: Expect some data overlap when collecting weekly files. The system automatically removes duplicates during import.
+
+### Excel Integration (Optional but Recommended)
+
+The system works without Excel, but Excel provides helpful features:
+
+1. **Alphabetizing Machine List**:
+   - Open exported CSV in Excel
+   - Press Ctrl+T (create table)
+   - Sort A-Z by machine column
+   - Save (Ctrl+S) - keeps CSV format
+   - Reimport to PowerShell for organized review
+
+2. **Alternatives to Excel**:
+   - OpenOffice Calc (free)
+   - Google Sheets
+   - Any CSV editor
+---
 ## Troubleshooting
 
 ### Common Issues
@@ -364,7 +456,28 @@ Unblock-File ".\Machine Checker.ps1"
 $VerbosePreference = "Continue"
 .\Machine Checker.ps1
 ```
+#### "Not Responding" During Import
+- Normal for large datasets (>10,000 records)
+- Wait up to 5 minutes for processing
+- Check PowerShell window for progress updates
 
+#### Machine Not in WebEOR Data
+Some machines don't report to WebEOR:
+- Container unloaders
+- BDS (Barcode Distribution System)
+- DPRC
+- Manual operations
+
+For these machines:
+1. Add manually using dropdown
+2. Use management's stated tours/days from eWHEP package
+3. Note in grievance that operational data unavailable
+
+#### Duplicate Machine Entries
+If machines appear renamed (e.g., AFSM 100 4 → AFSM100 1):
+- Facility renamed equipment during data period
+- May need to manually consolidate data
+- Document both names in grievance
 ---
 
 ## Technical Specifications
@@ -399,7 +512,7 @@ $VerbosePreference = "Continue"
 
 ## Version History
 
-### Current Version: 2.0
+### Current Version: 1.0
 - **Added**: RFI Builder for information requests
 - **Enhanced**: Grievance Form with dual report import
 - **Improved**: WebEOR Visualizer with 6 chart types
