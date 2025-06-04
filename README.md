@@ -159,10 +159,10 @@ graph LR
 
 #### Method 1: Download and Extract
 1. **Download the project** from GitHub as ZIP
-2. **Extract to a folder** (e.g., `C:\APWU-Grievance-System`)
+2. **Extract to a folder** (e.g., `C:\Users\Your Username\Desktop`)
 3. **Update paths** in `Machine Checker.ps1`:
    - Open in text editor
-   - Find and replace `C:\path\to\your\LaborChecklist` with your actual path
+   - Find and replace `$global:ProjectRoot = "C:\Users\JR\Desktop\LaborChecklistProd-main` `$global:ProjectRoot = C:\path\to\your\LaborChecklistProd` with your actual path
 4. **Verify folder structure**:
    ```
    Your-Folder/
@@ -170,6 +170,7 @@ graph LR
    ├── Grievance Form.html
    ├── WebEOR Data Visualizer.html
    ├── RFI Builder.html
+   ├── Staffing Data Visualizer.html
    ├── Mapping CSVs/
    └── Machine Labor Rubrics/
    ```
@@ -177,7 +178,7 @@ graph LR
 #### Method 2: Git Clone (Advanced)
 ```powershell
 cd C:\
-git clone -b prod https://github.com/JRS222/LaborChecklist.git APWU-Grievance-System
+git clone https://github.com/JRS222/LaborChecklistProd.git APWU-Grievance-System
 cd APWU-Grievance-System
 # Update paths in Machine Checker.ps1 as above
 ```
