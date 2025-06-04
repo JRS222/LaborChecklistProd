@@ -558,8 +558,8 @@ This system is maintained by APWU representatives. To contribute:
 - Automated WebEOR data fetching
 
 ### Contact for Support
-- GitHub Issues: [Link to issues page]
-- Email: [Maintainer email]
+- GitHub Issues: [Link to issues page](https://github.com/JRS222/LaborChecklistProd/issues)
+- Email: joseph.r.shavv@gmail.com
 - APWU Maintenance Craft Facebook Group
 
 *APWU Grievance Documentation & Analysis System - Empowering union representatives with data-driven grievance tools*
