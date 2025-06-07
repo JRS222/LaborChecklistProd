@@ -58,7 +58,7 @@ This integrated system provides APWU representatives with everything needed to:
 ## Video Tutorial
 
 A comprehensive video tutorial (1:29:44) is available covering the entire system setup and usage:
-- [YouTube Tutorial Link] - Complete walkthrough from installation to grievance filing
+- [YouTube Tutorial Link](https://youtu.be/CztE-XfGq5g?si=6fxCDpxwWlLx3WIS)- Complete walkthrough from installation to grievance filing
 - Chapter timestamps available in video description for easy navigation
 
 ---
