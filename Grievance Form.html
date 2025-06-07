@@ -879,26 +879,58 @@
                 const totalET10Diff = parseFloat(totalCells[9].textContent.replace(/[+,]/g, '')) || 0;
                 const totalDiff = parseFloat(totalCells[12].textContent.replace(/[+,]/g, '')) || 0;
                 
-                // Find machines with negative discrepancies
+                // Find machines with negative discrepancies in the TOTAL column
                 const machinesWithNegativeDiscrepancies = [];
-                const dataRows = summaryTable.querySelectorAll('tr:not(.total-row):not(:first-child):not(:nth-child(2))');
+                const machineToTotalDiff = {}; // Store the actual difference values
                 
-                dataRows.forEach(row => {
+                // Get all data rows (skip header rows and total row)
+                const allRows = summaryTable.querySelectorAll('tr');
+                
+                allRows.forEach((row, index) => {
+                    // Skip the first two rows (headers) and the total row
+                    if (index < 2 || row.classList.contains('total-row')) return;
+                    
                     const cells = row.querySelectorAll('td');
+                    // The summary table has: Machine ID, then 3 cells each for MM7, MPE9, ET10, and Total
+                    // So Total Diff should be at index 12 (0-based)
                     if (cells.length >= 13) {
                         const machineId = cells[0].textContent.trim();
-                        const totalDiffCell = cells[12].textContent.trim();
-                        // Remove any formatting and parse as float
-                        const cleanValue = totalDiffCell.replace(/[+,\s]/g, '');
+                        const totalDiffCell = cells[12]; // The Total Diff column
+                        const totalDiffText = totalDiffCell.textContent.trim();
+                        
+                        // Parse the value, handling both positive and negative formats
+                        const cleanValue = totalDiffText.replace(/[+,\s]/g, '');
                         const totalDiffValue = parseFloat(cleanValue);
                         
-                        // Only include machines with NEGATIVE values (less than 0)
+                        // Store the actual difference value
+                        if (!isNaN(totalDiffValue)) {
+                            machineToTotalDiff[machineId] = totalDiffValue;
+                        }
+                        
+                        // Only include machines with negative total difference
                         if (!isNaN(totalDiffValue) && totalDiffValue < 0) {
                             // Extract MMO from the machine data table if available
-                            const escapedMachineId = machineId.replace(/[.*+?^${}()|[\]\\]/g, '\\                        // Only include machines with NEGATIVE values');
-                            const mmoRegex = new RegExp(`<td>${escapedMachineId}</td>\\s*<td[^>]*>([^<]*)</td>\\s*<td[^>]*>([^<]*)</td>\\s*<td[^>]*>([^<]*)</td>`, 'i');
-                            const mmoMatch = htmlContent.match(mmoRegex);
-                            const mmo = mmoMatch ? mmoMatch[3] : '';
+                            const escapedMachineId = machineId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            
+                            // Look for the machine in the main data table to get its MMO
+                            const machineDataTable = doc.querySelector('table:not(.summary-table)');
+                            let mmo = '';
+                            
+                            if (machineDataTable) {
+                                const machineRows = machineDataTable.querySelectorAll('tr');
+                                machineRows.forEach(mRow => {
+                                    const mCells = mRow.querySelectorAll('td');
+                                    if (mCells.length > 3) {
+                                        const mAcronym = mCells[0].textContent.trim();
+                                        const mNumber = mCells[1].textContent.trim();
+                                        const fullMachineId = `${mAcronym} ${mNumber}`;
+                                        
+                                        if (fullMachineId === machineId && mCells[3]) {
+                                            mmo = mCells[3].textContent.trim();
+                                        }
+                                    }
+                                });
+                            }
                             
                             if (mmo) {
                                 machinesWithNegativeDiscrepancies.push(`${machineId} (${mmo})`);
@@ -909,13 +941,17 @@
                     }
                 });
                 
+                console.log('Found machines with negative discrepancies:', machinesWithNegativeDiscrepancies);
+                console.log('Machine to Total Diff mapping:', machineToTotalDiff);
+                
                 return {
                     reportDate: reportDate,
                     totalDifference: totalDiff,
                     totalMM7Difference: totalMM7Diff,
                     totalMPE9Difference: totalMPE9Diff,
                     totalET10Difference: totalET10Diff,
-                    machinesWithNegativeDiscrepancies: machinesWithNegativeDiscrepancies
+                    machinesWithNegativeDiscrepancies: machinesWithNegativeDiscrepancies,
+                    machineToTotalDiff: machineToTotalDiff
                 };
                 
             } catch (error) {
