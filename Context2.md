@@ -1,102 +1,65 @@
-Found it — it's authentication, not the payload
+That changes the picture — and makes it much easier
 
-The smoking gun is this line:
+If the popup is a fallback and the normal flow is: Windows auth → auto-login → site-selection dropdown, then:
 
-```
-FinalUri: https://webeor.usps.gov/GUI_Login_View.asp
-```
+1. We don't need to script a login form at all. Skip checklist item C (auth method).
+2. The auto-login almost certainly happens in GUI_Login_Main.asp — that's the frame our PowerShell never fetched. Fetching GUI_Login_View.asp returns the <frameset> shell, but the "you're a real user, here's your session" logic runs inside the frmMain frame's page. Our session got the shell, never the main frame, so it never got authenticated at the app level.
+3. The site-selection dropdown is our site-ID mapping. If the landing page has <select> with <option value="19010">PITTSBURGH PA P&DC</option>, we can parse it once per session and resolve any site name → ID without any extra requests.
 
-Your GET landed on the login page, not the viewer. So:
-
-· The $session object has cookies (NSC_xfcfps_443, ASPSESSIONIDCGBDSBRS) — but they belong to an unauthenticated ASP session.
-· The POST to GUI_Report_CSV.asp reached the server, but the ASP didn't see an authenticated user, so it rejected with Data Source Unrecongized! (which, given the "Please refresh source page" wording, is really the app's generic "your session doesn't match a viewer page" error).
-· The regex found nothing in $get.Content because that content is the login page HTML, not the viewer page.
-
-Everything else is correct. Your browser POST and your PowerShell POST used byte-identical field values — tabCsvSource=CLIENT, tabCsvGroup=+ (space), same SQL, same date. That was the whole diagnostic, and it came back clean. The payload is right. The session is the only missing piece.
-
-Once PowerShell is authenticated, the exact POST you already ran will return a CSV.
-
----
-
-Three paths forward — pick whichever fits
-
-Path 1: Validate the theory in 60 seconds (cookie transplant)
-
-The user's browser is already authenticated. Prove that the browser's cookie is the only difference:
-
-1. In the authenticated WebEOR browser tab: F12 → Application → Cookies → https://webeor.usps.gov
-2. Copy the value of ASPSESSIONIDCGBDSBRS (or whatever ASPSESSIONID* is there)
-3. In PowerShell:
+The focused test (much shorter than the earlier probe)
 
 ```powershell
+$base = "https://webeor.usps.gov"
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$session.Cookies.Add((New-Object System.Net.Cookie(
-    "ASPSESSIONIDCGBDSBRS",
-    "<paste-the-browser-value-here>",
-    "/",
-    "webeor.usps.gov")))
 
-# Re-run the same POST as before
-$resp = Invoke-WebRequest -Uri "https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp" `
-                          -Method POST -Body $body -WebSession $session `
-                          -UseDefaultCredentials -UseBasicParsing
-"Status: $($resp.StatusCode)  CT: $($resp.Headers['Content-Type'])  Bytes: $($resp.RawContentLength)"
-$resp.Content.Substring(0, [Math]::Min(300, $resp.Content.Length))
-```
+# 1. frameset shell (sets NSC_* cookie)
+$null = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
+        -WebSession $session -UseDefaultCredentials -UseBasicParsing
 
-If you get CT: text/csv (or application/vnd.ms-excel) and the first line is Site,MType,MNo,…, we're done diagnosing. That confirms cookie-only auth and we just need to automate login. If it still fails, the server has a second check tied to the login event (a session variable the ASP sets at login), and we definitely need to script the login flow.
+# 2. THE frame that does the Windows-identity -> app-session binding
+$main = Invoke-WebRequest -Uri "$base/GUI_Login_Main.asp" `
+        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+"After main  : $($main.BaseResponse.ResponseUri.AbsoluteUri)  Bytes: $($main.RawContentLength)"
 
-Don't ship this as the solution — the cookie value expires and is per-user. It's a one-time proof.
+# 3. does the viewer now accept us?
+$view = Invoke-WebRequest -Uri "$base/EORViewer/GUI_EORView_Viewer.asp" `
+        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+"After viewer: $($view.BaseResponse.ResponseUri.AbsoluteUri)  Bytes: $($view.RawContentLength)"
 
-Path 2: Script the login (the real fix)
-
-This is what will end up in Machine Checker.ps1. I need one thing from you:
-
-Open https://webeor.usps.gov/GUI_Login_View.asp in the browser (it should auto-redirect if you're logged in; use an InPrivate window to see it fresh) and Ctrl+U on the login page. Paste me:
-
-1. The <form …> tag — specifically its action="…" and method
-2. Every <input> inside it — name, type, and (for hidden fields) value
-3. Whether the page has a 2FA / MFA / token step after password, or a "remember me" checkbox
-4. Whether the login is username/password, Windows auth (does the page say "Sign in with your Windows account"?), or something else (smartcard, OTP, SSO)
-
-With that I can write:
-
-```powershell
-function Connect-WebEor {
-    param([pscredential]$Credential)
-    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-    # 1. GET login page (may set a pre-auth cookie or return a token)
-    # 2. POST username/password to the action URL
-    # 3. Verify by GET-ing the viewer page and checking FinalUri stays on /EORViewer/
-    return $session
+# 4. show us the site dropdown from the landing page
+$opts = [regex]::Matches($main.Content, '<option[^>]*value\s*=\s*["'']([^"'']+)["''][^>]*>([^<]+)</option>', 'IgnoreCase')
+"Dropdown options found: $($opts.Count)"
+$opts | Select-Object -First 10 | ForEach-Object {
+    "  {0}  =>  {1}" -f $_.Groups[1].Value, $_.Groups[2].Value.Trim()
 }
+
+# 5. cookies now
+$session.Cookies.GetCookies($base) | ForEach-Object { "  $($_.Name) = $($_.Value)" }
 ```
 
-…and then every CSV fetch reuses that $session.
+Reading the output:
 
-Path 3: Force Negotiate auth (worth one shot, costs 30 seconds)
+After viewer FinalUri Verdict
+…/EORViewer/GUI_EORView_Viewer.asp ✅ We're in. One-line fix: fetch GUI_Login_Main.asp before anything else. Run the CSV POST and it'll return a real CSV.
+…/GUI_Login_View.asp ❌ App still sees us as unauthenticated. The GUI_Login_Main.asp body will tell us why — most likely it contains a "Sign In" link that redirects to the popup. Paste $main.Content.Substring(0,1000).
 
--UseDefaultCredentials doesn't always force NTLM/Negotiate in PS 5.1. Try it explicitly:
+The dropdown at step 4 answers checklist item B for free. If it prints entries like 19010 => PITTSBURGH PA P&DC, we have the mapping and don't need -SiteId as a workaround — we can take -Site "PITTSBURGH PA P&DC" and resolve the ID from the dropdown HTML.
 
-```powershell
-$cred = Get-Credential   # enter your USPS account
-$get = Invoke-WebRequest -Uri "https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp" `
-        -Credential $cred -Authentication Negotiate -UseBasicParsing
-"FinalUri: $($get.BaseResponse.ResponseUri.AbsoluteUri)"
-```
-
-If FinalUri stays on /EORViewer/GUI_EORView_Viewer.asp, Windows auth works and the fix is trivial — replace -UseDefaultCredentials with -Credential. If it still bounces to GUI_Login_View.asp, WebEOR uses form login and we go with Path 2.
-
----
+The cookies at step 5 matter because if the app session cookie changes name or value after step 2, we know GUI_Login_Main.asp is what issues it — which is exactly the confirmation we need to write Connect-WebEor.
 
 What to send back
 
-Priority order — any one of these unblocks the next step:
+Just paste the output of the five blocks above. That's it. No Ctrl+U, no DevTools, no cookie transplant.
 
-1. Path 1 result (cookie transplant → CSV or error) — fastest confirmation
-2. Path 3 result (FinalUri after Negotiate) — tells us which auth model we're in
-3. Path 2 login form — the actual fix, needed for the final script regardless
+From that single output I can write:
 
-Once we know the auth mechanism, the remainder is mechanical: the POST payload you already proved out gets wrapped in a Get-WebEorCsv -Site $SiteId -Kind Eor|Mapping -Date $D function, and Machine Checker.ps1 calls it at the top instead of prompting for a file.
+· Connect-WebEor — creates a session, hits the three URLs in order, verifies auth
+· Resolve-SiteId -Name "…" — parses the dropdown and returns the numeric ID
+· Get-WebEorCsv -Session $s -SiteId 19010 -Kind Eor -Date (Get-Date).AddDays(-1) — the working POST wrapped in a function
+· The exact lines to replace in Machine Checker.ps1
 
-One thing still outstanding from earlier, unrelated to auth — checklist item B: the site name → site_id mapping. Since the browser landed you on a login page, that question is still open. Once you're logged in via the browser, check the authenticated viewer page's URL for a site_id=… parameter, or Ctrl+F the viewer's View Source for gstrTableSQL — it will contain START WITH x.site_id = <id> with the real ID substituted. That's the ID we feed into the START WITH clause, replacing 19010. We'll need it for any site other than 19010.
+Still outstanding (do these when you can, they're independent):
+
+· Machine Mapping CSV form — Ctrl+U on the Machine Mapping page, paste the <form name="frmTableCSV"> block (checklist A)
+· Your Machine Checker.ps1 — the param block + CSV import section (checklist E)
+· Date scope — single day (yesterday) or a range? I've defaulted to single-day until you say otherwise (checklist D)
