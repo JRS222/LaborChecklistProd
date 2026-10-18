@@ -1,10 +1,202 @@
-Loading personal and system profiles took 690ms.
-PS C:\Users\YYQTP0\Desktop> .\WEBEOR.ps1
-At C:\Users\YYQTP0\Desktop\WEBEOR.ps1:119 char:20
-+     $dt = $ToDate  .ToString("dd-MMM-yyyy", [System.Globalization.Cul ...
-+                    ~~~~~~~~~
-Unexpected token '.ToString' in expression or statement.
-    + CategoryInfo          : ParserError: (:) [], ParseException
-    + FullyQualifiedErrorId : UnexpectedToken
+# WEBEOR.ps1 - Minimal EOR CSV downloader
+# Usage: .\WEBEOR.ps1
 
-PS C:\Users\YYQTP0\Desktop>
+$Base = "https://webeor.usps.gov"
+$UA   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+$DownloadsDir = Join-Path $env:USERPROFILE "Downloads"
+
+# ---------- Auth ----------
+function Connect-WebEor {
+    param([int]$SiteId)
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.UserAgent = $UA
+    $null = Invoke-WebRequest -Uri "$Base/GUI_Login_View.asp" -WebSession $s -UseDefaultCredentials -UseBasicParsing
+    $body = @{
+        User="View"; Pword="View"; ChildSites=""; ServerType="Production"
+        GroupList=""; FullName=""; EMail=""; ParentSiteID="$SiteId"; btnLogin="View"
+    }
+    $r = Invoke-WebRequest -Uri "$Base/GUI_Login_Validate.asp" -Method POST -Body $body -WebSession $s `
+        -UseDefaultCredentials -UseBasicParsing `
+        -Headers @{ Origin = $Base; Referer = "$Base/GUI_Login_View.asp" }
+    if ($r.Content -notmatch 'DMS/EOR Main Menu') {
+        throw "Login failed for site $SiteId (got $($r.RawContentLength) bytes)"
+    }
+    return $s
+}
+
+# ---------- Site list ----------
+function Get-SiteList {
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.UserAgent = $UA
+    $landing = Invoke-WebRequest -Uri "$Base/GUI_Login_View.asp" -WebSession $s -UseDefaultCredentials -UseBasicParsing
+    [regex]::Matches($landing.Content, '<option\s+value\s*="(?<id>\d+)"\s*>(?<name>[^<]+)</option>', 'IgnoreCase') |
+        ForEach-Object {
+            [pscustomobject]@{
+                Id   = $_.Groups['id'].Value
+                Name = [System.Net.WebUtility]::HtmlDecode($_.Groups['name'].Value.Trim())
+            }
+        } | Sort-Object Name
+}
+
+# ---------- SQL ----------
+function Get-EorSql {
+    param([int]$SiteId, [datetime]$FromDate, [datetime]$ToDate)
+    $df = $FromDate.ToString("dd-MMM-yyyy", [System.Globalization.CultureInfo]::InvariantCulture)
+    $dt = $ToDate.ToString("dd-MMM-yyyy", [System.Globalization.CultureInfo]::InvariantCulture)
+    @"
+SELECT /*+ ordered */ SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 1, 5 ) || '-' || SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 6 ) site_code, machine_type.mach_type_desc, machine.machine_nbr, TRIM(application_data.machine_sort_program_name) msp, application_data.tour_code, TO_CHAR( application_data.start_dtm, 'MM/DD/YY HH24:MI') start_date, TO_CHAR( application_data.end_dtm, 'MM/DD/YY HH24:MI') end_date, GUI_Common_Helper.FormatOpNbr( application_data.mail_operation_nbr ) op_nbr, application_data.app_sequence_nbr, application_data.total_pieces_fed_cnt, GUI_Common_Helper.GetRunTransStatus( application_data.mail_operation_nbr, application_data.mods_trans_ind, application_data.mods_trans_date ) ModsTrans, DECODE( UPPER( application_data.dsis_ind ), 'T', 'S', 'NS' ) dsis, end_of_run.run_nbr, application_data.run_sequence_nbr , substr(TO_CHAR(application_data.mods_date, 'MM/DD/YY HH24:MI'), 7, 2) mYear, substr(TO_CHAR(application_data.start_dtm, 'MM/DD/YY HH24:MI'), 7, 2) sYear, substr(TO_CHAR(application_data.end_dtm, 'MM/DD/YY HH24:MI'), 7, 2) eYear, NVL(substr(TO_CHAR(application_data.mods_trans_date), 9, 2), '00') mTransYear, postal_facility.site_name FROM EOR_PSBRPA.application_data, EOR_PSBRPA.end_of_run, ( SELECT site_id, site_name, zip_code_id FROM EOR_PSBRPA.postal_facility x START WITH x.site_id = $SiteId CONNECT BY PRIOR x.site_id = x.parent_site_id AND x.site_id <> $SiteId ) postal_facility, EOR_PSBRPA.machine_type, EOR_PSBRPA.machine WHERE end_of_run.site_id = postal_facility.site_id AND end_of_run.machine_id = machine.machine_id AND end_of_run.site_id = machine.site_id AND end_of_run.run_mach_type_code = machine_type.mach_type_code AND end_of_run.run_sequence_nbr = application_data.run_sequence_nbr AND application_data.mods_date >= TO_DATE('$df', 'DD-MON-YYYY') AND application_data.mods_date <  TO_DATE('$dt', 'DD-MON-YYYY') + 1 ORDER BY mach_type_desc asc, machine_nbr asc,  myear asc, syear asc, start_date asc
+"@
+}
+
+# ---------- Site picker ----------
+function Select-Site {
+    param($Sites)
+    while ($true) {
+        $q = Read-Host "Site (name, ID, '?' to list, blank to cancel)"
+        if ([string]::IsNullOrWhiteSpace($q)) { return $null }
+        if ($q -eq '?') { $Sites | Format-Table Id, Name -AutoSize | Out-Host; continue }
+        if ($q -match '^\d+$') {
+            $e = $Sites | Where-Object { $_.Id -eq $q }
+            if ($e) { return $e }
+        }
+        $m = @($Sites | Where-Object { $_.Name -match [regex]::Escape($q) -or $_.Id -match [regex]::Escape($q) })
+        if ($m.Count -eq 0) { Write-Host "  none matched" -ForegroundColor Yellow; continue }
+        if ($m.Count -eq 1) { Write-Host "  $($m[0].Id)  $($m[0].Name)" -ForegroundColor Cyan; return $m[0] }
+        for ($i = 0; $i -lt $m.Count; $i++) {
+            Write-Host "  [$($i+1)] $($m[$i].Id)  $($m[$i].Name)"
+        }
+        $p = Read-Host "Pick # (blank to search again)"
+        if ($p -match '^\d+$' -and [int]$p -ge 1 -and [int]$p -le $m.Count) {
+            return $m[[int]$p - 1]
+        }
+    }
+}
+
+# ---------- Date picker ----------
+function Select-Dates {
+    $today = (Get-Date).Date
+    Write-Host ""
+    Write-Host "  1. Yesterday"
+    Write-Host "  2. Today"
+    Write-Host "  3. Last 7 days"
+    Write-Host "  4. Last 30 days"
+    Write-Host "  5. Custom range"
+    Write-Host "  0. Cancel"
+    switch (Read-Host "Select") {
+        '1' { return @{ From = $today.AddDays(-1);  To = $today.AddDays(-1) } }
+        '2' { return @{ From = $today;              To = $today } }
+        '3' { return @{ From = $today.AddDays(-6);  To = $today } }
+        '4' { return @{ From = $today.AddDays(-29); To = $today } }
+        '5' {
+            while ($true) {
+                $f = Read-Host "  From yyyy-MM-dd [$($today.AddDays(-1).ToString('yyyy-MM-dd'))]"
+                if ([string]::IsNullOrWhiteSpace($f)) { $f = $today.AddDays(-1).ToString('yyyy-MM-dd') }
+                $fd = [datetime]::MinValue
+                if (-not [datetime]::TryParse($f, [ref]$fd)) { Write-Host "  bad date" -ForegroundColor Yellow; continue }
+
+                $t = Read-Host "  To   yyyy-MM-dd [$($fd.ToString('yyyy-MM-dd'))]"
+                if ([string]::IsNullOrWhiteSpace($t)) { $t = $fd.ToString('yyyy-MM-dd') }
+                $td = [datetime]::MinValue
+                if (-not [datetime]::TryParse($t, [ref]$td)) { Write-Host "  bad date" -ForegroundColor Yellow; continue }
+                if ($td.Date -lt $fd.Date) { Write-Host "  'To' before 'From'" -ForegroundColor Yellow; continue }
+
+                return @{ From = $fd.Date; To = $td.Date }
+            }
+        }
+        default { return $null }
+    }
+}
+
+# ---------- Download ----------
+function Save-EorCsv {
+    param($Session, [int]$SiteId, [datetime]$FromDate, [datetime]$ToDate, [string]$OutFile)
+    $body = @{
+        tabCsvGroup   = " "
+        tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+        tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
+        tabCsvSource  = "CLIENT"
+        tabCsvSQL     = Get-EorSql -SiteId $SiteId -FromDate $FromDate -ToDate $ToDate
+    }
+    $r = Invoke-WebRequest -Uri "$Base/ReportPage/GUI_Report_CSV.asp" -Method POST -Body $body `
+        -WebSession $Session -UseDefaultCredentials -UseBasicParsing `
+        -Headers @{ Origin = $Base; Referer = "$Base/EORViewer/GUI_EORView_Viewer.asp" } `
+        -OutFile $OutFile
+    if ($r.Headers['Content-Type'] -notmatch 'csv|excel') {
+        throw "CSV failed: CT=$($r.Headers['Content-Type']) size=$($r.RawContentLength)"
+    }
+    return (Get-Item $OutFile)
+}
+
+# =====================================================================
+# MAIN LOOP — runs immediately when the script is invoked
+# =====================================================================
+$sites   = $null
+$selSite = $null
+$dates   = $null
+$session = $null
+
+while ($true) {
+    Clear-Host
+    $siteLine = if ($selSite) { "$($selSite.Name)  ($($selSite.Id))" } else { "(not selected)" }
+    $dateLine = if ($dates) {
+        if ($dates.From -eq $dates.To) { $dates.From.ToString('yyyy-MM-dd') }
+        else { "$($dates.From.ToString('yyyy-MM-dd'))  ->  $($dates.To.ToString('yyyy-MM-dd'))" }
+    } else { "(not selected)" }
+
+    Write-Host "=============================================================="
+    Write-Host "  WebEOR  EOR CSV Downloader"
+    Write-Host "=============================================================="
+    Write-Host ""
+    Write-Host "  1. Site         : $siteLine"
+    Write-Host "  2. Dates        : $dateLine"
+    Write-Host ""
+    Write-Host "  3. Download  ->  $DownloadsDir"
+    Write-Host "  Q. Quit"
+    Write-Host ""
+
+    $choice = [string](Read-Host "  Select")
+    if ($choice.Trim() -eq '') { continue }
+
+    switch ($choice.ToUpper()) {
+        '1' {
+            if (-not $sites) {
+                Write-Host "  Loading site list..." -ForegroundColor DarkGray
+                $sites = Get-SiteList
+            }
+            $pick = Select-Site -Sites $sites
+            if ($pick) {
+                $selSite = $pick
+                $session = $null
+            }
+        }
+        '2' {
+            $d = Select-Dates
+            if ($d) { $dates = $d }
+        }
+        '3' {
+            if (-not $selSite) { Write-Host "  Pick a site first." -ForegroundColor Yellow; Start-Sleep 1; continue }
+            if (-not $dates)   { Write-Host "  Pick dates first." -ForegroundColor Yellow; Start-Sleep 1; continue }
+
+            try {
+                if (-not $session) {
+                    Write-Host "  Logging in as $($selSite.Id)..." -ForegroundColor Cyan
+                    $session = Connect-WebEor -SiteId ([int]$selSite.Id)
+                }
+                $fname = "EOR_$($selSite.Id)_$($dates.From.ToString('yyyyMMdd'))_$($dates.To.ToString('yyyyMMdd')).csv"
+                $full  = Join-Path $DownloadsDir $fname
+                Write-Host "  Downloading..." -ForegroundColor Cyan
+                $f = Save-EorCsv -Session $session -SiteId ([int]$selSite.Id) `
+                    -FromDate $dates.From -ToDate $dates.To -OutFile $full
+                $lines = (Get-Content $f.FullName | Measure-Object -Line).Lines
+                Write-Host ""
+                Write-Host "  SAVED: $($f.FullName)" -ForegroundColor Green
+                Write-Host "         $([math]::Round($f.Length/1KB,1)) KB,  ~$($lines - 1) rows" -ForegroundColor Green
+            } catch {
+                Write-Host ""
+                Write-Host "  FAILED: $($_.Exception.Message)" -ForegroundColor Red
+            }
+            Read-Host "  Press Enter"
+        }
+        'Q' { return }
+    }
+}
