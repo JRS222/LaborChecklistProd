@@ -1,106 +1,77 @@
-PS C:\Users\YYQTP0> $backend = "https://eagnmnwbp13ec.usps.gov"
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 1. Get the full frameset HTML (previous run truncated it at 300 chars)
-PS C:\Users\YYQTP0> $fs = Invoke-WebRequest -Uri "$backend/Common/GUI_Common_framemenus.asp" `
->>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
-PS C:\Users\YYQTP0> "=== Full frameset HTML ==="
-=== Full frameset HTML ===
-PS C:\Users\YYQTP0> $fs.Content
+$backend = "https://eagnmnwbp13ec.usps.gov"
 
-<HTML>
-<HEAD><TITLE>WebEOR: Server 6</TITLE></HEAD>
-<FRAMESET BORDER="0" FRAMESPACING="0" ROWS="40,*" FRAMEBORDER="0">
-        <FRAME
-                ID="frmMenu"
-                NAME="frmMenu"
-                MARGINWIDTH="0"
-                MARGINHEIGHT="0"
-                SRC="/Common/GUI_Common_menu_ex1.asp?MenuType=BLANK"
-                FRAMEBORDER="0"
-                NORESIZE
-                SCROLLING="No">
-        <FRAME
-                ID="frmMain"
-                NAME="frmMain"
-                MARGINWIDTH="0"
-                MARGINHEIGHT="0"
-                SRC="/GUI_Login_Staged.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&EMail=&GroupList=&GoToRPGMainMenu=N"
-                FRAMEBORDER="0">
-</FRAMESET>
-</HTML>
-                                                                                                                        PS C:\Users\YYQTP0> "==========================="                                                                       ===========================                                                                                             PS C:\Users\YYQTP0>                                                                                                     PS C:\Users\YYQTP0> # 2. Extract every FRAME SRC
-PS C:\Users\YYQTP0> $frameSrcs = [regex]::Matches($fs.Content,
->>     '<FRAME[^>]*\bSRC\s*=\s*["'']([^"'']+)["'']', 'IgnoreCase') |
->>     ForEach-Object { $_.Groups[1].Value }
-PS C:\Users\YYQTP0> "Frames found: $($frameSrcs.Count) -> $($frameSrcs -join ', ')"
-Frames found: 2 -> /Common/GUI_Common_menu_ex1.asp?MenuType=BLANK, /GUI_Login_Staged.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&EMail=&GroupList=&GoToRPGMainMenu=N
-PS C:\Users\YYQTP0>                                                                                                     PS C:\Users\YYQTP0> # 3. Fetch each frame in order (this mirrors the browser)                                           PS C:\Users\YYQTP0> $baseUri = [uri]"$backend/Common/GUI_Common_framemenus.asp"                                         PS C:\Users\YYQTP0> foreach ($src in $frameSrcs) {                                                                      >>     $url = [uri]::new($baseUri, $src).AbsoluteUri
->>     try {
->>         $fr = Invoke-WebRequest -Uri $url -WebSession $session `
->>                 -UseDefaultCredentials -UseBasicParsing
->>         "  Frame: $url"
->>         "     Status=$($fr.StatusCode)  Bytes=$($fr.RawContentLength)  FinalUri=$($fr.BaseResponse.ResponseUri.AbsoluteUri)"
->>         "     Body head: $($fr.Content.Substring(0,[Math]::Min(200,$fr.Content.Length)))"
->>     } catch {
->>         "  Frame: $url  ERROR: $($_.Exception.Message)"
->>     }
->> }                                                                                                                      Frame: https://eagnmnwbp13ec.usps.gov/Common/GUI_Common_menu_ex1.asp?MenuType=BLANK                                        Status=200  Bytes=866  FinalUri=https://eagnmnwbp13ec.usps.gov/Common/GUI_Common_menu_ex1.asp?MenuType=BLANK            Body head:                                                                                                         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML>
-<HEAD>
-<LINK REL="stylesheet" HREF="../GUI_Common_Style.css" TYPE="text/css">
-</HEAD>
+# ---- 1. Fetch the full staged page ----
+$staged = Invoke-WebRequest -Uri "$backend/GUI_Login_Staged.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&EMail=&GroupList=&GoToRPGMainMenu=N" `
+        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+"=== Full staged page ($($staged.RawContentLength) bytes) ==="
+$staged.Content
+"=================================================="
 
-<BODY CLASS="TopMenu">
-<TABLE CELL
-  Frame: https://eagnmnwbp13ec.usps.gov/GUI_Login_Staged.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&EMail=&GroupList=&GoToRPGMainMenu=N
-     Status=200  Bytes=615  FinalUri=https://eagnmnwbp13ec.usps.gov/GUI_Login_Staged.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&EMail=&GroupList=&GoToRPGMainMenu=N
-     Body head:
-<HTML>
-<BODY>
-<FORM NAME="StagedLogin" ACTION="/GUI_Login_Validate.asp" METHOD="Post">
-<INPUT TYPE="Hidden" NAME="User" VALUE="VIEW">
-<INPUT TYPE="Hidden" NAME="ParentSiteID" VALUE="76003">
-<IN
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 4. Retry viewer on the backend — did loading the frames help?
-PS C:\Users\YYQTP0> $view2 = Invoke-WebRequest -Uri "$backend/EORViewer/GUI_EORView_Viewer.asp" `
->>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
-PS C:\Users\YYQTP0> "`n=== Viewer after frames ==="
+# ---- 2. Extract all hidden inputs from the StagedLogin form ----
+$stagedBody = @{}
+[regex]::Matches($staged.Content, '<INPUT[^>]*\bNAME\s*=\s*["'']([^"'']+)["''][^>]*\bVALUE\s*=\s*["'']([^"'']*)["'']', 'IgnoreCase') |
+    ForEach-Object {
+        $stagedBody[$_.Groups[1].Value] = $_.Groups[2].Value
+    }
+# Some ASP emits VALUE before NAME; catch those too
+[regex]::Matches($staged.Content, '<INPUT[^>]*\bVALUE\s*=\s*["'']([^"'']*)["''][^>]*\bNAME\s*=\s*["'']([^"'']+)["'']', 'IgnoreCase') |
+    ForEach-Object {
+        if (-not $stagedBody.ContainsKey($_.Groups[2].Value)) {
+            $stagedBody[$_.Groups[2].Value] = $_.Groups[1].Value
+        }
+    }
+"`n=== Fields to POST ==="
+$stagedBody.GetEnumerator() | Sort-Object Name | ForEach-Object { "  $($_.Name) = $($_.Value)" }
 
-=== Viewer after frames ===
-PS C:\Users\YYQTP0> "  FinalUri : $($view2.BaseResponse.ResponseUri.AbsoluteUri)"
-  FinalUri : https://eagnmnwbp13ec.usps.gov/GUI_Login_View.asp
-PS C:\Users\YYQTP0> "  Bytes    : $($view2.RawContentLength)"
-  Bytes    : 162161
-PS C:\Users\YYQTP0> "  Loaded   : $($view2.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer')"
-  Loaded   : False
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 5. Shortcut check — does the CSV POST work NOW, without the viewer?
-PS C:\Users\YYQTP0> #    (Tests whether auth is session-state-only or actually viewer-page-bound.)
-PS C:\Users\YYQTP0> $sql = @'
->> SELECT /*+ ordered */ SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 1, 5 ) || '-' || SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 6 ) site_code, machine_type.mach_type_desc, machine.machine_nbr, TRIM(application_data.machine_sort_program_name) msp, application_data.tour_code, TO_CHAR( application_data.start_dtm, 'MM/DD/YY HH24:MI') start_date, TO_CHAR( application_data.end_dtm, 'MM/DD/YY HH24:MI') end_date, GUI_Common_Helper.FormatOpNbr( application_data.mail_operation_nbr ) op_nbr, application_data.app_sequence_nbr, application_data.total_pieces_fed_cnt, GUI_Common_Helper.GetRunTransStatus( application_data.mail_operation_nbr, application_data.mods_trans_ind, application_data.mods_trans_date ) ModsTrans, DECODE( UPPER( application_data.dsis_ind ), 'T', 'S', 'NS' ) dsis, end_of_run.run_nbr, application_data.run_sequence_nbr , substr(TO_CHAR(application_data.mods_date, 'MM/DD/YY HH24:MI'), 7, 2) mYear, substr(TO_CHAR(application_data.start_dtm, 'MM/DD/YY HH24:MI'), 7, 2) sYear, substr(TO_CHAR(application_data.end_dtm, 'MM/DD/YY HH24:MI'), 7, 2) eYear, NVL(substr(TO_CHAR(application_data.mods_trans_date), 9, 2), '00') mTransYear, postal_facility.site_name FROM EOR_PSBRPA.application_data, EOR_PSBRPA.end_of_run, ( SELECT site_id, site_name, zip_code_id FROM EOR_PSBRPA.postal_facility x START WITH x.site_id = 76003 CONNECT BY PRIOR x.site_id = x.parent_site_id AND x.site_id <> 76003 ) postal_facility, EOR_PSBRPA.machine_type, EOR_PSBRPA.machine WHERE end_of_run.site_id = postal_facility.site_id AND end_of_run.machine_id = machine.machine_id AND end_of_run.site_id = machine.site_id AND end_of_run.run_mach_type_code = machine_type.mach_type_code AND end_of_run.run_sequence_nbr = application_data.run_sequence_nbr AND application_data.mods_date >= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') AND application_data.mods_date <= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') ORDER BY mach_type_desc asc, machine_nbr asc,  myear asc, syear asc, start_date asc
->> '@
-PS C:\Users\YYQTP0> $csvBody = @{
->>     tabCsvGroup   = " "
->>     tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
->>     tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
->>     tabCsvSource  = "CLIENT"
->>     tabCsvSQL     = $sql
->> }
-PS C:\Users\YYQTP0> $csv2 = Invoke-WebRequest -Uri "$backend/ReportPage/GUI_Report_CSV.asp" `
->>         -Method POST -Body $csvBody -WebSession $session `
->>         -UseDefaultCredentials -UseBasicParsing
-PS C:\Users\YYQTP0> "`n=== CSV POST (backend, pre-viewer) ==="
+# ---- 3. POST the staged form ----
+$stagedPost = Invoke-WebRequest -Uri "$backend/GUI_Login_Validate.asp" `
+        -Method Post -Body $stagedBody -WebSession $session `
+        -UseDefaultCredentials -UseBasicParsing
+"`n=== Staged POST ==="
+"  Status   : $($stagedPost.StatusCode)"
+"  FinalUri : $($stagedPost.BaseResponse.ResponseUri.AbsoluteUri)"
+"  Bytes    : $($stagedPost.RawContentLength)"
+"  CT       : $($stagedPost.Headers['Content-Type'])"
 
-=== CSV POST (backend, pre-viewer) ===
-PS C:\Users\YYQTP0> "  Status : $($csv2.StatusCode)"
-  Status : 200
-PS C:\Users\YYQTP0> "  CT     : $($csv2.Headers['Content-Type'])"
-  CT     : text/html
-PS C:\Users\YYQTP0> "  Bytes  : $($csv2.RawContentLength)"
-  Bytes  : 344
-PS C:\Users\YYQTP0> "  First 300:"
-  First 300:
-PS C:\Users\YYQTP0> $csv2.Content.Substring(0, [Math]::Min(300, $csv2.Content.Length))
-<HTML><HEAD><TITLE>Error</TITLE><LINK REL="stylesheet" HREF="/GUI_Common_Style.css" TYPE="text/css"></HEAD><BODY><H2>Data Source Unrecongized!<BR>Please refresh source page and try again.</H2><BR><CENTER><A HREF="javascript:this.window.history.back()" STYLE="font-family:Arial; font-size: 9pt"><B>Ret
-PS C:\Users\YYQTP0>
+# Follow any JS redirect from that response
+$js2 = [regex]::Match($stagedPost.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+if ($js2.Success) {
+    $next = [uri]::new([uri]"$backend/GUI_Login_Validate.asp", $js2.Groups[1].Value)
+    "  JS redirect -> $next"
+    $r = Invoke-WebRequest -Uri $next -WebSession $session -UseDefaultCredentials -UseBasicParsing
+    "  Followed: Status=$($r.StatusCode)  Bytes=$($r.RawContentLength)  FinalUri=$($r.BaseResponse.ResponseUri.AbsoluteUri)"
+    "  Body head: $($r.Content.Substring(0,[Math]::Min(300,$r.Content.Length)))"
+}
+
+# ---- 4. Cookies on the backend ----
+"`n=== Backend cookies ==="
+$session.Cookies.GetCookies($backend) | ForEach-Object { "  $($_.Name) = $($_.Value)  Domain=$($_.Domain)" }
+
+# ---- 5. Viewer, take 3 ----
+$view3 = Invoke-WebRequest -Uri "$backend/EORViewer/GUI_EORView_Viewer.asp" `
+        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+"`n=== Viewer ==="
+"  FinalUri : $($view3.BaseResponse.ResponseUri.AbsoluteUri)"
+"  Bytes    : $($view3.RawContentLength)"
+"  Loaded   : $($view3.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer')"
+
+# ---- 6. CSV POST, take 3 ----
+$sql = @'
+SELECT /*+ ordered */ SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 1, 5 ) || '-' || SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 6 ) site_code, machine_type.mach_type_desc, machine.machine_nbr, TRIM(application_data.machine_sort_program_name) msp, application_data.tour_code, TO_CHAR( application_data.start_dtm, 'MM/DD/YY HH24:MI') start_date, TO_CHAR( application_data.end_dtm, 'MM/DD/YY HH24:MI') end_date, GUI_Common_Helper.FormatOpNbr( application_data.mail_operation_nbr ) op_nbr, application_data.app_sequence_nbr, application_data.total_pieces_fed_cnt, GUI_Common_Helper.GetRunTransStatus( application_data.mail_operation_nbr, application_data.mods_trans_ind, application_data.mods_trans_date ) ModsTrans, DECODE( UPPER( application_data.dsis_ind ), 'T', 'S', 'NS' ) dsis, end_of_run.run_nbr, application_data.run_sequence_nbr , substr(TO_CHAR(application_data.mods_date, 'MM/DD/YY HH24:MI'), 7, 2) mYear, substr(TO_CHAR(application_data.start_dtm, 'MM/DD/YY HH24:MI'), 7, 2) sYear, substr(TO_CHAR(application_data.end_dtm, 'MM/DD/YY HH24:MI'), 7, 2) eYear, NVL(substr(TO_CHAR(application_data.mods_trans_date), 9, 2), '00') mTransYear, postal_facility.site_name FROM EOR_PSBRPA.application_data, EOR_PSBRPA.end_of_run, ( SELECT site_id, site_name, zip_code_id FROM EOR_PSBRPA.postal_facility x START WITH x.site_id = 76003 CONNECT BY PRIOR x.site_id = x.parent_site_id AND x.site_id <> 76003 ) postal_facility, EOR_PSBRPA.machine_type, EOR_PSBRPA.machine WHERE end_of_run.site_id = postal_facility.site_id AND end_of_run.machine_id = machine.machine_id AND end_of_run.site_id = machine.site_id AND end_of_run.run_mach_type_code = machine_type.mach_type_code AND end_of_run.run_sequence_nbr = application_data.run_sequence_nbr AND application_data.mods_date >= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') AND application_data.mods_date <= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') ORDER BY mach_type_desc asc, machine_nbr asc,  myear asc, syear asc, start_date asc
+'@
+$csvBody = @{
+    tabCsvGroup   = " "
+    tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+    tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
+    tabCsvSource  = "CLIENT"
+    tabCsvSQL     = $sql
+}
+$csv3 = Invoke-WebRequest -Uri "$backend/ReportPage/GUI_Report_CSV.asp" `
+        -Method POST -Body $csvBody -WebSession $session `
+        -UseDefaultCredentials -UseBasicParsing
+"`n=== CSV POST (backend, post-staged) ==="
+"  Status : $($csv3.StatusCode)"
+"  CT     : $($csv3.Headers['Content-Type'])"
+"  Bytes  : $($csv3.RawContentLength)"
+"  First 400:"
+$csv3.Content.Substring(0, [Math]::Min(400, $csv3.Content.Length))
