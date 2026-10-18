@@ -1,30 +1,92 @@
-<HTML><HEAD><TITLE>Error</TITLE><LINK REL="stylesheet" HREF="/GUI_Common_Style.css" TYPE="text/css"></HEAD><BODY><H2>Data Source Unrecongized!<BR>Please refresh source page and try again.</H2><BR><CENTER><A HREF="javascript:this.window.history.back()" STYLE="font-family:Arial; font-size: 9pt"><B>Return to Source</B></A></CENTER></BODY></HTML>
-PS C:\Users\YYQTP0> $resp.BaseResponse.ResponseUri.AbsoluteUri
-https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp
-PS C:\Users\YYQTP0> $resp.Headers | Format-List
+Good — we have a clean diagnosis now
 
+Data Source Unrecongized! is a server-side business rule in GUI_Report_CSV.asp, not an auth failure and not a network problem. Auth is working (Persistent-Auth: true), the request reached the ASP, the ASP looked at your form fields and rejected them.
 
-Key   : Persistent-Auth
-Value : true
+The word "Data Source" almost certainly refers to tabCsvSource. Look at what the HTML form does:
 
-Key   : Content-Length
-Value : 344
+```html
+<input type="Hidden" name="tabCsvSource" id="tabCsvSource" value="CLIENT">
+```
 
-Key   : Cache-Control
-Value : private
+…and then the JavaScript immediately overwrites it before submit:
 
-Key   : Content-Type
-Value : text/html
+```javascript
+document.getElementById( "tabCsvSource" ).value = gstrTableSource;
+```
 
-Key   : Date
-Value : Sun, 18 Oct 2026 12:23:49 GMT
+"CLIENT" is a placeholder. The real value is whatever gstrTableSource holds when the page loads, and we don't know what that is. That's the mismatch.
 
-Key   : Server
-Value : Microsoft-IIS/10.0
+Fix: get the actual value from the browser's real POST
 
-Key   : X-Powered-By
-Value : ASP.NET
+This is a 30-second job and ends the guessing:
 
+1. In the browser, on GUI_EORView_Viewer.asp, F12 → Network → Preserve log on
+2. Click the real CSV link so the download fires
+3. Find the GUI_Report_CSV.asp request → click it → Payload tab
+4. Screenshot or copy the five field name/value pairs
 
+Paste them here. In particular I need to see:
 
-PS C:\Users\YYQTP0>
+· tabCsvGroup — is it " " (a space) or truly empty?
+· tabCsvSource — the real value, not "CLIENT"
+
+If you'd rather paste the whole thing at once: right-click the request → Copy → Copy as PowerShell. That includes headers, cookies, and the exact body — I can diff it against what you sent and see the exact delta.
+
+Meanwhile — two quick checks you can run right now
+
+Check A: what does the viewer page actually render for the globals?
+
+The page has to define gstrTableSource somewhere for generateTableCSV() to work. In View Source of GUI_EORView_Viewer.asp, Ctrl+F for each of these and paste back the line:
+
+· gstrTableSource
+· gstrTableHeaderGroup
+· gstrTableHeader
+· gstrTableColumns
+· gstrTableSQL
+
+They'll look like var gstrTableSource = "..." and the string literal is what the real POST sends. If gstrTableSource turns out to be e.g. "EOR_VIEWER" or "EORVIEW" or "GUI_EORView_Viewer.asp", that's your answer — change one line of $body and the POST will work.
+
+Check B: did your GET actually load the viewer page?
+
+You piped the GET to | Out-Null, so we never saw whether it succeeded. Run this and paste the output:
+
+```powershell
+$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
+$get = Invoke-WebRequest -Uri "https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp" `
+        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+
+"Status:   $($get.StatusCode)"
+"FinalUri: $($get.BaseResponse.ResponseUri.AbsoluteUri)"
+"Length:   $($get.RawContentLength)"
+"Cookies:  $(($session.Cookies.GetCookies('https://webeor.usps.gov') | ForEach-Object Name) -join ', ')"
+
+# Look for the variable definitions directly in the returned HTML
+$matches = [regex]::Matches($get.Content, 'gstrTable(Source|Header|Columns|SQL|HeaderGroup)\s*=\s*"[^"]*"')
+$matches | ForEach-Object { $_.Value }
+```
+
+If FinalUri is still the viewer and Length is a big number (the viewer page is presumably tens of KB), the GET worked and the last block will hand us the gstrTable* values straight from the page. If FinalUri is a login page or Length is small, the session isn't being established and that's a separate fix.
+
+The other, less likely hypothesis — flag now so we don't chase it later
+
+"Please refresh source page and try again" could also be read as: the server keeps the expected SQL in session and rejects any POST whose tabCsvSQL doesn't match. If that's the case, editing the SQL string server-side won't work — we'd have to change the filter on the viewer page first (site selector / date picker), let the page render new SQL, then POST that SQL unchanged.
+
+We'll know which hypothesis is right within one iteration:
+
+· If changing tabCsvSource to its real value makes the POST return a CSV → we can freely edit the SQL. Parameterization is easy.
+· If changing tabCsvSource gets us a different error, or "SQL doesn't match," → session-bound SQL. We'd then need to drive the viewer page's filters first (via the same session) and read back the rendered SQL from the HTML.
+
+I'd bet on the first case. Most generic report-of-a-table tools work that way. But we'll confirm empirically.
+
+---
+
+What to send back
+
+Priority order, any one will unblock the next step:
+
+1. The real POST payload from DevTools (the five fields, or the full "Copy as PowerShell") — most useful
+2. The gstrTable* lines from View Source (Check A)
+3. The output of Check B (verifies session, and grep hands you #2 automatically)
+
+With (1) or (2) I can give you the corrected $body block, and you'll be one command away from a real CSV. With (3) plus (2) we might not even need (1).
