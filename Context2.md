@@ -1,92 +1,102 @@
-Good — we have a clean diagnosis now
+Found it — it's authentication, not the payload
 
-Data Source Unrecongized! is a server-side business rule in GUI_Report_CSV.asp, not an auth failure and not a network problem. Auth is working (Persistent-Auth: true), the request reached the ASP, the ASP looked at your form fields and rejected them.
+The smoking gun is this line:
 
-The word "Data Source" almost certainly refers to tabCsvSource. Look at what the HTML form does:
-
-```html
-<input type="Hidden" name="tabCsvSource" id="tabCsvSource" value="CLIENT">
+```
+FinalUri: https://webeor.usps.gov/GUI_Login_View.asp
 ```
 
-…and then the JavaScript immediately overwrites it before submit:
+Your GET landed on the login page, not the viewer. So:
 
-```javascript
-document.getElementById( "tabCsvSource" ).value = gstrTableSource;
-```
+· The $session object has cookies (NSC_xfcfps_443, ASPSESSIONIDCGBDSBRS) — but they belong to an unauthenticated ASP session.
+· The POST to GUI_Report_CSV.asp reached the server, but the ASP didn't see an authenticated user, so it rejected with Data Source Unrecongized! (which, given the "Please refresh source page" wording, is really the app's generic "your session doesn't match a viewer page" error).
+· The regex found nothing in $get.Content because that content is the login page HTML, not the viewer page.
 
-"CLIENT" is a placeholder. The real value is whatever gstrTableSource holds when the page loads, and we don't know what that is. That's the mismatch.
+Everything else is correct. Your browser POST and your PowerShell POST used byte-identical field values — tabCsvSource=CLIENT, tabCsvGroup=+ (space), same SQL, same date. That was the whole diagnostic, and it came back clean. The payload is right. The session is the only missing piece.
 
-Fix: get the actual value from the browser's real POST
+Once PowerShell is authenticated, the exact POST you already ran will return a CSV.
 
-This is a 30-second job and ends the guessing:
+---
 
-1. In the browser, on GUI_EORView_Viewer.asp, F12 → Network → Preserve log on
-2. Click the real CSV link so the download fires
-3. Find the GUI_Report_CSV.asp request → click it → Payload tab
-4. Screenshot or copy the five field name/value pairs
+Three paths forward — pick whichever fits
 
-Paste them here. In particular I need to see:
+Path 1: Validate the theory in 60 seconds (cookie transplant)
 
-· tabCsvGroup — is it " " (a space) or truly empty?
-· tabCsvSource — the real value, not "CLIENT"
+The user's browser is already authenticated. Prove that the browser's cookie is the only difference:
 
-If you'd rather paste the whole thing at once: right-click the request → Copy → Copy as PowerShell. That includes headers, cookies, and the exact body — I can diff it against what you sent and see the exact delta.
-
-Meanwhile — two quick checks you can run right now
-
-Check A: what does the viewer page actually render for the globals?
-
-The page has to define gstrTableSource somewhere for generateTableCSV() to work. In View Source of GUI_EORView_Viewer.asp, Ctrl+F for each of these and paste back the line:
-
-· gstrTableSource
-· gstrTableHeaderGroup
-· gstrTableHeader
-· gstrTableColumns
-· gstrTableSQL
-
-They'll look like var gstrTableSource = "..." and the string literal is what the real POST sends. If gstrTableSource turns out to be e.g. "EOR_VIEWER" or "EORVIEW" or "GUI_EORView_Viewer.asp", that's your answer — change one line of $body and the POST will work.
-
-Check B: did your GET actually load the viewer page?
-
-You piped the GET to | Out-Null, so we never saw whether it succeeded. Run this and paste the output:
+1. In the authenticated WebEOR browser tab: F12 → Application → Cookies → https://webeor.usps.gov
+2. Copy the value of ASPSESSIONIDCGBDSBRS (or whatever ASPSESSIONID* is there)
+3. In PowerShell:
 
 ```powershell
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$session.Cookies.Add((New-Object System.Net.Cookie(
+    "ASPSESSIONIDCGBDSBRS",
+    "<paste-the-browser-value-here>",
+    "/",
+    "webeor.usps.gov")))
 
-$get = Invoke-WebRequest -Uri "https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
-
-"Status:   $($get.StatusCode)"
-"FinalUri: $($get.BaseResponse.ResponseUri.AbsoluteUri)"
-"Length:   $($get.RawContentLength)"
-"Cookies:  $(($session.Cookies.GetCookies('https://webeor.usps.gov') | ForEach-Object Name) -join ', ')"
-
-# Look for the variable definitions directly in the returned HTML
-$matches = [regex]::Matches($get.Content, 'gstrTable(Source|Header|Columns|SQL|HeaderGroup)\s*=\s*"[^"]*"')
-$matches | ForEach-Object { $_.Value }
+# Re-run the same POST as before
+$resp = Invoke-WebRequest -Uri "https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp" `
+                          -Method POST -Body $body -WebSession $session `
+                          -UseDefaultCredentials -UseBasicParsing
+"Status: $($resp.StatusCode)  CT: $($resp.Headers['Content-Type'])  Bytes: $($resp.RawContentLength)"
+$resp.Content.Substring(0, [Math]::Min(300, $resp.Content.Length))
 ```
 
-If FinalUri is still the viewer and Length is a big number (the viewer page is presumably tens of KB), the GET worked and the last block will hand us the gstrTable* values straight from the page. If FinalUri is a login page or Length is small, the session isn't being established and that's a separate fix.
+If you get CT: text/csv (or application/vnd.ms-excel) and the first line is Site,MType,MNo,…, we're done diagnosing. That confirms cookie-only auth and we just need to automate login. If it still fails, the server has a second check tied to the login event (a session variable the ASP sets at login), and we definitely need to script the login flow.
 
-The other, less likely hypothesis — flag now so we don't chase it later
+Don't ship this as the solution — the cookie value expires and is per-user. It's a one-time proof.
 
-"Please refresh source page and try again" could also be read as: the server keeps the expected SQL in session and rejects any POST whose tabCsvSQL doesn't match. If that's the case, editing the SQL string server-side won't work — we'd have to change the filter on the viewer page first (site selector / date picker), let the page render new SQL, then POST that SQL unchanged.
+Path 2: Script the login (the real fix)
 
-We'll know which hypothesis is right within one iteration:
+This is what will end up in Machine Checker.ps1. I need one thing from you:
 
-· If changing tabCsvSource to its real value makes the POST return a CSV → we can freely edit the SQL. Parameterization is easy.
-· If changing tabCsvSource gets us a different error, or "SQL doesn't match," → session-bound SQL. We'd then need to drive the viewer page's filters first (via the same session) and read back the rendered SQL from the HTML.
+Open https://webeor.usps.gov/GUI_Login_View.asp in the browser (it should auto-redirect if you're logged in; use an InPrivate window to see it fresh) and Ctrl+U on the login page. Paste me:
 
-I'd bet on the first case. Most generic report-of-a-table tools work that way. But we'll confirm empirically.
+1. The <form …> tag — specifically its action="…" and method
+2. Every <input> inside it — name, type, and (for hidden fields) value
+3. Whether the page has a 2FA / MFA / token step after password, or a "remember me" checkbox
+4. Whether the login is username/password, Windows auth (does the page say "Sign in with your Windows account"?), or something else (smartcard, OTP, SSO)
+
+With that I can write:
+
+```powershell
+function Connect-WebEor {
+    param([pscredential]$Credential)
+    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    # 1. GET login page (may set a pre-auth cookie or return a token)
+    # 2. POST username/password to the action URL
+    # 3. Verify by GET-ing the viewer page and checking FinalUri stays on /EORViewer/
+    return $session
+}
+```
+
+…and then every CSV fetch reuses that $session.
+
+Path 3: Force Negotiate auth (worth one shot, costs 30 seconds)
+
+-UseDefaultCredentials doesn't always force NTLM/Negotiate in PS 5.1. Try it explicitly:
+
+```powershell
+$cred = Get-Credential   # enter your USPS account
+$get = Invoke-WebRequest -Uri "https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp" `
+        -Credential $cred -Authentication Negotiate -UseBasicParsing
+"FinalUri: $($get.BaseResponse.ResponseUri.AbsoluteUri)"
+```
+
+If FinalUri stays on /EORViewer/GUI_EORView_Viewer.asp, Windows auth works and the fix is trivial — replace -UseDefaultCredentials with -Credential. If it still bounces to GUI_Login_View.asp, WebEOR uses form login and we go with Path 2.
 
 ---
 
 What to send back
 
-Priority order, any one will unblock the next step:
+Priority order — any one of these unblocks the next step:
 
-1. The real POST payload from DevTools (the five fields, or the full "Copy as PowerShell") — most useful
-2. The gstrTable* lines from View Source (Check A)
-3. The output of Check B (verifies session, and grep hands you #2 automatically)
+1. Path 1 result (cookie transplant → CSV or error) — fastest confirmation
+2. Path 3 result (FinalUri after Negotiate) — tells us which auth model we're in
+3. Path 2 login form — the actual fix, needed for the final script regardless
 
-With (1) or (2) I can give you the corrected $body block, and you'll be one command away from a real CSV. With (3) plus (2) we might not even need (1).
+Once we know the auth mechanism, the remainder is mechanical: the POST payload you already proved out gets wrapped in a Get-WebEorCsv -Site $SiteId -Kind Eor|Mapping -Date $D function, and Machine Checker.ps1 calls it at the top instead of prompting for a file.
+
+One thing still outstanding from earlier, unrelated to auth — checklist item B: the site name → site_id mapping. Since the browser landed you on a login page, that question is still open. Once you're logged in via the browser, check the authenticated viewer page's URL for a site_id=… parameter, or Ctrl+F the viewer's View Source for gstrTableSQL — it will contain START WITH x.site_id = <id> with the real ID substituted. That's the ID we feed into the START WITH clause, replacing 19010. We'll need it for any site other than 19010.
