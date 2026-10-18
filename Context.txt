@@ -1,33 +1,611 @@
-PS C:\Users\YYQTP0\Desktop> .\WEBEOR.ps1
-                                                                                                                        ==================== WEBEOR GUI START ====================                                                              Cleaning 1 bad EOR CSV(s) from Downloads...                                                                               removing: EOR_65021_20251017_20261017.csv                                                                             === Reload sites ===
-Get-SiteList: fetching landing page...
-  351 sites loaded
+# =====================================================================
+# WEBEOR.ps1 - WebEOR EOR CSV Downloader (GUI)
+#   Requires: Windows PowerShell 5.1, .NET 4.x, Windows auth to USPS.
+#
+#   Fixes in this version:
+#     * No -OutFile on the CSV POST (PS 5.1 returns $null which broke
+#       $r.Headers). Bytes are captured in memory and verified before
+#       anything touches disk.
+#     * Ranges > 30 days are split into 30-day chunks (the viewer
+#       endpoint resets the connection on huge result sets).
+#     * Old bad CSVs in Downloads are cleaned up on startup.
+# =====================================================================
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
-=== Download clicked ===                                                                                                  site: 20010  JOHNSTOWN PA P&DF                                                                                          range: 2026-09-19..2026-10-18  dateOnly=True                                                                            output: C:\Users\YYQTP0\Downloads\EOR_20010_20260919_20261018.csv                                                     Connect-WebEor: site=20010                                                                                                GET /GUI_Login_View.asp
-  POST /GUI_Login_Validate.asp
-    status=200  bytes=42491
-  Login OK                                                                                                                                                                                                                                      ==========================================================                                                               Save-EorCsv  site=20010  from=2026-09-19  to=2026-10-18                                                                ==========================================================
-[1/5] POST viewer to register session SQL...                                                                                  status=200  bytes=1513064  final=https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp                         [2/5] Extract gstrTableSQL from viewer response...                                                                            SQL length: 1866 chars                                                                                                  OK viewer SQL contains requested date '19-Sep-2026'
-[3/5] POST /ReportPage/GUI_Report_CSV.asp...
-=== FAILED: Cannot index into a null array. ===
+$script:Base         = "https://webeor.usps.gov"
+$script:UA           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                       "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                       "Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+$script:DownloadsDir = Join-Path $env:USERPROFILE "Downloads"
+$script:Session      = $null
+$script:SessionSite  = $null
+$script:OutCustom    = $false
 
-=== Download clicked ===
-  site: 20010  JOHNSTOWN PA P&DF
-  range: 2026-10-18..2026-10-18  dateOnly=True
-  output: C:\Users\YYQTP0\Downloads\EOR_20010_20261018_20261018.csv
-Connect-WebEor: site=20010
-  GET /GUI_Login_View.asp
-  POST /GUI_Login_Validate.asp
-    status=200  bytes=42389
-  Login OK
 
-==========================================================
- Save-EorCsv  site=20010  from=2026-10-18  to=2026-10-18
-==========================================================
-[1/5] POST viewer to register session SQL...
-      status=200  bytes=68668  final=https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp
-[2/5] Extract gstrTableSQL from viewer response...
-      SQL length: 1866 chars
-      OK viewer SQL contains requested date '18-Oct-2026'
-[3/5] POST /ReportPage/GUI_Report_CSV.asp...
-=== FAILED: Cannot index into a null array. ===
+# =====================================================================
+# Core functions
+# =====================================================================
+function Connect-WebEor {
+    param([int]$SiteId)
+
+    Write-Host "Connect-WebEor: site=$SiteId" -ForegroundColor Cyan
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.UserAgent = $script:UA
+
+    Write-Host "  GET /GUI_Login_View.asp" -ForegroundColor DarkGray
+    $null = Invoke-WebRequest -Uri "$($script:Base)/GUI_Login_View.asp" `
+        -WebSession $s -UseDefaultCredentials -UseBasicParsing
+
+    $body = @{
+        User="View"; Pword="View"; ChildSites=""; ServerType="Production"
+        GroupList=""; FullName=""; EMail=""; ParentSiteID="$SiteId"; btnLogin="View"
+    }
+    Write-Host "  POST /GUI_Login_Validate.asp" -ForegroundColor DarkGray
+    $r = Invoke-WebRequest -Uri "$($script:Base)/GUI_Login_Validate.asp" `
+        -Method POST -Body $body -WebSession $s -UseDefaultCredentials -UseBasicParsing `
+        -Headers @{ Origin = $script:Base; Referer = "$($script:Base)/GUI_Login_View.asp" }
+    Write-Host "    status=$($r.StatusCode)  bytes=$($r.RawContentLength)" -ForegroundColor DarkGray
+
+    if ($r.Content -notmatch 'DMS/EOR Main Menu') {
+        throw "Login failed for site $SiteId (got $($r.RawContentLength) bytes)"
+    }
+    Write-Host "  Login OK" -ForegroundColor Green
+    return $s
+}
+
+function Get-SiteList {
+    Write-Host "Get-SiteList: fetching landing page..." -ForegroundColor Cyan
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.UserAgent = $script:UA
+    $landing = Invoke-WebRequest -Uri "$($script:Base)/GUI_Login_View.asp" `
+        -WebSession $s -UseDefaultCredentials -UseBasicParsing
+    $items = [regex]::Matches($landing.Content,
+        '<option\s+value\s*="(?<id>\d+)"\s*>(?<name>[^<]+)</option>', 'IgnoreCase') |
+        ForEach-Object {
+            [pscustomobject]@{
+                Id   = $_.Groups['id'].Value
+                Name = [System.Net.WebUtility]::HtmlDecode($_.Groups['name'].Value.Trim())
+            }
+        } | Sort-Object Name
+    Write-Host "  $($items.Count) sites loaded" -ForegroundColor Green
+    return $items
+}
+
+# ---------------------------------------------------------------------
+# Save-EorCsvSingleChunk
+#   One viewer POST + one CSV POST. No -OutFile on the CSV POST.
+#   Downloads bytes into memory, verifies CSV, writes to disk.
+# ---------------------------------------------------------------------
+function Save-EorCsvSingleChunk {
+    param(
+        [Parameter(Mandatory)] $Session,
+        [Parameter(Mandatory)] [int]      $SiteId,
+        [Parameter(Mandatory)] [datetime] $From,
+        [Parameter(Mandatory)] [datetime] $To,
+        [Parameter(Mandatory)] [string]   $OutFile
+    )
+
+    $ci = [System.Globalization.CultureInfo]::InvariantCulture
+    Write-Host "  [viewer POST] $($From.ToString('yyyy-MM-dd'))..$($To.ToString('yyyy-MM-dd'))" -ForegroundColor Yellow
+
+    $viewerBody = @{
+        Help_Loc          = "/WebHelp/WebEOR_Help.htm#Viewing_End_of_Runs.htm"
+        FirstLoad         = "FALSE"
+        ClickDeleteButton = "FALSE"
+        SiteID            = "$SiteId"
+        ActiveSites       = "on"
+        DisplaySiteOrZIP  = "EORZIP"
+        MachineGroup      = "ALL"
+        MachineType       = "ALL"
+        MachineNo         = "ALL"
+        OperationNo       = ""
+        TourCode          = "ALL"
+        SortProgram       = ""
+        Filter            = "All Runs"
+        DsisStatus        = ""
+        ModsStatus        = ""
+        StartDateFrom     = $From.ToString("MM/dd/yyyy", $ci)
+        StartDateTo       = $To  .ToString("MM/dd/yyyy", $ci)
+        SF                = ""
+        ST                = ""
+        MultiSort         = "A_mach_type_desc,A_machine_nbr,A_start_date"
+        FieldNames        = "SITE_CODE,MACH_TYPE_DESC,MACHINE_NBR,OP_NBR,MSP,TOUR_CODE,RUN_NBR,START_DATE,END_DATE,TOTAL_PIECES_FED_CNT,MODSTRANS,DSIS"
+        FieldLabels       = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+        RecordsListed     = "0"
+        ARG1              = ""
+        ARG2              = ""
+        Active            = "Y"
+        Update            = ""
+        FullQuery         = ""
+    }
+    try {
+        $viewer = Invoke-WebRequest -Uri "$($script:Base)/EORViewer/GUI_EORView_Viewer.asp" `
+            -Method POST -Body $viewerBody -WebSession $Session `
+            -UseDefaultCredentials -UseBasicParsing `
+            -Headers @{ Origin = $script:Base; Referer = "$($script:Base)/EORViewer/GUI_EORView_Viewer.asp" }
+        Write-Host "    status=$($viewer.StatusCode)  bytes=$($viewer.RawContentLength)" -ForegroundColor DarkGray
+    } catch {
+        Write-Host "    viewer POST failed: $($_.Exception.Message)" -ForegroundColor Red
+        throw
+    }
+
+    if ($viewer.Content -notmatch 'gstrTableSQL\s*=\s*"([^"]+)"') {
+        throw "Viewer response missing gstrTableSQL (bytes=$($viewer.RawContentLength))"
+    }
+    $viewerSql = $Matches[1] `
+        -replace '\\x3C', '<' -replace '\\x3E', '>' `
+        -replace '&lt;', '<' -replace '&gt;', '>' -replace '&amp;', '&'
+
+    $expectedDate = $From.ToString("dd-MMM-yyyy", $ci)
+    if ($viewerSql -notmatch [regex]::Escape($expectedDate)) {
+        Write-Host "    WARN viewer SQL missing '$expectedDate'" -ForegroundColor Yellow
+    }
+
+    $body = @{
+        tabCsvGroup   = " "
+        tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+        tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
+        tabCsvSource  = "CLIENT"
+        tabCsvSQL     = $viewerSql
+    }
+
+    Write-Host "    [csv POST] $($viewerSql.Length) chars of SQL..." -ForegroundColor Yellow
+    $r = Invoke-WebRequest -Uri "$($script:Base)/ReportPage/GUI_Report_CSV.asp" `
+        -Method POST -Body $body -WebSession $Session `
+        -UseDefaultCredentials -UseBasicParsing `
+        -Headers @{ Origin = $script:Base; Referer = "$($script:Base)/EORViewer/GUI_EORView_Viewer.asp" }
+
+    if ($r.Content -is [byte[]]) {
+        $bytes = $r.Content
+    } else {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes([string]$r.Content)
+    }
+    $size = $bytes.Length
+
+    $headLen  = [Math]::Min(300, $size)
+    $headText = [System.Text.Encoding]::ASCII.GetString($bytes, 0, $headLen)
+
+    if ($headText -match '<HTML|Unrecongized|Unrecognized|Data Source') {
+        Write-Host "    FAIL - response is HTML ($size bytes)" -ForegroundColor Red
+        Write-Host "    First 300: $headText" -ForegroundColor DarkRed
+        throw "CSV endpoint returned HTML (size=$size)"
+    }
+    if ($headText -notmatch '^Site,MType,MNo') {
+        Write-Host "    FAIL - header mismatch ($size bytes)" -ForegroundColor Red
+        Write-Host "    First 200: $($headText.Substring(0,[Math]::Min(200,$headText.Length)))" -ForegroundColor DarkRed
+        throw "CSV header mismatch (size=$size)"
+    }
+
+    [System.IO.File]::WriteAllBytes($OutFile, $bytes)
+    Write-Host "    OK $size bytes -> $OutFile" -ForegroundColor Green
+    return (Get-Item $OutFile)
+}
+
+# ---------------------------------------------------------------------
+# Save-EorCsv
+#   Public entry point. <=30 days: single request. >30 days: chunked
+#   into 30-day windows and merged.
+# ---------------------------------------------------------------------
+function Save-EorCsv {
+    param(
+        [Parameter(Mandatory)] $Session,
+        [Parameter(Mandatory)] [int]      $SiteId,
+        [Parameter(Mandatory)] [datetime] $From,
+        [Parameter(Mandatory)] [datetime] $To,
+        [Parameter(Mandatory)] [string]   $OutFile
+    )
+
+    $dayCount  = ($To.Date - $From.Date).Days + 1
+    $chunkSize = 30
+
+    Write-Host ""
+    Write-Host "==========================================================" -ForegroundColor Cyan
+    Write-Host " Save-EorCsv  site=$SiteId  from=$($From.ToString('yyyy-MM-dd'))  to=$($To.ToString('yyyy-MM-dd'))  ($dayCount days)" -ForegroundColor Cyan
+    Write-Host "==========================================================" -ForegroundColor Cyan
+
+    if ($dayCount -le $chunkSize) {
+        $f = Save-EorCsvSingleChunk -Session $Session -SiteId $SiteId -From $From -To $To -OutFile $OutFile
+        Write-Host "SAVED: $OutFile  ($([math]::Round($f.Length/1KB,1)) KB)" -ForegroundColor Green
+        return $f
+    }
+
+    $chunks = @()
+    $cursor = $From.Date
+    while ($cursor -le $To.Date) {
+        $end = $cursor.AddDays($chunkSize - 1)
+        if ($end -gt $To.Date) { $end = $To.Date }
+        $chunks += @{ From = $cursor; To = $end }
+        $cursor = $end.AddDays(1)
+    }
+
+    Write-Host "Range is $dayCount days - splitting into $($chunks.Count) chunks of <=$chunkSize days" -ForegroundColor Yellow
+    Write-Host ""
+
+    $tempFiles = @()
+    $totalRows = 0
+    for ($i = 0; $i -lt $chunks.Count; $i++) {
+        $c = $chunks[$i]
+        Write-Host "--- Chunk $($i+1)/$($chunks.Count): $($c.From.ToString('yyyy-MM-dd'))..$($c.To.ToString('yyyy-MM-dd')) ---" -ForegroundColor Cyan
+        $chunkOut = "$OutFile.chunk$i.csv"
+        try {
+            $f = Save-EorCsvSingleChunk -Session $Session -SiteId $SiteId -From $c.From -To $c.To -OutFile $chunkOut
+            $lines = (Get-Content $f.FullName | Measure-Object -Line).Lines
+            $dataRows = [Math]::Max(0, $lines - 1)
+            $totalRows += $dataRows
+            Write-Host "    $dataRows rows, $([math]::Round($f.Length/1KB,1)) KB" -ForegroundColor Green
+            $tempFiles += $chunkOut
+        } catch {
+            Write-Host "    chunk failed: $($_.Exception.Message)" -ForegroundColor Red
+            Remove-Item $chunkOut -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if ($tempFiles.Count -eq 0) { throw "All chunks failed - no CSV produced" }
+    if ($tempFiles.Count -lt $chunks.Count) {
+        Write-Host "WARNING: only $($tempFiles.Count) of $($chunks.Count) chunks succeeded" -ForegroundColor Yellow
+    }
+
+    Write-Host "Merging $($tempFiles.Count) chunk file(s)..." -ForegroundColor Yellow
+    $header = Get-Content $tempFiles[0] -TotalCount 1
+    $allData = New-Object System.Collections.Generic.List[string]
+    foreach ($tf in $tempFiles) {
+        $lines = Get-Content $tf
+        for ($j = 1; $j -lt $lines.Count; $j++) { $allData.Add($lines[$j]) }
+    }
+
+    $tmpFinal = "$OutFile.tmpmerge"
+    $writer = New-Object System.IO.StreamWriter($tmpFinal, $false, [System.Text.Encoding]::UTF8)
+    try {
+        $writer.WriteLine($header)
+        foreach ($row in $allData) { $writer.WriteLine($row) }
+    } finally { $writer.Close() }
+
+    if (Test-Path $OutFile) { Remove-Item $OutFile -Force }
+    Move-Item $tmpFinal $OutFile
+    foreach ($tf in $tempFiles) { Remove-Item $tf -Force -ErrorAction SilentlyContinue }
+
+    $finalSize = (Get-Item $OutFile).Length
+    Write-Host "SAVED: $OutFile  ($([math]::Round($finalSize/1KB,1)) KB, ~$totalRows rows)" -ForegroundColor Green
+    return (Get-Item $OutFile)
+}
+
+
+# =====================================================================
+# Form
+# =====================================================================
+$form = New-Object System.Windows.Forms.Form
+$form.Text            = "WebEOR  EOR CSV Downloader"
+$form.ClientSize      = New-Object System.Drawing.Size(780, 680)
+$form.StartPosition   = "CenterScreen"
+$form.FormBorderStyle = "FixedSingle"
+$form.MaximizeBox     = $false
+$form.Font            = New-Object System.Drawing.Font("Segoe UI", 9)
+
+# --- Site row ---
+$lblSite = New-Object System.Windows.Forms.Label
+$lblSite.Text = "Site:"; $lblSite.Location = New-Object System.Drawing.Point(15, 18)
+$lblSite.Size = New-Object System.Drawing.Size(60, 20); $form.Controls.Add($lblSite)
+
+$cmbSite = New-Object System.Windows.Forms.ComboBox
+$cmbSite.Location = New-Object System.Drawing.Point(80, 15)
+$cmbSite.Size = New-Object System.Drawing.Size(600, 24)
+$cmbSite.DropDownStyle = 'DropDown'
+$cmbSite.AutoCompleteMode = 'SuggestAppend'
+$cmbSite.AutoCompleteSource = 'ListItems'
+$cmbSite.Sorted = $true
+$form.Controls.Add($cmbSite)
+
+$btnReload = New-Object System.Windows.Forms.Button
+$btnReload.Text = "Reload"; $btnReload.Location = New-Object System.Drawing.Point(690, 14)
+$btnReload.Size = New-Object System.Drawing.Size(75, 26); $form.Controls.Add($btnReload)
+
+# --- Preset buttons ---
+$presets = @(
+    @{ Name = "Yesterday"; Off = -1; OffTo = -1 }
+    @{ Name = "Today";     Off =  0; OffTo =  0 }
+    @{ Name = "Last 7d";   Off = -6; OffTo =  0 }
+    @{ Name = "Last 30d";  Off = -29; OffTo = 0 }
+)
+$px = 80
+foreach ($p in $presets) {
+    $b = New-Object System.Windows.Forms.Button
+    $b.Text = $p.Name
+    $b.Location = New-Object System.Drawing.Point($px, 48)
+    $b.Size = New-Object System.Drawing.Size(85, 25)
+    $b.Tag = $p
+    $form.Controls.Add($b)
+    $b.Add_Click({
+        $cfg = $this.Tag
+        $today = (Get-Date).Date
+        $dtpFrom.Value = $today.AddDays($cfg.Off)
+        $dtpTo.Value   = $today.AddDays($cfg.OffTo)
+    })
+    $px += 90
+}
+
+$chkDateOnly = New-Object System.Windows.Forms.CheckBox
+$chkDateOnly.Text = "Date only (whole days)"
+$chkDateOnly.Location = New-Object System.Drawing.Point(440, 51)
+$chkDateOnly.Size = New-Object System.Drawing.Size(180, 22)
+$chkDateOnly.Checked = $true
+$form.Controls.Add($chkDateOnly)
+
+# --- Date/time pickers ---
+$lblFrom = New-Object System.Windows.Forms.Label
+$lblFrom.Text = "From:"; $lblFrom.Location = New-Object System.Drawing.Point(15, 90)
+$lblFrom.Size = New-Object System.Drawing.Size(60, 20); $form.Controls.Add($lblFrom)
+
+$dtpFrom = New-Object System.Windows.Forms.DateTimePicker
+$dtpFrom.Location = New-Object System.Drawing.Point(80, 87)
+$dtpFrom.Size = New-Object System.Drawing.Size(280, 24)
+$dtpFrom.Format = 'Custom'
+$dtpFrom.CustomFormat = 'yyyy-MM-dd'
+$dtpFrom.ShowUpDown = $true
+$dtpFrom.Value = (Get-Date).Date.AddDays(-1)
+$form.Controls.Add($dtpFrom)
+
+$lblTo = New-Object System.Windows.Forms.Label
+$lblTo.Text = "To:"; $lblTo.Location = New-Object System.Drawing.Point(390, 90)
+$lblTo.Size = New-Object System.Drawing.Size(30, 20); $form.Controls.Add($lblTo)
+
+$dtpTo = New-Object System.Windows.Forms.DateTimePicker
+$dtpTo.Location = New-Object System.Drawing.Point(425, 87)
+$dtpTo.Size = New-Object System.Drawing.Size(280, 24)
+$dtpTo.Format = 'Custom'
+$dtpTo.CustomFormat = 'yyyy-MM-dd'
+$dtpTo.ShowUpDown = $true
+$dtpTo.Value = (Get-Date).Date.AddDays(-1)
+$form.Controls.Add($dtpTo)
+
+$lblNote = New-Object System.Windows.Forms.Label
+$lblNote.Text = "(date-only — whole days; ranges > 30 days are auto-chunked)"
+$lblNote.Location = New-Object System.Drawing.Point(80, 115)
+$lblNote.Size = New-Object System.Drawing.Size(620, 16)
+$lblNote.ForeColor = [System.Drawing.Color]::Gray
+$lblNote.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$form.Controls.Add($lblNote)
+
+# --- Output ---
+$lblOut = New-Object System.Windows.Forms.Label
+$lblOut.Text = "Output:"; $lblOut.Location = New-Object System.Drawing.Point(15, 138)
+$lblOut.Size = New-Object System.Drawing.Size(60, 20); $form.Controls.Add($lblOut)
+
+$txtOut = New-Object System.Windows.Forms.TextBox
+$txtOut.Location = New-Object System.Drawing.Point(80, 135)
+$txtOut.Size = New-Object System.Drawing.Size(600, 24)
+$txtOut.ReadOnly = $true
+$form.Controls.Add($txtOut)
+
+$btnBrowse = New-Object System.Windows.Forms.Button
+$btnBrowse.Text = "Browse"; $btnBrowse.Location = New-Object System.Drawing.Point(690, 134)
+$btnBrowse.Size = New-Object System.Drawing.Size(75, 26); $form.Controls.Add($btnBrowse)
+
+# --- Download + status ---
+$btnDownload = New-Object System.Windows.Forms.Button
+$btnDownload.Text = "Download CSV"
+$btnDownload.Location = New-Object System.Drawing.Point(15, 178)
+$btnDownload.Size = New-Object System.Drawing.Size(160, 38)
+$btnDownload.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($btnDownload)
+
+$lblStatus = New-Object System.Windows.Forms.Label
+$lblStatus.Text = "Ready."
+$lblStatus.Location = New-Object System.Drawing.Point(190, 188)
+$lblStatus.Size = New-Object System.Drawing.Size(575, 20)
+$form.Controls.Add($lblStatus)
+
+# --- Log ---
+$txtLog = New-Object System.Windows.Forms.TextBox
+$txtLog.Location = New-Object System.Drawing.Point(15, 228)
+$txtLog.Size = New-Object System.Drawing.Size(750, 438)
+$txtLog.Multiline = $true
+$txtLog.ScrollBars = 'Vertical'
+$txtLog.ReadOnly = $true
+$txtLog.Font = New-Object System.Drawing.Font("Consolas", 9)
+$txtLog.BackColor = [System.Drawing.Color]::FromArgb(250, 250, 250)
+$form.Controls.Add($txtLog)
+
+
+# =====================================================================
+# UI helpers
+# =====================================================================
+function Write-Log([string]$msg) {
+    $ts = Get-Date -Format "HH:mm:ss"
+    $txtLog.AppendText("[$ts] $msg`r`n")
+    $txtLog.SelectionStart = $txtLog.Text.Length
+    $txtLog.ScrollToCaret()
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+function Set-Status([string]$msg, [string]$color = "Black") {
+    $lblStatus.Text = $msg
+    $lblStatus.ForeColor = [System.Drawing.Color]::FromName($color)
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+function Get-SelectedSite {
+    if ($cmbSite.Text -match '^(\d{5})\s+(.+)$') {
+        return @{ Id = $Matches[1]; Name = $Matches[2] }
+    }
+    return $null
+}
+
+
+# =====================================================================
+# Events
+# =====================================================================
+
+$btnReload.Add_Click({
+    $btnReload.Enabled = $false
+    Set-Status "Loading site list..." "DarkBlue"
+    Write-Host "=== Reload sites ===" -ForegroundColor Magenta
+    try {
+        $sites = Get-SiteList
+        $cmbSite.BeginUpdate()
+        $cmbSite.Items.Clear()
+        foreach ($s in $sites) { [void]$cmbSite.Items.Add("$($s.Id)  $($s.Name)") }
+        $cmbSite.EndUpdate()
+        Write-Log "Loaded $($sites.Count) sites"
+        Set-Status "Loaded $($sites.Count) sites" "DarkGreen"
+    } catch {
+        Write-Host "  reload failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Log "Reload failed: $($_.Exception.Message)"
+        Set-Status "Reload failed" "Red"
+    } finally {
+        $btnReload.Enabled = $true
+    }
+})
+
+$chkDateOnly.Add_CheckedChanged({
+    if ($chkDateOnly.Checked) {
+        $dtpFrom.CustomFormat = 'yyyy-MM-dd'
+        $dtpTo.CustomFormat   = 'yyyy-MM-dd'
+        $dtpFrom.Value = $dtpFrom.Value.Date
+        $dtpTo.Value   = $dtpTo.Value.Date
+        $lblNote.Text = "(date-only — whole days; ranges > 30 days are auto-chunked)"
+        $lblNote.ForeColor = [System.Drawing.Color]::Gray
+    } else {
+        $dtpFrom.CustomFormat = 'yyyy-MM-dd HH:mm'
+        $dtpTo.CustomFormat   = 'yyyy-MM-dd HH:mm'
+        $lblNote.Text = "(time shown but IGNORED — viewer only accepts date)"
+        $lblNote.ForeColor = [System.Drawing.Color]::DarkOrange
+    }
+})
+
+$btnBrowse.Add_Click({
+    $sfd = New-Object System.Windows.Forms.SaveFileDialog
+    $sfd.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+    $sfd.InitialDirectory = $script:DownloadsDir
+    if ($txtOut.Text) { $sfd.FileName = [System.IO.Path]::GetFileName($txtOut.Text) }
+    if ($sfd.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $txtOut.Text = $sfd.FileName
+        $script:OutCustom = $true
+    }
+})
+
+$btnDownload.Add_Click({
+    Write-Host ""
+    Write-Host "=== Download clicked ===" -ForegroundColor Magenta
+
+    $site = Get-SelectedSite
+    if (-not $site) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Pick a site from the dropdown (use Reload if the list is empty).",
+            "No site", 'OK', 'Warning') | Out-Null
+        return
+    }
+
+    $dateOnly = $chkDateOnly.Checked
+    $from     = $dtpFrom.Value
+    $to       = $dtpTo.Value
+
+    if ($to.Date -lt $from.Date) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "'To' is earlier than 'From'.", "Bad range", 'OK', 'Warning') | Out-Null
+        return
+    }
+
+    $dayCount = ($to.Date - $from.Date).Days + 1
+    Write-Host "  site: $($site.Id)  $($site.Name)" -ForegroundColor Magenta
+    Write-Host "  range: $($from.ToString('yyyy-MM-dd'))..$($to.ToString('yyyy-MM-dd'))  ($dayCount days)" -ForegroundColor Magenta
+
+    if ($dayCount -gt 90) {
+        $ans = [System.Windows.Forms.MessageBox]::Show(
+            "You selected $dayCount days (" +
+            "$($from.ToString('yyyy-MM-dd')) to $($to.ToString('yyyy-MM-dd'))).`r`n`r`n" +
+            "That will be split into $([math]::Ceiling($dayCount/30)) chunks and may take a while.`r`n`r`n" +
+            "Continue?",
+            "Confirm long range", 'YesNo', 'Question')
+        if ($ans -ne [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "  cancelled (long range)" -ForegroundColor Yellow
+            return
+        }
+    }
+    if ($dayCount -gt 366) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Ranges over 1 year aren't supported.", "Too long", 'OK', 'Warning') | Out-Null
+        return
+    }
+
+    if ($script:OutCustom -and $txtOut.Text) {
+        $outFile = $txtOut.Text
+    } else {
+        $outFile = Join-Path $script:DownloadsDir `
+            "EOR_$($site.Id)_$($from.ToString('yyyyMMdd'))_$($to.ToString('yyyyMMdd')).csv"
+        $txtOut.Text = $outFile
+    }
+    Write-Host "  output: $outFile" -ForegroundColor Magenta
+
+    if (Test-Path $outFile) {
+        $ans = [System.Windows.Forms.MessageBox]::Show(
+            "Overwrite existing file?`r`n$outFile", "File exists", 'YesNo', 'Question')
+        if ($ans -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+    }
+
+    $btnDownload.Enabled = $false
+    $btnReload.Enabled = $false
+    try {
+        $sid = [int]$site.Id
+        if (-not $script:Session -or $script:SessionSite -ne $sid) {
+            Set-Status "Logging in as $sid..." "DarkBlue"
+            Write-Log "Logging in as $sid  ($($site.Name))"
+            $script:Session = Connect-WebEor -SiteId $sid
+            $script:SessionSite = $sid
+            Write-Log "Login OK"
+        }
+
+        Set-Status "Downloading..." "DarkBlue"
+        Write-Log "Downloading CSV  site=$sid  range=$($from.ToString('yyyy-MM-dd'))..$($to.ToString('yyyy-MM-dd'))  ($dayCount days)"
+
+        $f = Save-EorCsv -Session $script:Session -SiteId $sid `
+            -From $from -To $to -OutFile $outFile
+
+        $lines = (Get-Content $f.FullName | Measure-Object -Line).Lines
+        $msg = "Saved: $($f.FullName)  ($([math]::Round($f.Length/1KB,1)) KB, ~$($lines - 1) rows)"
+        Write-Log $msg
+        Write-Host "=== SUCCESS: $($f.Name)  ($([math]::Round($f.Length/1KB,1)) KB, ~$($lines - 1) rows) ===" -ForegroundColor Green
+        Set-Status "Done: $($f.Name)  ($($lines - 1) rows)" "DarkGreen"
+    } catch {
+        Write-Log "FAILED: $($_.Exception.Message)"
+        Write-Host "=== FAILED: $($_.Exception.Message) ===" -ForegroundColor Red
+        Set-Status "Failed - see terminal for details" "Red"
+        $script:Session = $null
+        $script:SessionSite = $null
+    } finally {
+        $btnDownload.Enabled = $true
+        $btnReload.Enabled = $true
+    }
+})
+
+$form.Add_Shown({
+    Write-Host ""
+    Write-Host "==================== WEBEOR GUI START ====================" -ForegroundColor Cyan
+
+    $bad = @(Get-ChildItem "$($script:DownloadsDir)\EOR_*.csv" -ErrorAction SilentlyContinue |
+        Where-Object {
+            try { (Get-Content $_.FullName -TotalCount 1) -match 'Unrecongized|Unrecognized|<HTML' }
+            catch { $false }
+        })
+    if ($bad.Count -gt 0) {
+        Write-Host "Cleaning $($bad.Count) bad EOR CSV(s) from Downloads..." -ForegroundColor Yellow
+        foreach ($f in $bad) {
+            Write-Host "  removing: $($f.Name)" -ForegroundColor DarkYellow
+            Write-Log "Removing bad file: $($f.Name)"
+            Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Log "No bad EOR CSVs in Downloads."
+    }
+
+    $txtOut.Text = Join-Path $script:DownloadsDir "EOR.csv"
+    $btnReload.PerformClick()
+})
+
+
+# =====================================================================
+# Run
+# =====================================================================
+[void]$form.ShowDialog()
+Write-Host "==================== WEBEOR GUI END ======================" -ForegroundColor Cyan
