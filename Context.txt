@@ -1,70 +1,125 @@
-$front   = "https://webeor.usps.gov"
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0> $front   = "https://webeor.usps.gov"                                                                PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession                               PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 1. Landing
+PS C:\Users\YYQTP0> $null = Invoke-WebRequest -Uri "$front/GUI_Login_View.asp" -WebSession $session `
+>>         -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 2. Login form POST
+PS C:\Users\YYQTP0> $loginBody = @{
+>>     User="View"; Pword="View"; ChildSites=""; ServerType="Production"
+>>     GroupList=""; FullName=""; EMail=""; ParentSiteID="19010"; btnLogin="View"
+>> }
+PS C:\Users\YYQTP0> $post1 = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST -Body $loginBody `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 3. Follow JS redirect to backend
+PS C:\Users\YYQTP0> $js1 = [regex]::Match($post1.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+PS C:\Users\YYQTP0> $auto = [uri]$js1.Groups[1].Value
+PS C:\Users\YYQTP0> "Auto.asp: $auto"
+Auto.asp: /GUI_Login_Main.asp
+PS C:\Users\YYQTP0> $autoResp = Invoke-WebRequest -Uri $auto -WebSession $session -UseDefaultCredentials -UseBasicParsing
+Invoke-WebRequest : Invalid URI: The hostname could not be parsed.
+At line:1 char:13
++ $autoResp = Invoke-WebRequest -Uri $auto -WebSession $session -UseDef ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Invoke-WebRequest], UriFormatException
+    + FullyQualifiedErrorId : System.UriFormatException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
 
-# 1. Landing
-$null = Invoke-WebRequest -Uri "$front/GUI_Login_View.asp" -WebSession $session `
-        -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "  Status=$($autoResp.StatusCode)  FinalUri=$($autoResp.BaseResponse.ResponseUri.AbsoluteUri)"
+  Status=  FinalUri=
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 4. Frameset (extract frmMain)
+PS C:\Users\YYQTP0> $js2 = [regex]::Match($autoResp.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+PS C:\Users\YYQTP0> $frameset = [uri]::new($auto, $js2.Groups[1].Value)
+Exception calling ".ctor" with "2" argument(s): "Specified argument was out of the range of valid values.
+Parameter name: baseUri"
+At line:1 char:1
++ $frameset = [uri]::new($auto, $js2.Groups[1].Value)
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : ArgumentOutOfRangeException
 
-# 2. Login form POST
-$loginBody = @{
-    User="View"; Pword="View"; ChildSites=""; ServerType="Production"
-    GroupList=""; FullName=""; EMail=""; ParentSiteID="19010"; btnLogin="View"
-}
-$post1 = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST -Body $loginBody `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> $fs = Invoke-WebRequest -Uri $frameset -WebSession $session -UseDefaultCredentials -UseBasicParsing
+Invoke-WebRequest : Cannot validate argument on parameter 'Uri'. The argument is null or empty. Provide an argument
+that is not null or empty, and then try the command again.
+At line:1 char:30
++ $fs = Invoke-WebRequest -Uri $frameset -WebSession $session -UseDefau ...
++                              ~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Invoke-WebRequest], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationError,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
 
-# 3. Follow JS redirect to backend
-$js1 = [regex]::Match($post1.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-$auto = [uri]$js1.Groups[1].Value
-"Auto.asp: $auto"
-$autoResp = Invoke-WebRequest -Uri $auto -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"  Status=$($autoResp.StatusCode)  FinalUri=$($autoResp.BaseResponse.ResponseUri.AbsoluteUri)"
+PS C:\Users\YYQTP0> $frmMainSrc = [regex]::Match($fs.Content, '<FRAME[^>]*\bSRC\s*=\s*["'']([^"'']+GUI_Login_Staged[^"'']*)', 'IgnoreCase').Groups[1].Value
+PS C:\Users\YYQTP0> "frmMain  : $frmMainSrc"
+frmMain  :
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 5. Fetch staged page, POST staged form
+PS C:\Users\YYQTP0> $stagedUrl = [uri]::new($frameset, $frmMainSrc)
+Exception calling ".ctor" with "2" argument(s): "Value cannot be null.
+Parameter name: baseUri"
+At line:1 char:1
++ $stagedUrl = [uri]::new($frameset, $frmMainSrc)
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : ArgumentNullException
 
-# 4. Frameset (extract frmMain)
-$js2 = [regex]::Match($autoResp.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-$frameset = [uri]::new($auto, $js2.Groups[1].Value)
-$fs = Invoke-WebRequest -Uri $frameset -WebSession $session -UseDefaultCredentials -UseBasicParsing
-$frmMainSrc = [regex]::Match($fs.Content, '<FRAME[^>]*\bSRC\s*=\s*["'']([^"'']+GUI_Login_Staged[^"'']*)', 'IgnoreCase').Groups[1].Value
-"frmMain  : $frmMainSrc"
+PS C:\Users\YYQTP0> $staged = Invoke-WebRequest -Uri $stagedUrl -WebSession $session -UseDefaultCredentials -UseBasicParsing
+Invoke-WebRequest : Cannot validate argument on parameter 'Uri'. The argument is null or empty. Provide an argument
+that is not null or empty, and then try the command again.
+At line:1 char:34
++ $staged = Invoke-WebRequest -Uri $stagedUrl -WebSession $session -Use ...
++                                  ~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Invoke-WebRequest], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationError,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
 
-# 5. Fetch staged page, POST staged form
-$stagedUrl = [uri]::new($frameset, $frmMainSrc)
-$staged = Invoke-WebRequest -Uri $stagedUrl -WebSession $session -UseDefaultCredentials -UseBasicParsing
-$stagedBody = @{}
-[regex]::Matches($staged.Content, '<INPUT[^>]*\bNAME\s*=\s*["'']([^"'']+)["''][^>]*\bVALUE\s*=\s*["'']([^"'']*)["'']', 'IgnoreCase') |
-    ForEach-Object { $stagedBody[$_.Groups[1].Value] = $_.Groups[2].Value }
+PS C:\Users\YYQTP0> $stagedBody = @{}                                                                                   PS C:\Users\YYQTP0> [regex]::Matches($staged.Content, '<INPUT[^>]*\bNAME\s*=\s*["'']([^"'']+)["''][^>]*\bVALUE\s*=\s*["'']([^"'']*)["'']', 'IgnoreCase') |                                                                                      >>     ForEach-Object { $stagedBody[$_.Groups[1].Value] = $_.Groups[2].Value }                                          PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> $stagedPost = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST `
+>>         -Body $stagedBody -WebSession $session -UseDefaultCredentials -UseBasicParsing
+Invoke-WebRequest :
+500 - Internal server error.
+Server Error
 
-$stagedPost = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST `
-        -Body $stagedBody -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"Staged POST: Status=$($stagedPost.StatusCode)  FinalUri=$($stagedPost.BaseResponse.ResponseUri.AbsoluteUri)"
+  500 - Internal server error.
+  There is a problem with the resource you are looking for, and it cannot be displayed.
 
-# 6. ★ THE NEW STEP: viewer on the FRONT-END host
-$viewer = Invoke-WebRequest -Uri "$front/EORViewer/GUI_EORView_Viewer.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"Viewer (front): Status=$($viewer.StatusCode)  Bytes=$($viewer.RawContentLength)  FinalUri=$($viewer.BaseResponse.ResponseUri.AbsoluteUri)"
-"  Has gstrTableSQL: $([bool]($viewer.Content -match 'gstrTableSQL'))"
-
-# 7. Extract the actual gstrTableSQL from the loaded viewer
-$realSql = ""
-if ($viewer.Content -match 'gstrTableSQL\s*=\s*"([^"]+)"') {
-    $realSql = $Matches[1] -replace '\\x3C', '<' -replace '\\x3E', '>' -replace '&lt;','<' -replace '&gt;','>' -replace '&amp;','&'
-    "  SQL matches captured: $($realSql -eq $null -or $realSql.Length -lt 100)"
-}
-
-# 8. ★ CSV POST — front-end, using the SQL just extracted from the viewer
-if ($realSql) {
-    $csvBody = @{
-        tabCsvGroup   = " "
-        tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
-        tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
-        tabCsvSource  = "CLIENT"
-        tabCsvSQL     = $realSql
-    }
-    $csv = Invoke-WebRequest -Uri "$front/ReportPage/GUI_Report_CSV.asp" -Method POST `
-            -Body $csvBody -WebSession $session -UseDefaultCredentials -UseBasicParsing
-    "`nCSV POST (front): Status=$($csv.StatusCode)  CT=$($csv.Headers['Content-Type'])  Bytes=$($csv.RawContentLength)"
-    "  First 400:"
-    $csv.Content.Substring(0, [Math]::Min(400, $csv.Content.Length))
-} else {
-    "  No SQL extracted — viewer didn't load as expected"
-}
+At line:1 char:15
++ ... tagedPost = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -M ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-WebRequest], WebExc
+   eption
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
+PS C:\Users\YYQTP0> "Staged POST: Status=$($stagedPost.StatusCode)  FinalUri=$($stagedPost.BaseResponse.ResponseUri.AbsoluteUri)"
+Staged POST: Status=  FinalUri=
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 6. ★ THE NEW STEP: viewer on the FRONT-END host
+PS C:\Users\YYQTP0> $viewer = Invoke-WebRequest -Uri "$front/EORViewer/GUI_EORView_Viewer.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "Viewer (front): Status=$($viewer.StatusCode)  Bytes=$($viewer.RawContentLength)  FinalUri=$($viewer.BaseResponse.ResponseUri.AbsoluteUri)"
+Viewer (front): Status=200  Bytes=162161  FinalUri=https://webeor.usps.gov/GUI_Login_View.asp
+PS C:\Users\YYQTP0> "  Has gstrTableSQL: $([bool]($viewer.Content -match 'gstrTableSQL'))"
+  Has gstrTableSQL: False
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 7. Extract the actual gstrTableSQL from the loaded viewer
+PS C:\Users\YYQTP0> $realSql = ""
+PS C:\Users\YYQTP0> if ($viewer.Content -match 'gstrTableSQL\s*=\s*"([^"]+)"') {
+>>     $realSql = $Matches[1] -replace '\\x3C', '<' -replace '\\x3E', '>' -replace '&lt;','<' -replace '&gt;','>' -replace '&amp;','&'
+>>     "  SQL matches captured: $($realSql -eq $null -or $realSql.Length -lt 100)"
+>> }
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 8. ★ CSV POST — front-end, using the SQL just extracted from the viewer
+PS C:\Users\YYQTP0> if ($realSql) {
+>>     $csvBody = @{
+>>         tabCsvGroup   = " "
+>>         tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+>>         tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
+>>         tabCsvSource  = "CLIENT"
+>>         tabCsvSQL     = $realSql
+>>     }
+>>     $csv = Invoke-WebRequest -Uri "$front/ReportPage/GUI_Report_CSV.asp" -Method POST `
+>>             -Body $csvBody -WebSession $session -UseDefaultCredentials -UseBasicParsing
+>>     "`nCSV POST (front): Status=$($csv.StatusCode)  CT=$($csv.Headers['Content-Type'])  Bytes=$($csv.RawContentLength)"
+>>     "  First 400:"
+>>     $csv.Content.Substring(0, [Math]::Min(400, $csv.Content.Length))
+>> } else {
+>>     "  No SQL extracted — viewer didn't load as expected"
+>> }
+  No SQL extracted — viewer didn't load as expected
+PS C:\Users\YYQTP0>
