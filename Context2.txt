@@ -1,3 +1,6 @@
+Uncaught TypeError: Cannot set properties of undefined (setting 'onmouseover')
+GUI_EORView_Viewer.asp:2230 Uncaught TypeError: Cannot set properties of undefined (setting 'onmouseover')
+    at GUI_EORView_Viewer.asp:2230:37
 fetch('/ReportPage/GUI_Report_CSV.asp', {
   method: 'POST',
   headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -17,3 +20,9 @@ fetch('/ReportPage/GUI_Report_CSV.asp', {
   console.log(txt.slice(0, 500));
 })
 .catch(e => console.error('ERR:', e));
+VM375:10 Uncaught ReferenceError: gstrTableSQL is not defined
+    at <anonymous>:10:20
+
+This is the URL of the page:
+
+https://webeor.usps.gov/Common/GUI_Common_framemenus.asp
