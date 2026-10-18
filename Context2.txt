@@ -1,0 +1,42 @@
+PS C:\Users\YYQTP0> $base = "https://webeor.usps.gov"
+PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 1. frameset shell (sets NSC_* cookie)
+PS C:\Users\YYQTP0> $null = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 2. THE frame that does the Windows-identity -> app-session binding
+PS C:\Users\YYQTP0> $main = Invoke-WebRequest -Uri "$base/GUI_Login_Main.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "After main  : $($main.BaseResponse.ResponseUri.AbsoluteUri)  Bytes: $($main.RawContentLength)"
+After main  : https://webeor.usps.gov/GUI_Login_View.asp  Bytes: 162161
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 3. does the viewer now accept us?
+PS C:\Users\YYQTP0> $view = Invoke-WebRequest -Uri "$base/EORViewer/GUI_EORView_Viewer.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "After viewer: $($view.BaseResponse.ResponseUri.AbsoluteUri)  Bytes: $($view.RawContentLength)"
+After viewer: https://webeor.usps.gov/GUI_Login_View.asp  Bytes: 162161
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 4. show us the site dropdown from the landing page
+PS C:\Users\YYQTP0> $opts = [regex]::Matches($main.Content, '<option[^>]*value\s*=\s*["'']([^"'']+)["''][^>]*>([^<]+)</option>', 'IgnoreCase')
+PS C:\Users\YYQTP0> "Dropdown options found: $($opts.Count)"
+Dropdown options found: 352
+PS C:\Users\YYQTP0> $opts | Select-Object -First 10 | ForEach-Object {
+>>     "  {0}  =>  {1}" -f $_.Groups[1].Value, $_.Groups[2].Value.Trim()
+>> }
+  76003  =>  ABILENE TX P&DC
+  49009  =>  AKRON OH P&DC
+  35012  =>  ALBANY GA GMF
+  17009  =>  ALBANY NY P&DC
+  84001  =>  ALBUQUERQUE NM P&DC
+  71003  =>  ALEXANDRIA LA
+  20021  =>  ALTOONA PA
+  76057  =>  AMARILLO TX P&DF
+  66002  =>  AMC O'HARE
+  93002  =>  ANAHEIM CA P&DF
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 5. cookies now
+PS C:\Users\YYQTP0> $session.Cookies.GetCookies($base) | ForEach-Object { "  $($_.Name) = $($_.Value)" }
+  NSC_xfcfps_443 = ffffffff3bc1b6a645525d5f4f58455e445a4a42378b
+  ASPSESSIONIDCGBDSBRS = PCNNLAECHECCFDONIBLPNLMI
+PS C:\Users\YYQTP0>
