@@ -1,92 +1,114 @@
-$base    = "https://webeor.usps.gov"
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0> $base    = "https://webeor.usps.gov"
+PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 1. Landing
+PS C:\Users\YYQTP0> $null = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 2. POST login form (site 76003 = ABILENE TX P&DC)
+PS C:\Users\YYQTP0> $body = @{
+>>     User="View"; Pword="View"; ChildSites=""; ServerType="Production"
+>>     GroupList=""; FullName=""; EMail=""; ParentSiteID="76003"; btnLogin="View"
+>> }
+PS C:\Users\YYQTP0> $post = Invoke-WebRequest -Uri "$base/GUI_Login_Validate.asp" -Method Post `
+>>         -Body $body -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> $js = [regex]::Match($post.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+PS C:\Users\YYQTP0> if (-not $js.Success) { throw "No JS redirect from Validate.asp" }
+PS C:\Users\YYQTP0> $current = [uri]$js.Groups[1].Value
+PS C:\Users\YYQTP0> "Redirect: $current"
+Redirect: https://eagnmnwbp13ec.usps.gov/GUI_Login_Auto.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&Email=&GroupList=&RPG=undefined
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 3. Follow JS redirects (fixing relative URLs each hop) — up to 5 hops
+PS C:\Users\YYQTP0> for ($i = 1; $i -le 5; $i++) {
+>>     try {
+>>         $r = Invoke-WebRequest -Uri $current -WebSession $session `
+>>                 -UseDefaultCredentials -UseBasicParsing
+>>     } catch {
+>>         "Hop $i  ERROR: $($_.Exception.Message)"                                                                     >>         break                                                                                                        >>     }                                                                                                                >>     "Hop $i  Status=$($r.StatusCode)  Bytes=$($r.RawContentLength)  FinalUri=$($r.BaseResponse.ResponseUri.AbsoluteUri)"
+>>     "  Body head: $($r.Content.Substring(0, [Math]::Min(300, $r.Content.Length)))"
+>>
+>>     # Resolve any JS redirect against current
+>>     $nextJs = [regex]::Match($r.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+>>     if ($nextJs.Success) {                                                                                           >>         $nextHref = $nextJs.Groups[1].Value                                                                          >>         $resolved = [uri]::new([uri]$current, $nextHref)                                                             >>         "  -> next: $resolved"                                                                                       >>         $current = $resolved
+>>         continue
+>>     }
+>>     # Meta refresh fallback
+>>     $nextMeta = [regex]::Match($r.Content, 'http-equiv=["'']?refresh["'']?[^>]*content=["'']?\s*\d+;\s*url=([^"''>]+)', 'IgnoreCase')
+>>     if ($nextMeta.Success) {
+>>         $resolved = [uri]::new([uri]$current, $nextMeta.Groups[1].Value.Trim())
+>>         "  -> meta-refresh: $resolved"
+>>         $current = $resolved
+>>         continue
+>>     }
+>>     break
+>> }
+Hop 1  Status=200  Bytes=111  FinalUri=https://eagnmnwbp13ec.usps.gov/GUI_Login_Auto.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&Email=&GroupList=&RPG=undefined
+  Body head:
+<SCRIPT LANGUAGE="Javascript">
 
-# 1. Landing
-$null = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
+                document.location.href="/Common/GUI_Common_framemenus.asp"
 
-# 2. POST login form (site 76003 = ABILENE TX P&DC)
-$body = @{
-    User="View"; Pword="View"; ChildSites=""; ServerType="Production"
-    GroupList=""; FullName=""; EMail=""; ParentSiteID="76003"; btnLogin="View"
-}
-$post = Invoke-WebRequest -Uri "$base/GUI_Login_Validate.asp" -Method Post `
-        -Body $body -WebSession $session -UseDefaultCredentials -UseBasicParsing
+</SCRIPT>
+  -> next: https://eagnmnwbp13ec.usps.gov/Common/GUI_Common_framemenus.asp
+Hop 2  Status=200  Bytes=563  FinalUri=https://eagnmnwbp13ec.usps.gov/Common/GUI_Common_framemenus.asp
+  Body head:
+<HTML>
+<HEAD><TITLE>WebEOR: Server 6</TITLE></HEAD>
+<FRAMESET BORDER="0" FRAMESPACING="0" ROWS="40,*" FRAMEBORDER="0">
+        <FRAME                                                                                                                          ID="frmMenu"                                                                                                            NAME="frmMenu"                                                                                                          MARGINWIDTH="0"                                                                                                         MARGINHEIGHT="0"
+                SRC="/Common/GUI_Common_menu_ex1.asp?MenuType=BLANK"
+                FRAMEBORDER="0"
+                NORESIZE
+                SCROL
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 4. Extract authoritative new host the CORRECT way
+PS C:\Users\YYQTP0> $newHost = ([uri]$current).GetLeftPart([System.UriPartial]::Authority)
+PS C:\Users\YYQTP0> "New host: $newHost"
+New host: https://eagnmnwbp13ec.usps.gov
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 5. Cookies for both hosts
+PS C:\Users\YYQTP0> "`n=== Cookies for $newHost ==="
 
-$js = [regex]::Match($post.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-if (-not $js.Success) { throw "No JS redirect from Validate.asp" }
-$current = [uri]$js.Groups[1].Value
-"Redirect: $current"
+=== Cookies for https://eagnmnwbp13ec.usps.gov ===
+PS C:\Users\YYQTP0> $session.Cookies.GetCookies($newHost) | ForEach-Object {
+>>     "  $($_.Name) = $($_.Value)  Domain=$($_.Domain)  Path=$($_.Path)"
+>> }
+  ASPSESSIONIDCCHCSCTT = JMMJLGECOBPPJNEMPOHNNBKD  Domain=eagnmnwbp13ec.usps.gov  Path=/
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 6. Viewer on the new host
+PS C:\Users\YYQTP0> $view = Invoke-WebRequest -Uri "$newHost/EORViewer/GUI_EORView_Viewer.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "`n=== Viewer ==="
 
-# 3. Follow JS redirects (fixing relative URLs each hop) — up to 5 hops
-for ($i = 1; $i -le 5; $i++) {
-    try {
-        $r = Invoke-WebRequest -Uri $current -WebSession $session `
-                -UseDefaultCredentials -UseBasicParsing
-    } catch {
-        "Hop $i  ERROR: $($_.Exception.Message)"
-        break
-    }
-    "Hop $i  Status=$($r.StatusCode)  Bytes=$($r.RawContentLength)  FinalUri=$($r.BaseResponse.ResponseUri.AbsoluteUri)"
-    "  Body head: $($r.Content.Substring(0, [Math]::Min(300, $r.Content.Length)))"
-
-    # Resolve any JS redirect against current
-    $nextJs = [regex]::Match($r.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-    if ($nextJs.Success) {
-        $nextHref = $nextJs.Groups[1].Value
-        $resolved = [uri]::new([uri]$current, $nextHref)
-        "  -> next: $resolved"
-        $current = $resolved
-        continue
-    }
-    # Meta refresh fallback
-    $nextMeta = [regex]::Match($r.Content, 'http-equiv=["'']?refresh["'']?[^>]*content=["'']?\s*\d+;\s*url=([^"''>]+)', 'IgnoreCase')
-    if ($nextMeta.Success) {
-        $resolved = [uri]::new([uri]$current, $nextMeta.Groups[1].Value.Trim())
-        "  -> meta-refresh: $resolved"
-        $current = $resolved
-        continue
-    }
-    break
-}
-
-# 4. Extract authoritative new host the CORRECT way
-$newHost = ([uri]$current).GetLeftPart([System.UriPartial]::Authority)
-"New host: $newHost"
-
-# 5. Cookies for both hosts
-"`n=== Cookies for $newHost ==="
-$session.Cookies.GetCookies($newHost) | ForEach-Object {
-    "  $($_.Name) = $($_.Value)  Domain=$($_.Domain)  Path=$($_.Path)"
-}
-
-# 6. Viewer on the new host
-$view = Invoke-WebRequest -Uri "$newHost/EORViewer/GUI_EORView_Viewer.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"`n=== Viewer ==="
-"  FinalUri : $($view.BaseResponse.ResponseUri.AbsoluteUri)"
-"  Bytes    : $($view.RawContentLength)"
-"  Loaded   : $($view.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer')"
-
-# 7. If loaded, run the CSV POST on the backend host
-if ($view.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer') {
-    $sql = @'
-SELECT /*+ ordered */ SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 1, 5 ) || '-' || SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 6 ) site_code, machine_type.mach_type_desc, machine.machine_nbr, TRIM(application_data.machine_sort_program_name) msp, application_data.tour_code, TO_CHAR( application_data.start_dtm, 'MM/DD/YY HH24:MI') start_date, TO_CHAR( application_data.end_dtm, 'MM/DD/YY HH24:MI') end_date, GUI_Common_Helper.FormatOpNbr( application_data.mail_operation_nbr ) op_nbr, application_data.app_sequence_nbr, application_data.total_pieces_fed_cnt, GUI_Common_Helper.GetRunTransStatus( application_data.mail_operation_nbr, application_data.mods_trans_ind, application_data.mods_trans_date ) ModsTrans, DECODE( UPPER( application_data.dsis_ind ), 'T', 'S', 'NS' ) dsis, end_of_run.run_nbr, application_data.run_sequence_nbr , substr(TO_CHAR(application_data.mods_date, 'MM/DD/YY HH24:MI'), 7, 2) mYear, substr(TO_CHAR(application_data.start_dtm, 'MM/DD/YY HH24:MI'), 7, 2) sYear, substr(TO_CHAR(application_data.end_dtm, 'MM/DD/YY HH24:MI'), 7, 2) eYear, NVL(substr(TO_CHAR(application_data.mods_trans_date), 9, 2), '00') mTransYear, postal_facility.site_name FROM EOR_PSBRPA.application_data, EOR_PSBRPA.end_of_run, ( SELECT site_id, site_name, zip_code_id FROM EOR_PSBRPA.postal_facility x START WITH x.site_id = 76003 CONNECT BY PRIOR x.site_id = x.parent_site_id AND x.site_id <> 76003 ) postal_facility, EOR_PSBRPA.machine_type, EOR_PSBRPA.machine WHERE end_of_run.site_id = postal_facility.site_id AND end_of_run.machine_id = machine.machine_id AND end_of_run.site_id = machine.site_id AND end_of_run.run_mach_type_code = machine_type.mach_type_code AND end_of_run.run_sequence_nbr = application_data.run_sequence_nbr AND application_data.mods_date >= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') AND application_data.mods_date <= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') ORDER BY mach_type_desc asc, machine_nbr asc,  myear asc, syear asc, start_date asc
-'@
-    $csvBody = @{
-        tabCsvGroup   = " "
-        tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
-        tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
-        tabCsvSource  = "CLIENT"
-        tabCsvSQL     = $sql
-    }
-    $csv = Invoke-WebRequest -Uri "$newHost/ReportPage/GUI_Report_CSV.asp" `
-            -Method POST -Body $csvBody -WebSession $session `
-            -UseDefaultCredentials -UseBasicParsing
-    "`n=== CSV POST ==="
-    "  Status : $($csv.StatusCode)"
-    "  CT     : $($csv.Headers['Content-Type'])"
-    "  Bytes  : $($csv.RawContentLength)"
-    "  First 300:"
-    $csv.Content.Substring(0, [Math]::Min(300, $csv.Content.Length))
-}
+=== Viewer ===
+PS C:\Users\YYQTP0> "  FinalUri : $($view.BaseResponse.ResponseUri.AbsoluteUri)"
+  FinalUri : https://eagnmnwbp13ec.usps.gov/GUI_Login_View.asp
+PS C:\Users\YYQTP0> "  Bytes    : $($view.RawContentLength)"
+  Bytes    : 162161
+PS C:\Users\YYQTP0> "  Loaded   : $($view.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer')"
+  Loaded   : False
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 7. If loaded, run the CSV POST on the backend host
+PS C:\Users\YYQTP0> if ($view.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer') {
+>>     $sql = @'
+>> SELECT /*+ ordered */ SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 1, 5 ) || '-' || SUBSTR( LPAD( postal_facility.zip_code_id, 9, '0' ), 6 ) site_code, machine_type.mach_type_desc, machine.machine_nbr, TRIM(application_data.machine_sort_program_name) msp, application_data.tour_code, TO_CHAR( application_data.start_dtm, 'MM/DD/YY HH24:MI') start_date, TO_CHAR( application_data.end_dtm, 'MM/DD/YY HH24:MI') end_date, GUI_Common_Helper.FormatOpNbr( application_data.mail_operation_nbr ) op_nbr, application_data.app_sequence_nbr, application_data.total_pieces_fed_cnt, GUI_Common_Helper.GetRunTransStatus( application_data.mail_operation_nbr, application_data.mods_trans_ind, application_data.mods_trans_date ) ModsTrans, DECODE( UPPER( application_data.dsis_ind ), 'T', 'S', 'NS' ) dsis, end_of_run.run_nbr, application_data.run_sequence_nbr , substr(TO_CHAR(application_data.mods_date, 'MM/DD/YY HH24:MI'), 7, 2) mYear, substr(TO_CHAR(application_data.start_dtm, 'MM/DD/YY HH24:MI'), 7, 2) sYear, substr(TO_CHAR(application_data.end_dtm, 'MM/DD/YY HH24:MI'), 7, 2) eYear, NVL(substr(TO_CHAR(application_data.mods_trans_date), 9, 2), '00') mTransYear, postal_facility.site_name FROM EOR_PSBRPA.application_data, EOR_PSBRPA.end_of_run, ( SELECT site_id, site_name, zip_code_id FROM EOR_PSBRPA.postal_facility x START WITH x.site_id = 76003 CONNECT BY PRIOR x.site_id = x.parent_site_id AND x.site_id <> 76003 ) postal_facility, EOR_PSBRPA.machine_type, EOR_PSBRPA.machine WHERE end_of_run.site_id = postal_facility.site_id AND end_of_run.machine_id = machine.machine_id AND end_of_run.site_id = machine.site_id AND end_of_run.run_mach_type_code = machine_type.mach_type_code AND end_of_run.run_sequence_nbr = application_data.run_sequence_nbr AND application_data.mods_date >= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') AND application_data.mods_date <= TO_DATE('17-Oct-2026', 'DD-MON-YYYY') ORDER BY mach_type_desc asc, machine_nbr asc,  myear asc, syear asc, start_date asc
+>> '@
+>>     $csvBody = @{
+>>         tabCsvGroup   = " "
+>>         tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+>>         tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
+>>         tabCsvSource  = "CLIENT"
+>>         tabCsvSQL     = $sql
+>>     }
+>>     $csv = Invoke-WebRequest -Uri "$newHost/ReportPage/GUI_Report_CSV.asp" `
+>>             -Method POST -Body $csvBody -WebSession $session `
+>>             -UseDefaultCredentials -UseBasicParsing
+>>     "`n=== CSV POST ==="
+>>     "  Status : $($csv.StatusCode)"
+>>     "  CT     : $($csv.Headers['Content-Type'])"
+>>     "  Bytes  : $($csv.RawContentLength)"
+>>     "  First 300:"
+>>     $csv.Content.Substring(0, [Math]::Min(300, $csv.Content.Length))
+>> }
+PS C:\Users\YYQTP0>
