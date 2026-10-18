@@ -1,41 +1,59 @@
-$front = "https://webeor.usps.gov"
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+PS C:\Users\YYQTP0> $front = "https://webeor.usps.gov"                                                                  PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession                               PS C:\Users\YYQTP0> $session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"                                                                        PS C:\Users\YYQTP0>                                                                                                     PS C:\Users\YYQTP0> function ShowCookies([string]$label) {                                                              >>     $asps = $session.Cookies.GetCookies($front) |
+>>             Where-Object { $_.Name -like "ASPSESSIONID*" } |
+>>             ForEach-Object { "$($_.Name)=$($_.Value)" }
+>>     "$label : $asps"
+>> }
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 1. Landing
+PS C:\Users\YYQTP0> $null = Invoke-WebRequest -Uri "$front/GUI_Login_View.asp" -WebSession $session `
+>>     -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> ShowCookies "after landing"
+after landing : ASPSESSIONIDCGBDSBRS=AAONLAECIDLGNMGCJBPIGMIJ
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 2. Site-select POST (with full browser headers)
+PS C:\Users\YYQTP0> $loginBody = @{
+>>     User="View"; Pword="View"; ChildSites=""; ServerType="Production"
+>>     GroupList=""; FullName=""; EMail=""; ParentSiteID="19010"; btnLogin="View"
+>> }
+PS C:\Users\YYQTP0> $post1 = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST -Body $loginBody `
+>>     -WebSession $session -UseDefaultCredentials -UseBasicParsing `
+>>     -Headers @{
+>>         Origin  = $front
+>>         Referer = "$front/GUI_Login_View.asp"
+>>     }
+PS C:\Users\YYQTP0> ShowCookies "after Validate POST"
+after Validate POST : ASPSESSIONIDCGBDSBRS=AAONLAECIDLGNMGCJBPIGMIJ
+PS C:\Users\YYQTP0> "POST Status=$($post1.StatusCode)  Bytes=$($post1.RawContentLength)"
+POST Status=200  Bytes=44240
+PS C:\Users\YYQTP0> "POST body head: $($post1.Content.Substring(0,[Math]::Min(400,$post1.Content.Length)))"
+POST body head:
+<HTML>                                                                                                                          <HEAD>                                                                                                                          <TITLE>DMS/EOR Main Menu</TITLE>                                                                                        <META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">                                                               <LINK REL="stylesheet" HREF="GUI_Common_Style.css" TYPE="text/css">
+        </HEAD>
 
-function ShowCookies([string]$label) {
-    $asps = $session.Cookies.GetCookies($front) |
-            Where-Object { $_.Name -like "ASPSESSIONID*" } |
-            ForEach-Object { "$($_.Name)=$($_.Value)" }
-    "$label : $asps"
-}
 
-# 1. Landing
-$null = Invoke-WebRequest -Uri "$front/GUI_Login_View.asp" -WebSession $session `
-    -UseDefaultCredentials -UseBasicParsing
-ShowCookies "after landing"
+<BODY
+        MARGINWIDTH="0"
+        MARGINHEIGHT="0"
+        TOPMARGIN="0"
+        LEFTMARGIN="0"
+        BACKGROUNDX="/images/GUI_Common_Background.gif">
 
-# 2. Site-select POST (with full browser headers)
-$loginBody = @{
-    User="View"; Pword="View"; ChildSites=""; ServerType="Production"
-    GroupList=""; FullName=""; EMail=""; ParentSiteID="19010"; btnLogin="View"
-}
-$post1 = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST -Body $loginBody `
-    -WebSession $session -UseDefaultCredentials -UseBasicParsing `
-    -Headers @{
-        Origin  = $front
-        Referer = "$front/GUI_Login_View.asp"
-    }
-ShowCookies "after Validate POST"
-"POST Status=$($post1.StatusCode)  Bytes=$($post1.RawContentLength)"
-"POST body head: $($post1.Content.Substring(0,[Math]::Min(400,$post1.Content.Length)))"
+<SCRIPT LANGUAGE="JavaScript1.2" TYPE="text/javascript">
 
-# 3. Did the response tell us where to go next?
-$js = [regex]::Match($post1.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-"JS redirect: $(if ($js.Success) {$js.Groups[1].Value} else {'(none)'})"
-
-# 4. Immediate viewer probe
-$viewer = Invoke-WebRequest -Uri "$front/EORViewer/GUI_EORView_Viewer.asp" `
-    -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"Viewer FinalUri: $($viewer.BaseResponse.ResponseUri.AbsoluteUri)"
-"Viewer Bytes   : $($viewer.RawContentLength)"
-"Viewer authed  : $([bool]($viewer.Content -match 'gstrTableSQL'))"
+/********
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 3. Did the response tell us where to go next?
+PS C:\Users\YYQTP0> $js = [regex]::Match($post1.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+PS C:\Users\YYQTP0> "JS redirect: $(if ($js.Success) {$js.Groups[1].Value} else {'(none)'})"
+JS redirect: /GUI_Login_Main.asp
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 4. Immediate viewer probe
+PS C:\Users\YYQTP0> $viewer = Invoke-WebRequest -Uri "$front/EORViewer/GUI_EORView_Viewer.asp" `
+>>     -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "Viewer FinalUri: $($viewer.BaseResponse.ResponseUri.AbsoluteUri)"
+Viewer FinalUri: https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp
+PS C:\Users\YYQTP0> "Viewer Bytes   : $($viewer.RawContentLength)"
+Viewer Bytes   : 362125
+PS C:\Users\YYQTP0> "Viewer authed  : $([bool]($viewer.Content -match 'gstrTableSQL'))"
+Viewer authed  : True
+PS C:\Users\YYQTP0>
