@@ -1,0 +1,824 @@
+
+<!-- saved from url=(0044)https://webeor.usps.gov/GUI_MainApp_Main.asp -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+		<title>DMS/EOR Main Menu</title>
+		<meta http-equiv="Content-Style-Type" content="text/css">
+		<link rel="stylesheet" href="./GUI_Common_Style.css" type="text/css">
+	</head>
+
+
+<body marginwidth="0" marginheight="0" topmargin="0" leftmargin="0" backgroundx="/images/GUI_Common_Background.gif">
+
+<script language="JavaScript1.2" type="text/javascript">
+
+/*****************************************************************************
+Default browsercheck
+******************************************************************************/
+function checkBrowser(){
+	
+	this.ver=navigator.appVersion
+	this.dom=document.getElementById?1:0
+	this.ie5=((this.ver.indexOf("MSIE 5")>-1 || this.ver.indexOf("MSIE 6")>-1 || 
+		this.ver.indexOf("MSIE 7")>-1 || this.ver.indexOf("MSIE 8")>-1 || 
+		this.ver.indexOf("MSIE 9")>-1) || 
+		(this.ver.indexOf("Trident/")>-1 && this.ver.indexOf("rv:")>-1) && this.dom)?1:0;
+	this.ie4=(document.all && !this.dom)?1:0;
+	this.ns5=(this.dom && parseInt(this.ver) >= 5) ?1:0;
+	this.ns4=(document.layers && !this.dom)?1:0;
+	this.opera=!(this.ie5 || this.ie4 || this.ns4 || this.ns5) && this.dom;
+	this.bw=(this.ie5 || this.ie4 || this.ns4 || this.ns5);
+	return this;
+}
+
+var bw = new checkBrowser();
+
+
+//********************************************************************************
+//** FUNCTION: Logout
+//**
+//** DESCRIPTION: Prompt the user to log out, then if yes, log them out and
+//**	returns them to the login screen.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function Logout()
+{
+	if ( confirm("Are you sure you want to log out?") )
+		document.location.href = "/GUI_Login_Main.asp";
+} 
+
+
+function SendMessage( rstrMessage )
+{
+	//document.forms[0].elements["DebugTest"].value = document.forms[0].elements["DebugTest"].value +
+	//	rstrMessage + "\n";
+}
+
+
+
+//********************************************************************************
+//** FUNCTION: makeMenuAppear
+//**
+//** DESCRIPTION: Causes the hidden table to remain visible. This function 
+//**	is called when then mouse moves from the 'Menu' option in the top bar to
+//**	the dropdown menu that has appeared.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function makeMenuAppear()
+{
+	SendMessage( "Data: Appear Called" );
+	if ( parent.frmMenu )
+		parent.frmMenu.gintEraseD = 0;
+	else if ( parent.parent.frmMenu )
+		parent.parent.frmMenu.gintEraseD = 0;
+}
+
+
+
+//********************************************************************************
+//** FUNCTION: makeMenuDisappear
+//**
+//** DESCRIPTION: Causes the dropdown menu to disappear. This just sets the
+//**	table's "visibility" style to hidden.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function makeMenuDisappear()
+{
+	SendMessage( "Data: Disappear Called" );
+
+	if ( parent.frmMenu )
+	{
+		parent.frmMenu.gintEraseD = 1;
+		setTimeout( "parent.frmMenu.checkEraseMenu()", 100 );
+	}
+	else if ( parent.parent.frmMenu )
+	{
+		parent.parent.frmMenu.gintEraseD = 1;
+		setTimeout( "parent.parent.frmMenu.checkEraseMenu()", 100 );
+	}
+
+}
+
+
+
+//********************************************************************************
+//** FUNCTION: makeMenuDisappear
+//**
+//** DESCRIPTION: Causes the dropdown menu to disappear. This just sets the
+//**	table's "visibility" style to hidden.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function loadPage( rstrLocation )
+{
+	SendMessage( "Data: Load Page Called" );
+
+	if ( parent.frmMenu )
+	{
+		parent.frmMenu.gintEraseD = 1;
+		parent.frmMenu.checkEraseMenu();
+		document.location.href = rstrLocation;
+	}
+	else if ( parent.parent.frmMenu )
+	{
+		parent.parent.frmMenu.gintEraseD = 0;
+		parent.parent.frmMenu.checkEraseMenu();
+		parent.document.location.href = rstrLocation;
+	}
+}
+
+</script>
+
+<table cellpadding="0" cellspacing="0" border="0" width="100%">
+<tbody><tr><td width="10px"><img src="./GUI_Common_ts.gif" border="0" width="10"></td>
+<td width="100%" valign="Top">
+<script language="JavaScript">
+
+if ( parent.frmMenu )
+{
+	if ( parent.frmMenu.document.forms[0].MenuVisible.value == "No" )
+	{
+		parent.frmMenu.location.href = "/Common/GUI_Common_menu_ex1.asp";
+	}
+}
+if ( parent.parent.frmMenu )
+{
+	if ( parent.parent.frmMenu.document.forms[0].MenuVisible.value == "No" )
+	{
+		parent.parent.frmMenu.location.href = "/Common/GUI_Common_menu_ex1.asp";
+	}
+} 
+</script>
+
+
+<script language="Javascript">
+
+/*******************************************************
+* NAME: HilightBigLink
+*
+* DESCRIPTION: Highlight the report selection when
+*   mouse hovers over the report TD
+*******************************************************/
+function HilightBigLink( robjLink, rstrLinkId )
+{
+	robjLink.bgColor = "#B0B0B0";
+	robjLink.color = "#ffffff";
+
+	var lobjTitleLink = document.getElementById( "BigLinkTitle" + rstrLinkId );
+	var lobjTextLink = document.getElementById( "BigLinkText" + rstrLinkId );
+	var lobjHeightLink = document.getElementById( "BigLinkHeight" + rstrLinkId );
+
+	lobjTitleLink.style.color = "#ffffff";
+	lobjTextLink.style.color = "#ffffff";
+	lobjHeightLink.bgColor = "#B0B0B0";
+}
+
+
+
+/*******************************************************
+* NAME: LolightBigLink
+*
+* DESCRIPTION: Un-highlight the big link selection
+*******************************************************/
+function LolightBigLink( robjLink, rstrLinkId )
+{
+	robjLink.bgColor = "Transparent";
+
+	var lobjTitleLink = document.getElementById( "BigLinkTitle" + rstrLinkId );
+	var lobjTextLink = document.getElementById( "BigLinkText" + rstrLinkId );
+	var lobjHeightLink = document.getElementById( "BigLinkHeight" + rstrLinkId );
+
+	lobjTitleLink.style.color = "#000000";
+	lobjTextLink.style.color = "#000000";
+	lobjHeightLink.bgColor = "Transparent";
+}
+
+
+/*******************************************************
+* NAME: LaunchBigLink
+*
+* DESCRIPTION: Launch a biglink when any area is clicked.
+*******************************************************/
+function LaunchBigLink( rstrLinkId )
+{
+	if ( rstrLinkId == 1 )
+		this.document.location.href = "EORViewer/GUI_EORView_Viewer.asp";
+
+	if ( rstrLinkId == 2 )
+		this.document.location.href = "reportpage/GUI_ReportView.asp";
+
+	if ( rstrLinkId == 3 )
+		this.document.location.href = "Import/GUI_Imports_Edit.asp";
+
+	if ( rstrLinkId == 4 )
+		this.document.location.href = "Admin/GUI_AdminJobStatus_Viewer.asp?DisplayServerNbrUnderTen=Y";
+
+	if ( rstrLinkId == 5 )
+		this.document.location.href = "Admin/GUI_EventView_Edit.asp?ID=20261018.lod";
+
+	if ( rstrLinkId == 6 )
+		this.document.location.href = "Admin/GUI_RPG_File.asp";
+
+	if ( rstrLinkId == 7 )
+		this.document.location.href = "Mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=DOISHistory";
+}
+
+
+function LaunchUnmappedSortProgramViewer()
+{
+	var lobjForm = document.getElementById( "UnmappedSortProgramViewer" );
+
+	lobjForm.submit();
+}
+
+</script>
+<form name="frmMainApp" method="get" action="https://webeor.usps.gov/GUI_MainApp_Main.asp" style="display: inline">
+	<input type="HIDDEN" name="Help_Loc" value="/WebHelp/WebEOR_Help.htm">
+</form>
+<table border="0" cellspacing="0" cellpadding="0" width="100%" align="Center">
+<tbody><tr>
+	<td width="50%">
+		<img src="./GUI_Common_ts.gif" border="0" alt="">
+	</td>
+<td valign="TOP">
+
+<!-- Logo, Main Menu, and Login information block -->
+<center>
+<table border="0" cellspacing="0" cellpadding="0" width="620" align="Center" summary="Formatting table for Logo, Main Menu, and Login information">
+<tbody><tr>
+	<td class="BarText" width="1"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+	<td width="618" colspan="3" style="background-image: URL( 'images/GUI_Common_FrontTitle_5.jpg' );"><img src="./GUI_Common_ts.gif" border="0" alt="WebEOR Main Image" width="1" height="75"></td>
+	<td class="BarText" width="1"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+</tr>
+<tr>
+	<td class="BarText" colspan="5"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+</tr>
+<tr>
+	<td align="Left" colspan="5">
+		&nbsp;<br>
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr>
+				<td width="33%" align="left">
+					<table cellspacing="0" cellpadding="0" width="200" class="BigLink">
+						<tbody><tr>
+							<td id="BigLinkHeight1" bgcolor="Transparent">
+								<img src="./GUI_Common_ts.gif" border="0" alt="" width="1px" height="75px">
+							</td>
+							<td valign="top" style="padding: 5px" onmouseover="HilightBigLink( this, 1 );" onmouseout="LolightBigLink( this, 1 );" onclick="LaunchBigLink( 1 );" bgcolor="Transparent">
+								<span class="BigLinkTitle" id="BigLinkTitle1" style="color: rgb(0, 0, 0);">EOR Viewer</span><br>
+								<div class="BigLinkText" id="BigLinkText1" style="color: rgb(0, 0, 0);">View and modify end-of-run data loaded into WebEOR.</div>
+							</td>
+						</tr>
+					</tbody></table>
+				</td>
+			
+				<td width="34%" align="center">
+					<table border="0" cellspacing="0" cellpadding="0" width="200" class="BigLink">
+						<tbody><tr>
+							<td id="BigLinkHeight2" bgcolor="Transparent">
+								<img src="./GUI_Common_ts.gif" border="0" alt="" width="1px" height="75px">
+							</td>
+							<td valign="top" style="padding: 5px" onmouseover="HilightBigLink( this, 2 );" onmouseout="LolightBigLink( this, 2 );" onclick="LaunchBigLink( 2 );" bgcolor="Transparent">
+								<span class="BigLinkTitle" id="BigLinkTitle2" style="color: rgb(0, 0, 0);">EOR Reports</span><br>
+								<div class="BigLinkText" id="BigLinkText2" style="color: rgb(0, 0, 0);">Generate performance reports based on end-of-run data.</div>
+							</td>
+						</tr>
+					</tbody></table>
+				</td>
+				
+				<td width="33%" align="right">
+					<table border="0" cellspacing="0" cellpadding="0" width="200" class="BigLink">
+						<tbody><tr>
+							<td id="BigLinkHeight7">
+								<img src="./GUI_Common_ts.gif" border="0" alt="" width="1px" height="75px">
+							</td>
+							<td valign="top" style="padding: 5px" onmouseover="HilightBigLink( this, 7 );" onmouseout="LolightBigLink( this, 7 );" onclick="LaunchBigLink( 7 );">
+								<span class="BigLinkTitle" id="BigLinkTitle7">DOIS History</span><br>
+								<div class="BigLinkText" id="BigLinkText7">Review carrier piece counts sent to Delivery Operations Information System (DOIS).</div>
+							</td>
+						</tr>
+					</tbody></table>
+				</td>
+				
+			</tr>
+		</tbody></table>
+		<br>
+	</td>
+</tr>
+<tr>
+<td class="BarText"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+<td class="BarText" align="Left" colspan="3" style="padding: 3px;"><hr class="InvisibleObj"><span class="BarText">&nbsp; Main Menu</span>
+<span class="MessageTitle">&nbsp;&nbsp;&nbsp;&nbsp;There are currently<a href="javascript:LaunchUnmappedSortProgramViewer()" class="MessageTitle" title="Sort Program Viewer filterd for operation 000000">&nbsp;unmapped sort plans&nbsp;</a>in 1 run.</span>
+<hr class="InvisibleObj"></td>
+<td class="BarText"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+</tr>
+
+<tr>
+<td><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+<td rowspan="2" bgcolor="#FFFFFF" valign="Top">
+
+
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tbody><tr><td valign="Top">
+
+<br>
+
+<!-- MAIN MENU [BEGIN] -->
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+<tbody><tr>
+	<td valign="top" width="25%">
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; File</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Import/GUI_Imports_Edit.asp">Import</a></td><td></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp">EOR Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_CPCView_Viewer.asp">CPC Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_MSA_Data_Viewer.asp">Manual Parcel</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_NGTC_Viewer.asp">NGTC Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_RingScanner_Data_Viewer.asp">PSS Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_SWYB_Viewer.asp">ULX Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_RegisteredMailVolume_Viewer_ByHour.asp">Registered Mail</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_ThsScan_Viewer.asp">THS Scan Viewer</a></td></tr>
+			<!-- tr><td CLASS="NavLink">&nbsp; &nbsp;<a CLASS="NavLink" HREF="Admin/GUI_Monitor_Viewer.asp">Monitor </a></td></tr -->
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" target="_blank" href="https://webeor.usps.gov/WebHelp/WebEOR_Help.htm#Getting_Help_for_WebEOR.htm">Full Help</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_SiteInfo_Leakage_Viewer.asp">Leakage </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/ManualDownload/GUI_ManualDownload_edit.asp">Manual Download </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=DOISHistory">DOIS History</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_Exports_PCMODSSelect.asp">WebMODS Viewer </a></td></tr>
+
+			<!-- Cancellation -->
+			
+				<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_HandCancellation_Viewer.asp?Display=Hand%20Cancellation">Cancellations </a></td></tr>
+			
+				<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_MoveData_Viewer.asp">Move Data</a></td></tr>
+			
+		</tbody></table>
+		<br>
+
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; RPG</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			
+				<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/RPG/GUI_RPG_Main_Menu.asp">RPG Main Menu</a></td></tr>
+			
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_RPG_Viewer.asp">RPG Data</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_RPG_File.asp">RPG Upload</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/reportpage/GUI_RPG_Volume.asp">Volume Projection</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_MailFlow_Viewer.asp">Vol Forecast Group</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/reportpage/GUI_RunVsPlanVolume_Viewer.asp">Run vs Plan Volume</a></td></tr>
+		</tbody></table>
+		<br>		
+
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; Logs</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_EventView_Viewer.asp">Event Viewer</a></td></tr>
+
+			<!-- GUI Log Viewer -->
+			
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/EORViewer/GUI_NGTC_IDS_Log_Viewer.asp">IDS Log Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=SystemLog">System Log</a></td></tr>
+		</tbody></table>
+		<br> 
+	</td>
+	<td>&nbsp;</td>
+	<td valign="top" width="25%">
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; Reports</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/reportpage/GUI_ReportView.asp">Generate EOR Rpts</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/RCR/GUI_RCR_ReportView.asp">Generate RCR Rpts</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/ReportPage/GUI_Report_CustomViewer.asp">Custom Rpt. Maint.</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/TemplateReport/GUI_CSV_Viewer.asp">Template CSV Maint.</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/TemplateReport/GUI_TemplateReport_Viewer.asp">Template Rpt. Maint.</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/TemplateReport/GUI_TemplateReport_Field_Viewer.asp">Template Fields</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/TemplateReport/GUI_TemplateReport_Condition_Viewer.asp">Template Conditions</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_ReportFormula_Viewer.asp">Report Formula</a></td></tr>
+
+			<!-- Reports Parameter Set-->
+			
+				<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/reportpage/GUI_ReportParameterSet_Viewer.asp?CurrentUserFlag=Y">Parameter Set</a></td></tr>
+			
+			    <tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/reportpage/GUI_Schedule_Viewer.asp?CurrentUserFlag=Y">Schedule Report</a></td></tr>
+			
+		</tbody></table>
+		<br>
+
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; IPTS</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/IPTS/GUI_IPTS_Workload_DateSelect.asp">Projected Workload</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/IPTS/GUI_IPTS_ReportView.asp">Generate Rpts</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/IPTS/GUI_IPTS_WeeklyUploadProj_DateSelect.asp">Weekly Upld Proj Data</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/IPTS/GUI_IPTS_DailyUpload.asp">Daily Upload</a></td></tr>
+		</tbody></table>
+		<br>
+		
+	
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; Machine Catalog</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_MachineCatalog_Viewer.asp">Machine Catalog</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_MachineRelocate_Viewer.asp">Machine Relocate</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_MachineTransaction_Viewer.asp">Machine Transactions</a></td></tr>
+		</tbody></table>
+		<br>
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; Usage Statistics</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_UsageStats_Current_Viewer.asp">Current Viewer</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_UsageStats_Historic_Viewer.asp">Historic Viewer</a></td></tr>
+			
+		</tbody></table>
+		<br>
+	</td>
+	<td>&nbsp;</td>
+	
+	<td valign="top" width="25%">
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; Mapping</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_Region_Viewer.asp">Region</a>
+			                        &nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_Division_Viewer.asp">Division</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_Area_Viewer.asp">Area</a>
+			          &nbsp; &nbsp; &nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_District_Viewer.asp">District</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_SiteInfo_Viewer.asp">Site</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_SiteAliases_Viewer.asp">Site SV Aliases</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_StationInfo_Viewer.asp">Station</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_MachineInfo_Viewer.asp">Machine</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_MachineTypeInfo_Viewer.asp">Machine Type</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_SWYB_IDS_Mapping_Viewer.asp">ULX to IDS</a></td></tr>
+			<!--tr><td CLASS="NavLink">&nbsp; &nbsp;<a CLASS="NavLink" HREF="mapping/GUI_NGTC_IDS_Mapping_Viewer.asp">NGTC to IDS</a></td></tr-->
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_RingScanner_PSS_Viewer.asp">Manual Parcel to IDS</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_DownFlow_Viewer.asp">Downflow</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/mapping/GUI_SortProgram_Viewer.asp">Sort Program</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_SortProgram_ValidOpNoViewer.asp">Valid Opn </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=EquipmentType">Equipment Type </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=SourceType">Source Type</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_BMCSiteScf_Viewer.asp">NDC Site SCF</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_TraySorterLaneToBin_Viewer.asp">Tray Sorter Lane To Bin</a></td></tr>
+ 	 
+		</tbody></table>
+		<br>
+
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; FHP</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_FHP_Pending_Viewer.asp">FHP Manual Survey </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_FhpScfZip_Viewer.asp?Display=FHP%20SCF/ZIP">FHP SCF/ZIP </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_FhpFlowInfo_Viewer.asp?Display=FHP%20Flow">FHP Flow </a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_FhpScheduleRecalculations_Viewer.asp">FHP Recalculations</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_FhpManualReplayQueue_Viewer.asp">FHP Manual Replay</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Export/GUI_FHP_ManualParcel_Rule_Viewer.asp">Manual Parcel Rule</a></td></tr>
+			<!-- Unused Downflows Information -->
+			
+			<!-- Manual FHP Survey -->
+			
+		</tbody></table>
+		<br>
+	</td>
+	<td>&nbsp;</td>
+	<td valign="top" width="25%">
+		<table border="0" cellspacing="0" cellpadding="0" width="100%">
+			<tbody><tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+			<tr><td class="NavTitle">&nbsp; Admin</td></tr>
+			<tr><td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td></tr>
+		 	<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_AdminGroup_Viewer.asp">Site Groups</a></td></tr>
+
+			<!-- Machine Groups -->
+			
+				<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_AdminMachineGroup_Viewer.asp">Machine Groups </a></td></tr>
+			
+
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_DCC_Viewer.asp">Collector</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_CollectionDirectory_Viewer.asp">Collection Directory</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_AdminJobStatus_Viewer.asp">Job Status</a></td></tr>
+			
+			<!-- Parent Sites -->
+			
+				<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_ServerInfo_Viewer.asp">Parent Sites</a></td></tr>
+			
+
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_AdminFmpcs_Viewer.asp">FMPCS Info</a></td></tr>
+ 
+			<!-- Site Administrators -->
+			
+
+			<!-- Site Redirect -->
+			
+
+			<!-- Welcome Post -->
+			
+
+			<!-- EDW Exports -->
+			
+
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_ProcessModeTypeAliases_Viewer.asp">Process Mode</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_Holidays_Viewer.asp">Holidays</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_MailLevel_Viewer.asp">Mail Levels</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Mapping/GUI_IDS_Mapping_Viewer.asp">IDS Connections</a></td></tr>
+			
+			<!-- AFT Upload -->
+			
+			
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_GoldenRecord_Viewer.asp">Golden Record</a></td></tr>
+			<tr><td class="NavLink">&nbsp; &nbsp;<a class="NavLink" href="https://webeor.usps.gov/Admin/GUI_ServiceTypeCode_Viewer.asp">Service Type Code</a></td></tr>
+			
+		</tbody></table>
+		<br>
+		
+		
+		
+
+		<br>
+	
+	</td>
+	<td>&nbsp;</td>
+</tr>
+</tbody></table>
+<!-- MAIN MENU [END] -->
+
+<br>
+</td></tr>
+</tbody></table>
+
+</td><td class="MessageTitle"><img src="./GUI_Common_ts.gif" border="0" alt="|"></td>
+<td class="MessageTitle" width="150" style="padding: 2px"><span class="MessageTitle">Welcome</span></td>
+<td class="MessageTitle"><img src="./GUI_Common_ts.gif" border="0" alt="|"></td>
+</tr>
+
+<tr>
+	<td><img src="./GUI_Common_ts.gif" border="0" alt="" style="height: 300px; width: 1px;"></td>
+	<td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt="|"></td>
+	<td class="MessageData" valign="Top" style="padding: 2px">On 06/15, the WebEOR database was updated to use a new listener configuration.<br><br>Users of MS Office (Excel, Access) macros (ex RASQL) that connect directly to the database should update the TNS configuration on their workstations to the one listed <a href="https://eagnmnwbd209.usps.gov/ReportPage/ReportDisplay/PROD-Connection-Manager.txt" target="_blank">here</a> ASAP.</td>
+	<td class="NavLines"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+</tr>
+
+<tr>
+	<td class="BarTextSiteLabel" colspan="5">
+		<div style="padding: 2px;">
+			&nbsp;&nbsp;PITTSBURGH PA P&amp;DC
+		</div>
+	</td>
+</tr>
+<tr>
+	<td style="background-color: #A0A0A0;"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+	<td class="LoginInfo2" colspan="3" style="padding: 6px;">
+		<table cellpadding="0" cellspacing="0" border="0" width="100%">
+		<tbody><tr>
+			<td width="100%" style="font-size: 10pt;">
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Login ID: USA\YYQTP0 <br>
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Permissions: View<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Database Schema: PSBRPA <br>
+			</td>
+			<td align="right" valign="bottom">
+				<img src="./uspslogo_2.gif" alt="United States Postal Service">
+			</td>
+		</tr>
+		</tbody></table>
+	</td>
+	<td style="background-color: #A0A0A0;"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+</tr>
+<tr>
+	<td style="background-color: #A0A0A0;" colspan="5"><img src="./GUI_Common_ts.gif" border="0" alt=""></td>
+</tr>
+</tbody></table>
+</center>
+</td>
+<td width="50%" valign="Top" style="padding-left: 10px;">
+<script language="Javascript">
+
+var gbooLinkUsedId = false;
+
+/*******************************************************
+* NAME: Hilight
+*
+* DESCRIPTION: Highlight the report selection when
+*   mouse hovers over the report TD
+*******************************************************/
+function Hilight( robjLink, rstrReportId )
+{
+	robjLink.bgColor = "#B0B0B0";
+	robjLink.color = "#ffffff";
+
+	var lobjReportLink = document.getElementById( "ReportLink" + rstrReportId );
+
+	lobjReportLink.style.color = "#ffffff";
+}
+
+
+
+/*******************************************************
+* NAME: Lolight
+*
+* DESCRIPTION: Un-highlight the report selection
+*******************************************************/
+function Lolight( robjLink, rstrReportId )
+{
+	robjLink.bgColor = "Transparent";
+
+	var lobjReportLink = document.getElementById( "ReportLink" + rstrReportId );
+
+	lobjReportLink.style.color = "#606060";
+}
+
+
+/*******************************************************
+* NAME: LaunchReport
+*
+* DESCRIPTION: Launch a report when any area other
+*   in the report TD other than the A link is clicked.
+*******************************************************/
+function LaunchReport( rintReportId )
+{
+	if ( gbooLinkUsedId == true )
+	{
+		gbooLinkUsedId = false;
+		return;
+	}
+
+	var lobjForm = document.getElementById( "ReportLauncherForm" );
+	var lobjReportId = document.getElementById( "ReportId" );
+
+	lobjReportId.value = rintReportId;
+	//alert( "Report Launcher" );
+	lobjForm.submit();
+}
+
+
+/*******************************************************
+* NAME: UseHrefLink
+*
+* DESCRIPTION: Used to set a flag to diable the
+*   the javascript function that runs when the
+*   table division is clicked.
+*******************************************************/
+function UseHrefLink( rintReportId )
+{
+	//alert( "Link Used!" );
+	gbooLinkUsedId = true;
+}
+
+</script>
+<span class="OneClickTitle">One-Click Reports</span><br><table summary="List of One-Click reports" class="OneClickReport" border="0" cellpadding="0" cellspacing="0"><tbody><tr><td class="OneClickReportData" onmouseover="Hilight( this, 2875 );" onmouseout="Lolight( this, 2875 );" onclick="LaunchReport( 2875 );"><a onclick="UseHrefLink();" id="ReportLink2875" class="OneClickReport" href="https://webeor.usps.gov/ReportPage/GUI_ReportOneClick_Launch.asp?ReportId=2875" target="report_java623465548"><span class="OneClickReportTitle">Today's Run Plan</span><br><span class="OneClickReportUsed">Machine Chart - Plan</span><br><span class="OneClickReportDesc">Today's Run Plan</span></a><br>
+</td></tr><tr><td class="OneClickReportLine"><img src="./GUI_Common_ts.gif" border="0"></td></tr><tr><td class="OneClickReportData" onmouseover="Hilight( this, 2867 );" onmouseout="Lolight( this, 2867 );" onclick="LaunchReport( 2867 );"><a onclick="UseHrefLink();" id="ReportLink2867" class="OneClickReport" href="https://webeor.usps.gov/ReportPage/GUI_ReportOneClick_Launch.asp?ReportId=2867" target="report_java623465548"><span class="OneClickReportTitle">Yesterday Run v Plan</span><br><span class="OneClickReportUsed">Machine Chart - Run vs Plan</span><br><span class="OneClickReportDesc">Yesterday's Run vs Plan</span></a><br>
+</td></tr><tr><td class="OneClickReportLine"><img src="./GUI_Common_ts.gif" border="0"></td></tr><tr><td class="OneClickReportData" onmouseover="Hilight( this, 2869 );" onmouseout="Lolight( this, 2869 );" onclick="LaunchReport( 2869 );"><a onclick="UseHrefLink();" id="ReportLink2869" class="OneClickReport" href="https://webeor.usps.gov/ReportPage/GUI_ReportOneClick_Launch.asp?ReportId=2869" target="report_java623465548"><span class="OneClickReportTitle">Next Week's Run Plan</span><br><span class="OneClickReportUsed">Machine Chart - Plan</span><br><span class="OneClickReportDesc">Next Week's Run Plan</span></a><br>
+</td></tr><tr><td class="OneClickReportLine"><img src="./GUI_Common_ts.gif" border="0"></td></tr><tr><td class="OneClickReportData" onmouseover="Hilight( this, 2868 );" onmouseout="Lolight( this, 2868 );" onclick="LaunchReport( 2868 );"><a onclick="UseHrefLink();" id="ReportLink2868" class="OneClickReport" href="https://webeor.usps.gov/ReportPage/GUI_ReportOneClick_Launch.asp?ReportId=2868" target="report_java623465548"><span class="OneClickReportTitle">This Week's Run Plan</span><br><span class="OneClickReportUsed">Machine Chart - Plan</span><br><span class="OneClickReportDesc">This Week's Run Plan</span></a><br>
+</td></tr></tbody></table>
+<form method="Get" id="ReportLauncherForm" name="ReportLauncherForm" action="https://webeor.usps.gov/ReportPage/GUI_ReportOneClick_Launch.asp" target="report_java623465548">
+<input type="Hidden" id="ReportId" name="ReportId" value="">
+</form>
+<form method="Post" id="UnmappedSortProgramViewer" name="SortProgramViewerFiltered" action="https://webeor.usps.gov/Mapping/GUI_SortProgram_Viewer.asp">
+<input type="Hidden" id="OpNbr" name="OpNbr" value="000000">
+</form>
+</td>
+</tr>
+</tbody></table>
+
+
+</td>
+<td width="10px"><img src="./GUI_Common_ts.gif" border="0" width="10" alt=""></td>
+</tr>
+</tbody></table>
+
+<form name="frmTableCSV" id="frmTableCSV" method="Post" action="https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp">
+<input type="Hidden" name="tabCsvGroup" id="tabCsvGroup" value="">
+<input type="Hidden" name="tabCsvHeader" id="tabCsvHeader" value="">
+<input type="Hidden" name="tabCsvColumns" id="tabCsvColumns" value="">
+<input type="Hidden" name="tabCsvSource" id="tabCsvSource" value="">
+<input type="Hidden" name="tabCsvSQL" id="tabCsvSQL" value="">
+</form>
+
+<script language="Javascript">
+function generateTableCSV()
+{
+	document.getElementById( "tabCsvGroup" ).value   = gstrTableHeaderGroup;
+	document.getElementById( "tabCsvHeader" ).value  = gstrTableHeader;
+	document.getElementById( "tabCsvColumns" ).value = gstrTableColumns;
+	document.getElementById( "tabCsvSource" ).value  = gstrTableSource;
+	document.getElementById( "tabCsvSQL" ).value     = gstrTableSQL;
+
+	document.getElementById( "frmTableCSV" ).submit();
+}
+</script>
+
+<div id="DataMenu" class="MenuDropDown" style="visibility:hidden; position:absolute; top:0px; left:0px; color:white; background-color: #092b52; width: 120px">
+<center>
+<table border="0" cellspacing="0" cellpadding="0" width="100">
+<tbody><tr><td class="SideBarMenuTitle">File</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/Import/GUI_Imports_Edit.asp');">Import</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Export/GUI_Exp_frm.asp');" >Export</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/EORViewer/GUI_EORView_Viewer.asp');">EOR Viewer</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" target="_blank" href="https://webeor.usps.gov/WebHelp/WebEOR_Help.htm">Full Help</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/ManualDownload/GUI_ManualDownload_Edit.asp');">Manual Download</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=DOISHistory'); ">DOIS History</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/Admin/GUI_Exports_PCMODSSelect.asp');">WebMODS Viewer</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_Exports_FTPLogViewer.asp');" >FTP Logs</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+
+<tr><td class="SideBarMenuTitle">Reports</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/reportpage/GUI_ReportView.asp');">EOR Reports</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/RCR/GUI_RCR_ReportView.asp'); ">RCR Reports</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/reportpage/GUI_Report_CustomViewer.asp');">Custom Rpt.</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+
+<tr><td class="SideBarMenuTitle">Mapping</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_SiteInfo_Viewer.asp'); ">Site</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_StationInfo_Viewer.asp'); ">Station</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_MachineInfo_Viewer.asp'); ">Machine</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_Downflow_Viewer.asp'); ">Downflow</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_SortProgram_Viewer.asp'); ">Sort Prog</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_SortProgram_ValidOpNoViewer.asp'); ">Valid Opn</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=EquipmentType'); ">Equip Type</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+
+<tr><td class="SideBarMenuTitle">Admin</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/Admin/GUI_AdminGroup_Viewer.asp'); ">Site Group</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_AdminUsers_Viewer.asp'); " >Users</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_Exports_Viewer.asp'); " >Exporter</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_AdminUsers_Password_Edit.asp'); " >Password</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR>
+<TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_Common_BackupRestore.asp?Mode=Backup'); " >Backup AP</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR>
+<TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_Common_BackupRestore.asp?Mode=Delete'); " >Delete AP</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="/images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR>
+<TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('/Admin/GUI_Common_BackupRestore.asp?Mode=Restore'); " >Restore AP</A></TD></TR-->
+
+<tr><td class="SideBarMenuTitle">IPTS</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/IPTS/GUI_IPTS_Workload_DateSelect.asp'); ">Proj Wrkload</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/IPTS/GUI_IPTS_ReportView.asp'); ">Reports</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/IPTS/GUI_IPTS_WeeklyUploadProj_DateSelect.asp'); ">Wkly Upld Proj</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/IPTS/GUI_IPTS_DailyUpload.asp'); ">Daily Upload</a></td></tr>
+
+<tr><td class="SideBarMenuTitle">LOGS</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('/Admin/GUI_EventView_Viewer.asp'); ">Event Viewer</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="10px"></td></tr>
+
+</tbody></table>
+</center>
+</div>
+
+<script language="JavaScript">
+if ( bw.ie4 || bw.ie5 )
+{
+	this.document.all.DataMenu.onmouseover = new Function( "makeMenuAppear()" );
+	this.document.all.DataMenu.onmouseout = new Function( "makeMenuDisappear()" );
+}
+else if ( bw.ns4 || bw.ns5 )
+{
+	this.document.DataMenu.onmouseover = new Function( "makeMenuAppear()" );
+	this.document.DataMenu.onmouseout = new Function( "makeMenuDisappear()" );
+}
+</script>
+
+
+
+</body></html>

@@ -1,0 +1,1033 @@
+/*********************************************************************************
+** FILE NAME: GUI_Common_Style.asp
+**
+** FACILITY: DMS/EOR 1.0
+**
+** LANGUAGE: Cascading Style Sheet
+**
+** DESCRIPTION: This file constains the styles used by the DMSEOR 
+**	web application.
+**
+** CREATED BY: Kevin Carr		11-Sep-2000
+**
+** MODIFIED BY: 
+**    Kevin Carr      22-May-2013   E_WEBEORC_421 - Added styles for Template Reports
+**    Vijaya Koneru   11-Jun-2013   E_WEBEORC_421 - Added styles for Template tab Edit Reports 
+**    Vijaya Koneru   18-Jun-2013   E_WEBEORC_421 - Added styles for Template tab Edit Reports 
+**    Vijaya Koneru   02-Aug-2013   E_WEBEORC_421 - Added Styles for Template Tab Edit Page.
+**    Vijaya Koneru   09-Jun-2013   E_WEBEORC_599 - Added Styles for Template CSV Tab Edit Page.
+**    Vijaya Koneru   15-Nov-2017   E_WEBEORC_646 - Added Styles for Main Menu Page.
+**    Kevin Carr      04-Dec-2017   E_WEBEORC_646 - Updated styles for Main Menu page.
+**    Kevin Carr      25-Jan-2018   S_WEBEORC_1299 - Rearranged link state styles to put "Link" first
+*********************************************************************************/
+
+
+/*********************************************************************************
+** Styles for standard elements on page
+*********************************************************************************/
+BODY
+{
+    BACKGROUND-COLOR: #FFFFFF;
+    COLOR: #000000;
+}
+
+
+H2
+{
+    text-align: center;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 12pt;
+    font-family: sans-serif;
+}
+
+
+H3
+{
+    text-align: center;
+    font-style: normal;
+    font-weight: normal;
+    font-size: large;
+    font-family: sans-serif;
+}
+
+
+H4
+{
+    font-style: normal;
+    font-weight: bold;
+    font-size: 10pt;
+    font-family: sans-serif;
+    DISPLAY: "inline";
+}
+
+
+Input, Select, TextArea
+{
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	FONT-SIZE: 8pt;	
+}
+
+
+TD
+{
+    font-weight: Normal;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+A
+{
+    font-weight: Normal;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+A.OutStand
+{
+    font-weight: Normal;
+    font-family: "Arial";
+    font-size: 10pt;
+    font-weight: Bold;
+}
+
+
+.WebEOR_Standard
+{
+    font-weight: Normal;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+/*********************************************************************************
+** Used by the EOR Viewer to set up detailed views of runs
+*********************************************************************************/
+TD.SubTitleMain
+{
+	BACKGROUND-COLOR: #6699CC;
+	COLOR: #FFFFFF;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	text-align: left;
+	font-size: 10pt;
+}
+
+TD.SubTitleLink
+{
+    BACKGROUND-COLOR: #6699CC;
+    COLOR: #FFFFFF;
+    FONT-FAMILY: Arial;
+    FONT-WEIGHT: bold;
+    text-align: right;
+}
+
+
+A.Subtitle:visited, A.Subtitle:link, A.Subtitle:active { 
+	text-decoration: none;
+	color: #FFFFFF;
+	text-align: right;
+	font-family: "Arial"; 
+	font-weight: bold;
+	font-size: 8pt;
+}
+
+
+A.Subtitle:hover {
+	text-decoration: none;
+	color: #FF0000;
+	text-align: right;
+	font-family: "Arial"; 
+	font-weight: bold;
+	font-size: 8pt;
+}
+
+
+TD.Label
+{
+    font-weight: normal;
+    font-family: "Arial";
+    text-align: right;
+    whitespace: nowrap;
+    font-size: 8pt;
+}
+
+TD.Label2
+{
+    font-weight: normal;
+    font-family: "Arial";
+    text-align: left;
+    whitespace: nowrap;
+    font-size: 8pt;
+}
+
+TD.Label3
+{
+    font-weight: normal;
+    font-family: "Arial";
+    text-align: right;
+    whitespace: nowrap;
+    font-size: 8pt;
+    BACKGROUND-COLOR: #DDDDDD;
+}
+
+TD.Data
+{
+    BACKGROUND-COLOR: #DDDDDD;
+    font-weight: Normal;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+TD.TableTitle
+{
+    BACKGROUND-COLOR: #000090;
+    COLOR: white;
+    FONT-FAMILY: Arial;
+    FONT-WEIGHT: bold;
+    font-size: 9pt;
+}
+
+.TableSortLink
+{
+    COLOR: white;
+    FONT-WEIGHT: bold;
+    TEXT-DECORATION: underline;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+.NoBorder
+{
+	BORDER-STYLE: solid;
+	BORDER-WIDTH: 1px;
+	BORDER-COLOR: Navy;
+}
+
+
+/*********************************************************************************
+** Used by the auto generated tables in the web application
+*********************************************************************************/
+TR.TableTitle
+{
+    BACKGROUND-COLOR: #003399;
+    COLOR: #FFFFFF;
+}
+
+
+TD.TableRow1
+{
+    BACKGROUND-COLOR: #FFFFFF;
+    TEXT-INDENT: 1em;
+    COLOR: #000000;
+}
+
+
+TD.TableRow2
+{
+    BACKGROUND-COLOR: #EEEEEE;
+    TEXT-INDENT: 1em; 
+    COLOR: #000000;
+}
+
+
+TR.TableRow3
+{
+    BACKGROUND-COLOR: #DDDDDD;
+    COLOR: #000000;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+TR.TableRow4
+{
+    BACKGROUND-COLOR: #F8F7D9;
+    COLOR: #000000;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+.TableRow3
+{
+    BACKGROUND-COLOR: #DDDDDD;
+    COLOR: #000000;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+.TableRow4
+{
+    BACKGROUND-COLOR: #F8F7D9;
+    COLOR: #000000;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+.TableNoSortLink
+{
+    BACKGROUND-COLOR: #003399;
+    COLOR: white;
+    FONT-WEIGHT: bold;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+.TableNoSortLink2
+{
+    BACKGROUND-COLOR: #6699CC;
+    COLOR: white;
+    FONT-WEIGHT: bold;
+    font-family: "Arial";
+    font-size: 8pt;
+}
+
+
+TD.PageNav{
+	COLOR: #FFFFFF;
+	BACKGROUND-COLOR: #336699;
+	font-family: "Arial";
+	font-weight: bold;
+	font-size: 9pt;
+	text-align: left; 
+}
+
+
+A.PageNav:visited, A.PageNav:active, A.PageNav:link { 
+	text-decoration: none;
+	color: #FFFFFF;
+	font-family: "Arial"; 
+	font-weight: bold;
+	font-size: 9pt;
+}
+
+
+A.PageNav:hover {
+	text-decoration: none;
+	color: #FF00FF;
+	font-family: "Arial"; 
+	font-weight: bold;
+	font-size: 9pt;
+}
+
+
+TD.LoginInfo{
+	font-family: "Arial";
+	font-weight: bold;
+	font-size: smaller;
+}
+
+
+TD.LoginInfo2
+{
+	font-weight: Normal;
+	font-family: "Arial";
+	font-size: 11pt;
+	background-image: URL("images/GUI_Common_LoginDataBack.gif");
+}
+
+.BarText
+{
+	COLOR: #FFFFFF;
+	BACKGROUND-COLOR: #09468A; /* #092B52; #336699;*/
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	font-size: 12pt;
+	DISPLAY: "inline";
+}
+
+.BarTextSiteLabel
+{
+	color: #FFFFFF;
+	background-color: #09468A; /*#092B52; #336699;*/
+	font-family: Arial;
+	font-style: italic;
+	font-weight: bold;
+	font-size: 18pt;
+}
+
+TD.NavTitle
+{
+	BACKGROUND-COLOR: #BEDFF3; /*#FFEBBB;*/
+	COLOR: #000000;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	text-align: left;
+	font-size: 10pt;
+}
+
+TD.NavLink
+{
+	color: #000000;
+	background-color: #EFEFEF;
+	font-family: Arial;
+	font-weight: Normal;
+	text-align: left;
+	font-size: 8pt;
+	white-space: nowrap;
+	line-height: 140%;
+}
+
+
+TD.NavLines
+{
+	BACKGROUND-COLOR: #BEDFF3; /*#93C9EC; #FFCC33;*/
+}
+
+/*********************************************************************************
+** Used by Login Tab on the first login screen
+*********************************************************************************/
+TD.LoginTabSelected{
+	font-family: "Arial";
+	font-weight: normal;
+	font-size: 10pt;
+	background-color: #CBEBFF;
+}
+
+TD.LoginTabBody{
+	background-color: #CBEBFF;
+	background-image: URL("images/GUI_Common_LoginTabBG.gif");
+}
+
+
+TD.LoginTabUnSelected{
+	font-family: "Arial";
+	font-weight: normal;
+	font-size: 10pt;
+	background-color: #AEDCFF;
+}
+
+
+TD.LoginTabLine{
+	background-color: #66A8CE;
+}
+
+
+TD.LoginTabLineLite{
+	background-color: #DDF3FF;
+}
+
+
+A.LoginTab:visited, A.LoginTab:active, A.LoginTab:link { 
+	COLOR: #000000;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 10pt;
+	text-decoration: none;
+}
+
+
+A.LoginTab:hover {
+	COLOR: #FFFFFF;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 10pt;
+	text-decoration: none;
+}
+
+
+table.BigLink {
+	border-style: solid;
+	border-width: 1px;
+	border-color: #A0A0A0;/*#336699;*/
+	cursor: pointer;
+	background-image: URL("images/GUI_Common_Big_Button_Background.gif")
+}
+
+span.BigLinkTitle {
+	color: #000000;
+	font-family: Arial;
+	font-weight: Normal;
+	text-align: left;
+	font-size: 15pt;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+span.BigLinkTitle2 {
+	color: #000000;
+	font-family: Arial;
+	font-weight: Bold;
+	text-align: left;
+	font-size: 11pt;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+div.BigLinkText {
+	color: #000000;
+	font-family: Arial;
+	font-weight: normal;
+	text-align: left;
+	font-size: 8pt;
+	text-decoration: none;
+	padding-top: 5px;
+	cursor: pointer;
+}
+
+
+/*********************************************************************************
+** Used by the Message section at the side of the login and main menu page.
+*********************************************************************************/
+.MessageTitle
+{
+	BACKGROUND-COLOR: #09468A; /*#092B52; #336699;*/
+	COLOR: #FFFFFF;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	text-align: Left;
+	font-size: 10pt;
+}
+
+A.MessageTitle:hover
+{
+	BACKGROUND-COLOR: #FFFFFF;
+	COLOR: #336699;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	text-align: Left;
+	font-size: 10pt;
+}
+
+
+TD.MessageData
+{
+	BACKGROUND-COLOR: #BEDFF3;/*#CCECFF;*/
+	COLOR: #000000;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 10pt;
+}
+TD.MessageData1
+{
+	BACKGROUND-COLOR: #BEDFF3;
+	COLOR: #000000;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 10pt;
+}
+
+
+/*********************************************************************************
+** Used by login info section of the main menu page.
+*********************************************************************************/
+.InfoBoxTitle
+{
+	COLOR: #FFFFFF;
+	BACKGROUND-COLOR: #336699;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Bold;
+	text-align: left;
+	font-size: 10pt;
+	display: "inline";
+}
+
+
+
+TD.InfoBoxData
+{
+	COLOR: #000000;
+	BACKGROUND-COLOR: #CCECFF;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 10pt;
+}
+
+
+A.Navlink:visited, A.Navlink:active, A.Navlink:link { 
+	COLOR: #000000;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	/*text-decoration: none;*/
+	font-size: 9pt;
+}
+
+
+A.Navlink:hover {
+	COLOR: #FFFFFF;
+	BACKGROUND-COLOR: #000000;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 9pt;
+}
+
+
+A.Barlink:link, A.Barlink:visited, A.Barlink:active { 
+	COLOR: #FFFFFF;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	text-align: left;
+	font-size: 10pt;
+	text-decoration: none;
+}
+
+
+A.Barlink:hover {
+	COLOR: #000000;
+	BACKGROUND-COLOR: #FFFFFF;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: bold;
+	text-align: left;
+	font-size: 10pt;
+	text-decoration: none;
+}
+
+
+
+/*********************************************************************************
+** Used by the menu bar at the side most data pages
+*********************************************************************************/
+.SideBarMenuBasic
+{
+	COLOR: #000000;
+	BACKGROUND-COLOR: #092b52;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 9pt;
+}
+
+
+.SideBarMenuTitle
+{
+	COLOR: #93C9EC;
+	BACKGROUND-COLOR: #092b52;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Bold;
+	text-align: left;
+	font-size: 9pt;
+}
+
+
+.SideBarMenuLink
+{
+	BACKGROUND-COLOR: #092b52;
+	COLOR: White;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Bold;
+	TEXT-ALIGN: left;
+	FONT-SIZE: 9pt;
+	WHITE-SPACE: nowrap;
+}
+
+
+A.SideBarMenuLinkl:link, A.SideBarMenuLinkl:visited, A.SideBarMenuLinkl:active { 
+	BACKGROUND-COLOR: #092b52;
+	COLOR: White;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 9pt;
+	TEXT-DECORATION: None;
+}
+
+
+A.SideBarMenuLinkl:hover {
+	BACKGROUND-COLOR: #092b52;
+	COLOR: Cyan;
+	FONT-FAMILY: Arial;
+	FONT-WEIGHT: Normal;
+	text-align: left;
+	font-size: 9pt;
+	TEXT-DECORATION: Underline;
+}
+
+
+/*********************************************************************************
+** Used by One-Click Reports on main menu
+*********************************************************************************/
+.OneClickTitle {
+	font-family: Arial;
+	color: #336699;
+	font-weight: normal;
+	font-size: 14pt;
+	margin: 5px;
+}
+
+.OneClickReportTitle {
+	font-weight: bold;
+	font-size: 10pt; 
+	text-decoration: none;
+}
+
+.OneClickReportUsed {
+	font-weight: normal;
+	font-size: 10pt; 
+	text-decoration: underline;
+}
+
+.OneClickReportDesc {
+	font-weight: normal;
+	font-size: 10pt; 
+	text-decoration: none;
+}
+
+HR.OneClickReport {
+	border: 0px;
+	color: #A0A0A0;
+	padding: 0px;
+}
+
+TABLE.OneClickReport
+{
+	width: 160px;
+	border: 0px;
+	padding: 0px;
+	margin: 0px;
+}
+
+TD.OneClickReportLine{
+	background-color: #336699;
+	border: 0px;
+	padding: 0px;
+}
+
+TD.OneClickReportData{
+	background-color: None;
+	border: 0px;
+	padding: 5px;
+}
+
+A.OneClickReport {
+	color: #606060;
+	background-color: None;
+}
+
+/*********************************************************************************
+** Used by the menu bar at top of screen
+*********************************************************************************/
+TD.MenuTop{
+	BACKGROUND-COLOR: #092B52; /*Navy;*/
+	COLOR: white;
+	FONT-FAMILY: Arial;
+	FONT-SIZE: 10pt;
+	FONT-WEIGHT: Bold;
+}
+
+DIV.MenuTopBar{ 
+	visibility: visible;
+	background-color:navy;
+	font-family: Arial;
+	font-size: 10pt;
+	font-weight: bold;
+	POSITION: Absolute;
+}
+
+DIV.MenuDropDown{
+	position: absolute; 
+	cursor: hand; 
+	visibility: hidden;
+}
+
+BODY.TopMenu
+{
+    BACKGROUND-COLOR: #092b52;/*Navy;*/
+    COLOR: White;
+}
+
+.Required
+{
+    COLOR: red;
+    font-weight: bold;
+    FONT-SIZE: 10pt;
+}
+
+DIV.DisplayMessage
+{
+    border: 1px solid black;
+    text-align: center;
+    display: none;
+	 
+}
+
+
+/*********************************************************************************
+** Used by Template Reports on main menu
+*********************************************************************************/
+.TemplateReportsSubTitle {
+	font-family: Arial;
+	margin: 5px;
+	/*
+	font-size: 12pt;
+	color: #336699;
+	background-color: #EEEEEE;
+	font-weight: normal;
+	*/
+	font-size: 10pt;
+	/* color: #1F3D5C; */
+	color: Navy;
+	font-weight: bold;
+	padding-left: 10px;
+	border-top-width: 2px;
+	border-top-style: solid;
+	border-top-color: Navy;
+}
+
+TABLE.TemplateReportsDataTable {
+	border-color: Navy;
+	/* border-color: #606060; */
+	border-style: solid;
+	border-top-width: 4px;
+	border-left-width: 0px;
+	border-right-width: 0px;
+	border-bottom-width: 2px;
+	border-collapse: collapse;
+}
+TABLE.TemplateReportsDataTable1 {
+	border-color: Navy;
+	/* border-color: #606060; */
+	border-style: solid;
+	border-top-width: 1px;
+	/* border-top-width: 4px;*/
+	border-left-width: 0px;
+	border-right-width: 0px;
+	border-bottom-width: 2px;
+	border-collapse: collapse;
+}
+
+TD.TemplateReportsDataTableCell1 {
+	border-top-color: #606060;
+	border-left-color: #D0D0D0;
+	border-right-color: #D0D0D0;
+	border-bottom-color: #606060;
+	background-color: #FAFAFA;
+	color: #101010;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	padding: 6px;
+	font-size: 8pt;
+}
+
+TD.TemplateReportsDataTableCell2 {
+	border-top-color: #606060;
+	border-left-color: #B0B0B0;
+	border-right-color: #B0B0B0;
+	border-bottom-color: #606060;
+	/* background-color: #EBF0F5;
+	font-weight: bold;
+	color: #1F3D5C; */
+	background-color: #DDDDDD;
+	color: black;
+	font-weight: normal;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	padding: 6px;
+	font-size: 8pt;
+}
+
+TD.TemplateReportsDataTableCell3 {
+	/*border-top-color: #606060;*/
+	border-left-color: #D0D0D0;
+	border-right-color: #D0D0D0;
+	border-bottom-color: #606060;
+	background-color: #FAFAFA;
+	color: #101010;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	padding: 6px;
+	font-size: 8pt;
+}
+
+TD.TemplateReportsDataTableCell4 {
+	/*border-top-color: #606060;*/
+	border-left-color: #B0B0B0;
+	border-right-color: #B0B0B0;
+	border-bottom-color: #606060;
+	/* background-color: #EBF0F5;
+	font-weight: bold;
+	color: #1F3D5C; */
+	background-color: #DDDDDD;
+	color: black;
+	font-weight: normal;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	padding: 6px;
+	font-size: 8pt;
+}
+INPUT.TemplateReportsDataTableCell2 {
+	/* background-color: #EBF0F5;
+	font-weight: bold;
+	color: #1F3D5C; */
+	background-color: #DDDDDD;
+	color: black;
+	font-weight: normal;
+	border-width: 0px;
+	padding: 0px;
+}
+
+TH.TemplateReportsDataTable {
+	font-size: 10pt;
+	font-weight: bold;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 2px;
+	border-top-color: #909090;
+	border-left-color: #909090;
+	border-right-color: #909090;
+	border-bottom-color: #606060;
+	color: #1F3D5C;
+	text-align: left;
+	background-color: #D6E0EB;
+	padding-top: 10px;
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-bottom: 10px;
+}
+
+
+TABLE.TemplateReportsDataTable_Select {
+	border-color: Navy;
+	border-style: solid;
+	border-top-width: 0px;
+	border-bottom-width: 0px;
+	border-left-width: 0px;
+	border-right-width: 0px;
+	border-collapse: collapse;
+}
+
+TD.TemplateReportsDataTableCell1_Select {
+	border-color: #909090;
+	background-color: #FAFAFA;
+	color: #101010;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	padding: 6px;
+	vertical-align: middle;
+}
+
+TD.TemplateReportsDataTableCell2_Select {
+	border-color: #606060;
+	background-color: #EBF0F5;
+	color: #1F3D5C;
+	font-weight: bold;
+	border-style: solid;
+	border-top-width: 1px;
+	border-left-width: 1px;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	padding: 6px;
+	vertical-align: middle;
+}
+
+TH.TemplateReportsDataTable_Select {
+	font-size: 10pt;
+	font-weight: bold;
+	border-style: solid;
+	border-top-color: #909090;
+	border-top-width: 1px;
+	border-left-color: #909090;
+	border-left-width: 1px;
+	border-right-color: #909090;
+	border-right-width: 1px;
+	border-bottom-width: 2px;
+	border-bottom-color: #606060;
+	background-color: #D6E0EB;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	padding-left: 6px;
+	padding-right: 6px;
+}
+
+TABLE.TemplateReportsDataTable_Label {
+	/*
+	border-color: Navy;
+	border-style: solid;
+	border-top-width: 4px;
+	border-left-width: 0px;
+	border-right-width: 0px;
+	border-bottom-width: 2px;
+	*/
+	border-collapse: collapse;
+}
+
+TD.TemplateReportsDataTable_Label {
+	font-size: 10pt;
+	font-weight: bold;
+	/*
+	font-weight: bold;
+	border-style: solid;
+	border-top-color: #909090;
+	border-top-width: 1px;
+	border-left-color: #909090;
+	border-left-width: 1px;
+	border-right-color: #909090;
+	border-right-width: 1px;
+	border-bottom-width: 2px;
+	border-bottom-color: #606060;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	background-color: #D6E0EB;
+	color: #1F3D5C;
+	*/
+	border-width: 0px;
+	color: #505050;
+	text-align: right;
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-top: 14px;
+	padding-bottom: 10px;
+}
+
+TD.TemplateReportsDataTable_Label_Tip {
+	font-size: 8pt;
+	font-weight: bold;
+	color: #1F3D5C;
+	text-align: left;
+	background-color: #D6E0EB;
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
+
+TD.TemplateReportsGrouping {
+	border-color: Navy;
+	border-style: solid;
+	/*
+	border-top-width: 4px;
+	border-left-width: 0px;
+	border-right-width: 2px;
+	border-bottom-width: 4px;
+	border-collapse: collapse;
+	*/
+	border-width: 0px;
+}
+
+
+/*********************************************************************************
+** Style makes object inivisible until CSS are turned off
+*********************************************************************************/
+.InvisibleObj{
+	visibility: hidden;
+	display: none;
+}
+

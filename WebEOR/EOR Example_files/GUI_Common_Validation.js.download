@@ -1,0 +1,1513 @@
+//*********************************************************************************
+//** File Name: GUI_Common_Validation.js
+//**
+//** Facility: DMS/EOR
+//**
+//** Description: This file provides functions to verify that proper data has been
+//**	entered or loaded onto HTML forms.
+//**
+//** Created By: Adesh Jain		31-Jan-1999
+//**
+//** Modfied By: 
+//**	Kevin Carr              18-May-2000  Changed file names. Added extra data 
+//**                                           type processing.
+//**	Kevin Carr              13-Sep-2000  Changed check Date to update fields when
+//**                                           date is good.
+//**    Huong Hoang	        06/11/2007   Check if year in 4-digit format.
+//**    Sridhar Katikapalli     12/06/2012   Display message of user action and 
+//**                                           disable button functions
+//**    Kevin Carr              03/15/2013   D_WEBEORC_722 - Added constant messages
+//**    Vijaya Koneru           06/28/2013   E_WEBEORC_421 - Added displayMessage messages
+//**    Kevin Carr              07/08/2013   E_WEBEORC_421 - Added checkAlphanumericBasic()
+//**    Vijaya Koneru           08/12/2013   E_WEBEORC_421 - Updated the Messages.
+//**    Vijaya Koneru           10/08/2013   D_WEBEORC_847 - Updated the Message.
+//**    Vijaya Koneru           10/31/2013   D_WEBEORC_847 - Updated the Message.
+//**    Li-Fung Wei             06/04/2015   S_WEBEORC_1035 - Modified checkDate to only allow year between 1900 to 4000. (To prevent effective_end_date overflow in Collector).
+//**    Kevin Carr              07/14/2016   E_WEBEORC_550 - Added getConfirmationMessage() to normalize messages.
+//*********************************************************************************
+
+
+//*********************************************************************************
+//** Function Name: displayMessage
+//**
+//** Description: This function enable the div tag which displays the message
+//**	          eg., "Saving the record ..." , "Deleting the record ..." etc
+//**
+//**
+//** Parameters:
+//**	id: Is name of the element displaying message
+//**	Type: String
+//**	Purpose: To enable the DIV tag with the message 
+//**
+//**    msg: Is the message to be displayed for id tag
+//**    Type:  String
+//**    Purpose: To display the message with the DIV tag 
+//*********************************************************************************
+
+var cstrMessageSave = "Saving the record ...";
+var cstrMessageCancel = "Navigating to viewer page ...";
+var cstrMessageDelete = "Deleting the record ...";
+var cstrMessageUnDelete = "UnDeleting the record ...";
+var cstrMessageAdd = "Adding the record ...";
+var cstrMessageUpdate = "Updating the record ...";
+
+var cstrMessageTabEdit = "Navigating to Edit page ...";
+var cstrMessageEdit = "Navigating to Full Screen Edit page ...";
+var cstrMessageCopy = "Copying the record ...";
+
+function displayMessage(id, msg)
+{
+	document.getElementById(id).style.display = "block";
+	document.getElementById(id).innerHTML = msg;
+}
+
+
+
+
+//*********************************************************************************
+//** Function Name:  disableButton
+//**
+//** Description: This function disables the button
+//**
+//**
+//** Parameters:
+//**	id: Is name of the button to be disabled
+//**	Type: String
+//**	Purpose: To disable the button. 
+//**
+//*********************************************************************************
+
+function disableButton(id)
+{
+	if ( document.getElementById(id) != null )
+		document.getElementById(id).disabled = true;
+}
+
+
+
+
+//*********************************************************************************
+//** Function Name: trim
+//**
+//** Description: This function gets rid of the leading and trailing spaces on 
+//**	a string
+//**
+//**
+//** Parameters:
+//**	Name: rstrString
+//**	Type: String
+//**	Purpose: The from which the spaces are to be removed
+//**
+//** Return Values:
+//**	True: Continue with the submission
+//**	False: Cancel the submission
+//*********************************************************************************
+function trim( rstrString )
+{
+	var lstrString = new String( rstrString );
+	var lintLoop;
+	var lintStart;
+	var lintEnd;
+
+	for ( lintLoop = 0; lintLoop < lstrString.length; lintLoop++ )
+		if ( lstrString.charAt( lintLoop ) != ' ' )
+			break;
+
+	if ( lintStart == lstrString.length )
+		return "";
+
+	lintStart = lintLoop;
+
+	for ( lintLoop = lstrString.length - 1; lintLoop > -1; lintLoop-- )
+		if ( lstrString.charAt( lintLoop ) != ' ' )
+			break;
+
+	lintEnd = lintLoop + 1;
+
+	lstrString = lstrString.substring( lintStart, lintEnd );
+
+	return lstrString;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkRequired
+//**
+//** Description: Verifies that the required data for a form has been entered.
+//**	Required fields are defined as fields with the prefix 'reqd'
+//**	An empty field is a field with only spaces or no data.
+//**
+//** Paremeters:
+//**	Name: theForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkRequired(theForm)
+{
+	var pass = true;
+	
+	for ( i=0; i < theForm.length; i++ )
+	{
+		var obj = theForm.elements[i];
+		if (( obj.name.substring( 0,4 )).toLowerCase()=="reqd" )
+		{
+			if (((obj.type=="text"||obj.type=="textarea")&&obj.value=='')||(obj.type.toString().charAt(0)=="s"&&obj.selectedIndex==-1)){
+				pass = false;
+				break;
+			}
+		 }
+	}
+	if ( !pass )
+	{
+		alert("One or more of the required elements are not completed. Please complete them, then submit again!")
+		return false
+	}
+	else
+		return true
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkRequiredField
+//**
+//** Description: Checks if a field has atleast one character (not space)
+//**	Displays simple error messages on errors and moves cursor to
+//**		problem fields.
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: a string
+//**	Purpose: the label of the field within the form to be checked( used in 
+//**		error messages )
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkRequiredField( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjInput = robjForm.elements[rstrFieldName];
+	var lstrValue = lobjInput.value
+	var lintLength = lstrValue.length
+	
+	// Check the field length.
+	if( lintLength < 1 )
+	{
+		alert("Please input a value in the required field (" + rstrFieldLabel + ")!");
+		lobjInput.focus();
+		lobjInput.select();
+		return false
+	}
+	else 
+	{
+		// Checking for blanks
+		var lintLoop = 0
+		var lbooAllBlank = true
+		
+		// loop through all characters in string
+		while ( lintLoop < lintLength && lbooAllBlank )
+		{
+			if (( lstrValue.charAt( lintLoop ) != " " ))
+				lbooAllBlank = false
+			lintLoop++
+		}
+		
+		// Error message for all blanks
+		if ( lbooAllBlank )
+		{
+		  alert("Please input a value in the required field (" + rstrFieldLabel + ")!");
+		  lobjInput.focus();
+		  lobjInput.select();
+		  return false
+		}
+	}
+	return true
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkMaxlength
+//**
+//** Description: checks max length of a field
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rintMaxLength
+//**	Type: a string
+//**	Purpose: the maximum length of the string
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkMaxlength( robjForm, rstrFieldName, rintMaxLength )
+{
+	var lobjElement = robjForm.elements[ rstrFieldName ];
+	var x = lobjElement.value;
+	if ( x.length > rintMaxLength )
+	{
+		alert( "Please restrain your input to less than " + rintMaxLength + " characters!" );
+		lobjElement.focus();
+		lobjElement.select();
+		return false;
+	}
+	return true;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkMinLength
+//**
+//** Description: checks Minimum length of a field
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrLabel
+//**	Type: string
+//**	Purpose: The label to use in the error message
+//**
+//**	Name: rintMinLength
+//**	Type: integer
+//**	Purpose: the minimum length
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkMinLength( robjForm, rstrFieldName, rstrLabel, rintMinLength)
+{
+	var lobjElement = robjForm.elements[ rstrFieldName ];
+	var x = lobjElement.value;
+	
+	if ( x.length < rintMinLength )
+	{
+		alert("Please input at least " + rintMinLength + " characters (" + rstrLabel + ")!");
+		lobjElement.focus();
+		lobjElement.select();
+		return false
+	}
+	return true
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkMaxLength
+//**
+//** Description: checks Minimum length of a field
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrLabel
+//**	Type: string
+//**	Purpose: The label to use in the error message
+//**
+//**	Name: rintMaxLength
+//**	Type: integer
+//**	Purpose: the minimum length
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkMaxLength( robjForm, rstrFieldName, rstrLabel, rintMaxLength)
+{
+	var lobjElement = robjForm.elements[ rstrFieldName ];
+	var x = lobjElement.value;
+	
+	if ( x.length >= rintMaxLength )
+	{
+		alert("Please input a maximum of " + rintMaxLength + " characters (" + rstrLabel + ")!");
+		lobjElement.focus();
+		lobjElement.select();
+		return false
+	}
+	return true
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkNumber
+//**
+//** Description: Checks if a form field contains numbers only.
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the field label to display in the error message
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkNumber( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrValue = new String( lobjElement.value );
+	var lnumNumber = new Number( lstrValue );
+	var lstrNumber;
+	var lintLoop;
+
+	if ( lstrValue == "" )
+		return true;
+	
+	if ( isNaN( lnumNumber ))
+	{
+		alert("Please input a valid number (" + rstrFieldLabel + ")!");
+		lobjElement.focus();
+		lobjElement.select();
+		lbooResult=false;
+	}
+	else
+	{
+		lbooResult = true;
+		lstrNumber = new String( lnumNumber );
+		for ( lintLoop = lstrNumber.length; lintLoop < lstrValue.length; lintLoop++ )
+			lstrNumber = "0" + lstrNumber;
+		lobjElement.value = lstrNumber;
+	}
+	return lbooResult;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: getStringDateTime
+//**
+//** Description: Converts a date value into a string ##/##/#### ##:##:## AM/PM
+//**
+//** Paremeters:
+//**	Name: rdatDate
+//**	Type: a date object
+//**	Purpose: the date object to be converted
+//**
+//** Return Values:
+//**	String: The converted date value.
+//*********************************************************************************
+function getStringDateTime( rdatDate )
+{
+	var lstrMonth = new String( rdatDate.getMonth() + 1 );
+	var lstrDay = new String( rdatDate.getDate());
+	var lstrYear = new String( rdatDate.getFullYear());
+	var lstrMin = new String( rdatDate.getMinutes());
+	var lstrSec = new String( rdatDate.getSeconds());
+	var lstrHour;
+	var lstrAM;
+
+	alert( rdatDate.getHours() );
+	if ( rdatDate.getHours() > 11 ){
+		if ( rdatDate.getHours() == 12 )
+			lstrHour = "12";
+		else
+			lstrHour = new String( rdatDate.getHours() - 12 );
+		lstrAM = " PM";
+	} else {
+		if ( rdatDate.getHours() == 0 )
+			lstrHour = "12";
+		else
+			lstrHour = new String( rdatDate.getHours());
+		lstrAM = " AM";
+	}
+	
+
+	if ( lstrMin.length == 1 ) lstrMin = "0" + lstrMin;
+	if ( lstrSec.length == 1 ) lstrSec = "0" + lstrSec;
+
+	var lstrDateTime = lstrMonth + "/" + lstrDay + "/" + lstrYear + " " +
+		lstrHour + ":" + lstrMin + ":" + lstrSec + lstrAM;
+
+	return lstrDateTime;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkDate
+//**
+//** Description: Verify that the form field passed in is a valid date
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the field label to display in the error message
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkDate( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrValue = new String( lobjElement.value );
+	var lregDate = new RegExp( "\\b(\\d+)\\s*[\\/\\s-]\\s*(\\d+)\\s*[\\/\\s-]\\s*(\\d+)\\b" );
+	var larrResult;
+	var larrDays = new Array(13);
+	var lbooResult = false;
+
+	larrDays[1] = 31;
+	larrDays[2] = 28;
+	larrDays[3] = 31;
+	larrDays[4] = 30;
+	larrDays[5] = 31;
+	larrDays[6] = 30;
+	larrDays[7] = 31;
+	larrDays[8] = 31;
+	larrDays[9] = 30;
+	larrDays[10] = 31;
+	larrDays[11] = 30;
+	larrDays[12] = 31;
+
+	// Attempt to convert the string to a date
+	var ldatDate = new Date( lstrValue );
+	 
+	
+	if ( lstrValue == "" )
+		return true;
+	
+	if ( !( isNaN( ldatDate ) || ldatDate == "Invalid Date" ))
+	{
+		// Test ##/##/## formatted date for errors
+		if ( lregDate.test( lstrValue ))
+		{
+			larrResult = lregDate.exec( lstrValue );		
+		
+			if (larrResult[3].length < 4) {
+				alert("Please input a valid date (" + rstrFieldLabel + 			")!\nPlease use the format mm/dd/yyyy");
+				lobjElement.focus();
+				lobjElement.select();				 
+				return false; }
+				 
+	if ( Number( larrResult[3]) < 1900 || Number( larrResult[3])  > 4000 )
+	{
+		alert("Please input a valid year (" + rstrFieldLabel + 			")!\nPlease enter year between 1900 and 4000");
+				lobjElement.focus();
+				lobjElement.select();				 
+				return false;
+	}
+
+	if ( Number( larrResult[1]) > 0 && Number( larrResult[1]) < 13 )
+	{
+		if ( Number( larrResult[3]) % 4 == 0 )
+					larrDays[2] = 29;
+		if ( Number( larrResult[2]) > 0 && Number( larrResult[2]) 			<= larrDays[ Number( larrResult[1])])
+					return true;
+			}
+
+			/*
+			if ( Number( larrResult[2]) > 0 && Number( larrResult[2]) < 13 )
+			{
+				if ( Number( larrResult[3]) % 4 == 0 )
+					larrDays[2] = 29;
+				if ( Number( larrResult[1]) > 0 && Number( larrResult[1]) <= larrDays[ Number( larrResult[2])])
+					return true;
+			}
+			*/
+
+			if ( Number( larrResult[2]) > 0 && Number( larrResult[2]) < 13 )
+			{
+				if ( Number( larrResult[1]) % 4 == 0 )
+					larrDays[2] = 29;
+				if ( Number( larrResult[3]) > 0 && Number( larrResult[3]) <= larrDays[ Number( larrResult[2])])
+					return true;
+			}
+
+		}
+	}
+    	
+ 
+	alert("Please input a valid date (" + rstrFieldLabel + ")!\nPlease use the format mm/dd/yyyy");
+	lobjElement.focus();
+	lobjElement.select();
+	 
+ 
+ 	return false;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkEmail
+//**
+//** Description: Checks if a form field contains valid email address.
+//**	NOTE: Have no idea how this thing works. That 'filter' object looks iffy,
+//**	this may only work on windows - KTAC.
+//**
+//** Paremeters:
+//**	Name: theForm
+//**	Type: Variant
+//**	Purpose: The form holding the data
+//**
+//**	Name: FiledName
+//**	Type: Variant
+//**	Purpose: The Fieldname within the form holding the data
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkEmail(theForm, FieldName){
+	var obj=theForm.elements[FieldName];
+	var str=obj.value;
+	var filter=/^.+@.+\..{2,3}$/
+	
+	if (filter.test(str))
+		result=true
+	else{
+		alert("Please input a valid email address !");
+		obj.focus();
+		result=false
+	}
+	
+	return (result)
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkAlphanumeric
+//**
+//** Description: Checks if a form field contains valid alpha-numeric characters 
+//**	(0-9,a-z,A-Z,_). If the data is bad the cursor is sent to the offending
+//**	object.
+//**
+//**	NOTE: Have no idea how this thing works. That 'filter' object looks iffy,
+//**	this may only work on windows - KTAC.
+//**
+//** Paremeters:
+//**	Name: theForm
+//**	Type: Variant
+//**	Purpose: The form holding the data
+//**
+//**	Name: FiledName
+//**	Type: Variant
+//**	Purpose: The Fieldname within the form holding the data
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkAlphanumeric(theForm,FieldName){
+	var obj=theForm.elements[FieldName];
+	var str=obj.value;
+	var filter=/(^\w+$)|(^\w+(\-|\:|\.)\w+$)/
+	
+	if (filter.test(str))
+		result=true
+	else{
+		alert("Please input valid characters(a-z,0-9,_,-,:,.) !");
+		obj.focus();
+		obj.select();
+		result=false
+	}
+	return (result)
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkAlphanumeric
+//**
+//** Description: Check to make sure that both passwords are same
+//**
+//** Paremeters:
+//**	Name: theForm
+//**	Type: Variant
+//**	Purpose: The form holding the data
+//**
+//**	Name: P1
+//**	Type: Variant
+//**	Purpose: The first password
+//**
+//**	Name: P2
+//**	Type: Variant
+//**	Purpose: The second password
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkAlphanumeric(theForm,P1,P2){
+	var obj1=theForm.elements[P1];
+	var obj2=theForm.elements[P2];
+
+	if (obj1.value != obj2.value) {
+		alert("Both passwords must be the same.");
+		obj1.focus();
+		obj2.value = "";
+		return false;
+	}
+	return true
+}
+
+
+
+//*********************************************************************************
+//** Function Name: isValidAsciiCode
+//**
+//** Description: Validates Ascii code against list of allowed characters
+//**
+//** Paremeters:
+//**	Name: rintAscii
+//**	Type: Variant
+//**	Purpose: The ascii code
+//**
+//**	Name: rbooBasic
+//**	Type: Variant
+//**	Purpose: Include extra more "problematic" characters
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function isValidAsciiCode( rintAscii, rbooBasic )
+{
+
+	if ( rintAscii >= 65 && rintAscii <= 90 )  // Upper Case
+		return true;
+	if ( rintAscii >= 97 && rintAscii <= 122 ) // Lower Case
+		return true;
+	if ( rintAscii >= 48 && rintAscii <= 57 )  // Digits
+		return true;
+
+	if ( rintAscii == 32 ) return true;        // Space
+	if ( rintAscii == 33 ) return true;        // Exclamation      ( ! )
+	if ( rintAscii == 35 ) return true;        // Pound            ( # )
+	if ( rintAscii == 36 ) return true;        // Dollar           ( $ )
+	if ( rintAscii == 37 ) return true;        // Percent          ( % )
+	if ( rintAscii == 38 ) return true;        // Ampersand        ( & )
+	if ( rintAscii == 40 ) return true;        // Open Parenthesis   (
+	if ( rintAscii == 41 ) return true;        // Closed Parenthesis )
+	if ( rintAscii == 42 ) return true;        // Asterisk         ( * )
+	if ( rintAscii == 43 ) return true;        // Plus             ( + )
+	if ( rintAscii == 44 ) return true;        // Comma            ( , )
+	if ( rintAscii == 45 ) return true;        // Hyphen           ( - )
+	if ( rintAscii == 46 ) return true;        // Period           ( . )
+	if ( rintAscii == 47 ) return true;        // Slash            ( / )
+	if ( rintAscii == 58 ) return true;        // Colon            ( : )
+	if ( rintAscii == 59 ) return true;        // Semi Colon       ( ; )
+	if ( rintAscii == 61 ) return true;        // Equal            ( = )
+	if ( rintAscii == 63 ) return true;        // Question Mark    ( ? )
+	if ( rintAscii == 64 ) return true;        // At Sign          ( @ )
+	if ( rintAscii == 91 ) return true;        // Open Square      ( [ ) 
+	if ( rintAscii == 92 ) return true;        // Backslash        ( \ )
+	if ( rintAscii == 93 ) return true;        // Closed Square    ( ] )
+	if ( rintAscii == 95 ) return true;        // Underscore       ( _ )
+	if ( rintAscii == 123 ) return true;       // Open curly       ( { )
+	if ( rintAscii == 124 ) return true;       // Pipe             ( | )
+	if ( rintAscii == 125 ) return true;       // Closed curly     ( } )
+	if ( rintAscii == 126 ) return true;       // Tilde            ( ~ )
+
+	if ( rbooBasic == false )
+	{
+		if ( rintAscii == 39 ) return true;  // Apostrophe       ( ' )
+		if ( rintAscii == 60 ) return true;  // Less Than        ( < )
+		if ( rintAscii == 62 ) return true;  // Greater Than     ( > )
+		if ( rintAscii == 34 ) return true;  // Double Quote     ( " )
+	}
+
+	return false;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkAlphanumericBasic
+//**
+//** Description: Checks if a form field contains valid alpha-numeric characters 
+//**	(0-9,a-z,A-Z,_). If the data is bad the cursor is sent to the offending
+//**	object.
+//**
+//** Paremeters:
+//**	Name: theForm
+//**	Type: Variant
+//**	Purpose: The form holding the data
+//**
+//**	Name: rstrFieldName
+//**	Type: Variant
+//**	Purpose: The Fieldname within the form holding the data
+//**
+//**	Name: rstrFieldLabel
+//**	Type: Variant
+//**	Purpose: The displayed label of the field.
+//**
+//**	Name: rbooBasic
+//**	Type: Variant
+//**	Purpose: true: Only basic characters; false: Extra characters
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkAlphanumericBasic( theForm, rstrFieldName, rstrFieldLabel, rbooBasic )
+{
+	var lobjElement = theForm.elements[rstrFieldName];
+	var lstrString = lobjElement.value;
+	var lintLoop;
+	var lbooResult = true;
+	var lstrErrorChar;
+
+	for ( lintLoop = 0; lintLoop < lstrString.length; lintLoop++ )
+	{
+		if ( isValidAsciiCode( lstrString.charCodeAt( lintLoop ), rbooBasic ) == false )
+		{
+			if ( lstrString.charCodeAt( lintLoop ) == 10 ||
+				lstrString.charCodeAt( lintLoop ) == 13 )
+			{
+				lstrErrorChar = "Carriage Return";
+			}
+			else
+				lstrErrorChar = String.fromCharCode( lstrString.charCodeAt( lintLoop ) );
+
+			alert("Please input valid characters (" + rstrFieldLabel + 
+				")\n Invalid Character Found: " + lstrErrorChar );
+
+			lobjElement.focus();
+			lobjElement.select();
+			return( false );
+		}
+	}
+
+	return( true );
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkAlphanumericDate
+//**
+//** Description: Verify that the data passed in is a valid date
+//**
+//** Paremeters:
+//**	Name: rstrString
+//**	Type: Variant
+//**	Purpose: the date value that is to be verified.
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkAlphanumericDate( rstrString )
+{
+	// Attempt to convert the string to a date
+	var x = new Date( rstrString );
+
+	// Test the conversion
+	if ( x == "Invalid Date" || isNaN(x) )
+		return false;
+	else
+		return true;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkNumericTimer
+//**
+//** Description: Verify that the data passed in is a valid timer entry.
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the field label to display in the error message
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkNumericTimer( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrString = new String( lobjElement.value );
+	var lintNum;
+	var larrNums;
+	var lbooResult = true;
+	var lValue ;
+	var lintLength;
+
+	// Split hrs and minutes
+	larrNums = lstrString.split( ":" );
+
+	// Verify that there are only hrs, mins, and seconds entered
+	if ( larrNums.length != 3 )
+		lbooResult = false;
+
+	// Check Hours
+	if ( lbooResult == true )
+	{
+		lintNum = new Number( larrNums[0] );
+		if ( isNaN(lintNum) || lintNum < 0 )
+			lbooResult = false;
+	}
+	
+	// Check Minutes
+	if ( lbooResult == true )
+	{
+		lintNum = new Number( larrNums[1] );
+
+		if ( isNaN(lintNum) || lintNum > 59 || lintNum < 0 )
+			lbooResult = false;
+	}
+	// Check second
+	if ( lbooResult == true )
+	{
+		lintNum = new Number( larrNums[2] );
+		lValue = larrNums[2].length;	
+		//alert("test2 " + lValue );
+
+		if (isNaN(lintNum) || lintNum > 59 || lintNum < 0  || lValue  == 0) 
+			lbooResult = false;
+	}
+	if ( lbooResult == false )
+	{
+		alert("Please input a valid timer (" + rstrFieldLabel + " ##:##:##)!");
+		lobjElement.focus();
+		lobjElement.select();
+	}
+	
+	return lbooResult;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkSmallNumericTimer
+//**
+//** Description: Verify that the data passed in is a valid timer entry.
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the field label to display in the error message
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkSmallNumericTimer( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrString = new String( lobjElement.value );
+	var lintNum;
+	var larrNums;
+	var lbooResult = true;
+
+	if ( lstrString.length != 5 )
+		lbooResult = false;
+
+	// Split hrs and minutes
+	larrNums = lstrString.split( ":" );
+
+	// Verify that there are only hrs, mins, and seconds entered
+	if ( larrNums.length != 2 )
+		lbooResult = false;
+
+	// Check Hours
+	if ( lbooResult == true )
+	{
+		lintNum = new Number( larrNums[0] );
+		if ( isNaN(lintNum) || lintNum < 0 )
+			lbooResult = false;
+	}
+	
+	// Check Minutes
+	if ( lbooResult == true )
+	{
+		lintNum = new Number( larrNums[1] );
+		if ( isNaN(lintNum) || lintNum > 59 || lintNum < 0 )
+			lbooResult = false;
+	}
+
+	if ( lbooResult == false )
+	{
+		alert("Please input a valid time (" + rstrFieldLabel + " ##:##)!");
+		lobjElement.focus();
+		lobjElement.select();
+	}
+	
+	return lbooResult;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkNumericTime24
+//**
+//** Description: Verify that the data passed in is a valid 24 hr time.
+//**
+//** Paremeters:
+//**	Name: rstrString
+//**	Type: Variant
+//**	Purpose: time that is to be verified.
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkNumericTime24( rstrString )
+{
+	var lstrString = new String( rstrString );
+	var lintNum;
+	var larrNums;
+
+	// Split hrs and minutes
+	larrNums = lstrString.split( ":" );
+
+	// Verify that there are onlt hrs and mins entered
+	if ( larrNums.length != 2 )
+		return false;
+
+	// Check Hours
+	lintNum = new Number( larrNums[0] );
+	if ( isNaN(lintNum) || lintNum > 23 || lintNum < 0 )
+		return false;
+	
+	// Check Minutes
+	lintNum = new Number( larrNums[1] );
+	if ( isNaN(lintNum) || lintNum > 59 || lintNum < 0 )
+		return false;
+		
+	return true;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkTime
+//**
+//** Description: Verify that the data passed in is a time.
+//**
+//** Paremeters:
+//**	Name: rstrString
+//**	Type: Variant
+//**	Purpose: time that is to be verified.
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkTime( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrValue = "1/1/1900 " + lobjElement.value;
+
+	// Attempt to convert the string to a date
+	var ldatDate = new Date( lstrValue );
+
+	if ( lstrValue == "" )
+		return true;
+	
+	if ( isNaN( ldatDate ) || ldatDate == "Invalid Date" )
+	{
+		alert("Please input a valid time (" + rstrFieldLabel + ")!");
+		lobjElement.focus();
+		lobjElement.select();
+		lbooResult = false;
+	}
+	else
+		lbooResult = true;
+
+	return lbooResult;
+}
+
+//*********************************************************************************
+//** Function Name: checForkPositiveNumber
+//**
+//** Description: Checks if a form field contains numbers only.
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the field label to display in the error message
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkForPositiveNumber( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrValue = new String( lobjElement.value );
+	var lnumNumber = new Number( lstrValue );
+	var lstrNumber;
+	var lintLoop;
+
+	if ( lstrValue == "" )
+		return true;
+
+	if ( isNaN( lnumNumber ) || lnumNumber < 1)
+	{
+		alert("Please input a valid number (" + rstrFieldLabel + ")!");
+		lobjElement.focus();
+		lobjElement.select();
+		lbooResult=false;
+	}
+	else
+	{
+		lbooResult = true;
+		lstrNumber = new String( lnumNumber );
+		for ( lintLoop = lstrNumber.length; lintLoop < lstrValue.length; lintLoop++ )
+			lstrNumber = "0" + lstrNumber;
+		lobjElement.value = lstrNumber;
+	}
+	return lbooResult;
+}
+
+
+
+//*********************************************************************************
+//** Function Name: checkForZeroOrPositiveNumber
+//**
+//** Description: Checks if a form field contains numbers only.
+//**
+//** Paremeters:
+//**	Name: robjForm
+//**	Type: a form object
+//**	Purpose: the form that is to be checked
+//**
+//**	Name: rstrFieldName
+//**	Type: string
+//**	Purpose: the name of the field within the form to be checked
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the field label to display in the error message
+//**
+//** Return Values:
+//**	True: Good data
+//**	False: Bad Data
+//*********************************************************************************
+function checkForZeroOrPositiveNumber( robjForm, rstrFieldName, rstrFieldLabel )
+{
+	var lobjElement = robjForm.elements[rstrFieldName];
+	var lstrValue = new String( lobjElement.value );
+	var lnumNumber = new Number( lstrValue );
+	var lstrNumber;
+	var lintLoop;
+
+	if ( lstrValue == "" )
+		return true;
+
+	if ( isNaN( lnumNumber ) || lnumNumber < 0)
+	{
+		alert("Please input a valid number greater than or equal to zero (" + rstrFieldLabel + ")!");
+		lobjElement.focus();
+		lobjElement.select();
+		lbooResult=false;
+	}
+	else
+	{
+		lbooResult = true;
+		lstrNumber = new String( lnumNumber );
+		for ( lintLoop = lstrNumber.length; lintLoop < lstrValue.length; lintLoop++ )
+			lstrNumber = "0" + lstrNumber;
+		lobjElement.value = lstrNumber;
+	}
+	return lbooResult;
+}
+
+
+
+function FormatDate(i, delKey,direction) 
+{
+	if (i.value.length < 10) 
+	{
+		if (delKey!=9) 
+		{ //tab
+			if(delKey!=8 && delKey!=46 && delKey!=16 &&  !(delKey>36 && delKey<41))
+			{ //if the delete, backspace, shift, are not the keys that caused the keyup event.
+				var fieldLen = i.value.length
+				if ((delKey >= 48 && delKey <= 57) || (delKey >= 96 && delKey <=105)) 
+				{
+					if (fieldLen == 2 || fieldLen == 5) 
+					{
+						i.value = i.value + "/";
+					}
+				} 
+				else 
+				{
+					if (direction == "up") 
+					{
+						if (i.value.length == 0) 
+						{
+							i.value = ""
+						} 
+						else 
+						{
+							i.value = i.value.substring(0,i.value.length-1)
+						}
+					}
+				}
+				i.focus()
+			}
+		}
+	}
+}
+		
+function ChangeDate(rstrFieldName, rstrFieldLabel, rstrFilter)		
+{
+	// Check for no value in start date from
+	if ( !checkRequiredField( document.forms[0], rstrFieldName, rstrFieldLabel ))
+		return false;
+	// Check for valid date
+	if ( !checkDate( document.forms[0], rstrFieldName, rstrFieldLabel ))
+		return false;
+						
+	var lobjValue = document.forms[0].elements[ rstrFieldName ].value;
+	//alert(lobjValue)
+	// Get value of 'Start To' Date-Time
+	var ldatDate = new Date(lobjValue );
+	var lintDateTime;
+
+	//change to previous or next day
+	if  (rstrFilter == "+" )
+	{
+		// Get value of date in 'From Date' (11:00 pm)
+		ldatDate = new Date( ldatDate.getFullYear(), ldatDate.getMonth(), ldatDate.getDate(), 23, 0, 0, 0 );
+
+		// Add one day to date
+		ldatDate = new Date( ldatDate.valueOf() + ( 1000 * 60 * 60 ));
+	}
+	else
+	{
+		// Get value of date (loose time)
+		ldatDate = new Date( ldatDate.getFullYear(), ldatDate.getMonth(), ldatDate.getDate());
+
+		// subtract one day from date
+		ldatDate = new Date( ldatDate.valueOf() - ( 1000 * 60 * 60 ));
+	}
+
+	document.forms[0].elements[ rstrFieldName ].value = DateToString(ldatDate);	  
+}
+
+function DateToString( ldatDate) 
+{
+	var ldatString;
+	var x = ldatDate;
+	var Day = x.getDate();
+	Day=((Day < 10) ? "0" : "") + Day;
+	var Month = x.getMonth() + 1;
+		Month =((Month < 10) ? "0" : "") + Month;
+	var Year = x.getFullYear();			
+		ldatString = Month + "/" + Day + "/" + Year;
+	return ldatString;
+}
+
+function FormatTime(i, delKey,direction) 
+{
+	if (i.value.length < 10) {
+		if (delKey!=9) { //tab
+			if(delKey!=8 && delKey!=46 && delKey!=16 &&  !(delKey>36 && delKey<41)){ //if the delete, backspace, shift, are not the keys that caused the keyup event.
+				var fieldLen = i.value.length
+				if ((delKey >= 48 && delKey <= 57) || (delKey >= 96 && delKey <=105)) {
+					if (fieldLen == 2 || fieldLen == 5) {
+					i.value = i.value + ":";
+				}
+				} else {
+					if (direction == "up") {
+					if (i.value.length == 0) {
+						i.value = ""
+					} else {
+						i.value = i.value.substring(0,i.value.length-1)
+						}
+				}
+				}
+				i.focus()
+			}
+		}
+	}
+}
+
+
+function FormatRunTime(i, delKey,direction) 
+{
+	if (i.value.length <= 19) {
+		if (delKey!=9) { //tab
+			if(delKey!=8 && delKey!=46 && delKey!=16 &&  !(delKey>36 && delKey<41)){
+			//if the delete, backspace, shift, are not the keys that caused the keyup event.
+				var fieldLen = i.value.length
+				if ((delKey >= 48 && delKey <= 57) || (delKey >= 96 && delKey <=105)) {
+					if (fieldLen == 2 || fieldLen == 5)
+					i.value = i.value + "/";
+				if (fieldLen == 10)
+				    i.value = i.value + " ";
+				if (fieldLen == 13 || fieldLen == 16) {
+				    i.value = i.value + ":";
+				}
+				} else {
+					if (direction == "up") {
+					if (i.value.length == 0) {
+						i.value = ""
+					} else {
+						i.value = i.value.substring(0,i.value.length-1)
+						}
+				}
+				}
+				i.focus()
+			}
+		}
+	}
+}
+
+//*********************************************************************************
+//** Function Name: goPrev
+//**
+//** Description: Populates the 'from' and 'to' date fields with previous date
+//**
+//** Paremeters:
+//**	Name: rstrFieldName
+//**	Type: a form object
+//**	Purpose: the from date field name
+//**
+//**	Name: rstrFieldCopyTo
+//**	Type: string
+//**	Purpose: the to date field name
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the from date field label  
+//**
+//*********************************************************************************
+
+
+function goPrev(rstrFieldName, rstrFieldLabel, rstrFieldCopyTo) 
+{
+ 
+  	// Check for no value in start date from
+ 
+  	if ( !checkRequiredField( document.forms[0], rstrFieldName, rstrFieldLabel)) 
+		return;
+ 
+  	// Check for valid date 
+
+  	if ( !checkDate( document.forms[0], rstrFieldName, rstrFieldLabel )) 	
+		return;
+ 
+  	// Get value of 'Start From' Date-Time 
+
+  	var ldatDate = new Date( document.forms[0].elements[ rstrFieldName ].value ); 
+
+  	var lintDateTime;
+	
+  	//Get value of date in 'From Date'(loose time) and make this the 'To Day'
+
+ 	ldatDate = new Date( ldatDate.getFullYear(), ldatDate.getMonth(),ldatDate.getDate()); 
+
+  	// Subtract one day from date and set 'From Date' 
+
+  	lintDateTime = ldatDate.valueOf();
+ 
+  	lintDateTime = lintDateTime - ( 1000 * 60 * 60 );
+ 
+  	ldatDate = new Date( lintDateTime );
+ 
+   	var x = ldatDate; var Day = x.getDate();
+
+   	Day=((Day < 10) ? "0" : "") + Day;
+ 
+   	var Month = x.getMonth() + 1; 
+
+   	Month =((Month < 10) ? "0" : "") + Month;
+ 
+   	var Year = x.getFullYear();
+
+   	document.forms[0].elements[ rstrFieldName ].value = Month + "/" + Day + "/" + Year;
+ 
+  	document.forms[0].elements[ rstrFieldCopyTo ].value = document.forms[0].elements[ rstrFieldName ].value; 
+
+}
+
+
+//*********************************************************************************
+//** Function Name: goNext
+//**
+//** Description: Populates the 'from' and 'to' date fields with next date 
+//**
+//** Paremeters:
+//**	Name: rstrFieldName
+//**	Type: a form object
+//**	Purpose: the from date field name
+//**
+//**	Name: rstrFieldCopyTo
+//**	Type: string
+//**	Purpose: the to date field name
+//**
+//**	Name: rstrFieldLabel
+//**	Type: string
+//**	Purpose: the from date field label  
+//**
+//********************************************************************************* 
+function goNext(rstrFieldName, rstrFieldLabel, rstrFieldCopyTo) 
+{ 
+	// Check for no value in start date from
+ 
+	if ( !checkRequiredField( document.forms[0], rstrFieldName, rstrFieldLabel )) 
+		return;
+ 
+	// Check for valid date
+ 
+	if ( !checkDate( document.forms[0], rstrFieldName, rstrFieldLabel )) 
+		return;
+ 
+	// Get value of 'Start From' Date-Time 
+
+	var ldatDate = new Date( document.forms[0].elements[ rstrFieldName ].value );
+ 
+	var lintDateTime;
+ 
+	// Get value of date in 'From Date' (11:00 pm)
+ 
+	ldatDate = new Date( ldatDate.getFullYear(), ldatDate.getMonth(), ldatDate.getDate(), 23, 0, 0, 0 );
+ 
+	// Add one day to date and set 'From Date' 
+
+	ldatDate = new Date( ldatDate.valueOf() + ( 1000 * 60 * 60 ));
+ 
+	var x = ldatDate; var Day = x.getDate();
+ 
+	Day=((Day < 10) ? "0" : "") + Day;
+ 
+	var Month = x.getMonth() + 1;
+ 
+	Month =((Month < 10) ? "0" : "") + Month;
+ 
+	var Year = x.getFullYear();
+ 
+	document.forms[0].elements[ rstrFieldName ].value = Month + "/" + Day + "/" + Year;
+ 
+	document.forms[0].elements[ rstrFieldCopyTo ].value = document.forms[0].elements[ rstrFieldName ].value; 
+
+}
+
+
+
+//*********************************************************************************
+//** Function Name: getConfirmationMessage
+//**
+//** Description: Get a standard confirmation prompt message for updates.
+//**
+//** Paremeters:
+//**	Name: rstrAction
+//**	Type: String
+//**	Purpose: The action to be performaned on the item
+//**
+//**	Name: rstrItem
+//**	Type: String
+//**	Purpose: The name of the item being modified
+//**
+//** Returns:
+//**	String: A message to be used in a confirmation popup dialog prompt
+//********************************************************************************* 
+function getConfirmationMessage( rstrAction, rstrItem, rbooMultiple, rbooCancel )
+{
+	var lstrThisThese = "this";
+
+	if ( rbooMultiple == undefined )
+		rbooMultiple = false;
+
+	if ( rbooCancel == undefined )
+		rbooCancel = false;
+
+	if ( rbooMultiple == true )
+		lstrThisThese = "these";
+
+	if ( rbooCancel == false )
+	{
+		if ( rstrAction.toUpperCase() == "SAVE" || rstrAction.toUpperCase() == "MODIFY" || rstrAction.toUpperCase() == "UPDATE" )
+			return "Are you sure you want to Save changes to " + lstrThisThese + " " + rstrItem + "?";
+		else if ( rstrAction.toUpperCase() == "ADD" )
+			return "Are you sure you want to Add " + lstrThisThese + " " + rstrItem + "?";
+		else if ( rstrAction.toUpperCase() == "DELETE" || rstrAction.toUpperCase() == "DEL" )
+			return "Are you sure you want to Delete " + lstrThisThese + " " + rstrItem + "?";
+		else
+			return "Are you sure you want to " + rstrAction + " " + lstrThisThese + " " + rstrItem + "?";
+	} 
+	else
+	{
+		if ( rstrAction.toUpperCase() == "SAVE" || rstrAction.toUpperCase() == "MODIFY" || rstrAction.toUpperCase() == "UPDATE" )
+			return "Are you sure you want to Cancel changes to " + lstrThisThese + " " + rstrItem + "?";
+		else if ( rstrAction.toUpperCase() == "ADD" )
+			return "Are you sure you want to Cancel the addition of " + lstrThisThese + " " + rstrItem + "?";
+		else if ( rstrAction.toUpperCase() == "DELETE" || rstrAction.toUpperCase() == "DEL" )
+			return "Are you sure you want to Cancel the deletion of " + lstrThisThese + " " + rstrItem + "?";
+		else
+			return "Are you sure you want to Cancel " + rstrAction + " of " + lstrThisThese + " " + rstrItem + "?";
+	}
+}

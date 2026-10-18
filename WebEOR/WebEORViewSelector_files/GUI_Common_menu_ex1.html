@@ -1,0 +1,392 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0054)https://webeor.usps.gov/Common/GUI_Common_menu_ex1.asp -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<link rel="stylesheet" href="./GUI_Common_Style.css" type="text/css">
+</head>
+
+
+<body class="TopMenu" bgcolor="#092b52" marginwidth="0" marginheight="0">
+<script language="JavaScript">
+var newWindow='';
+/*****************************************************************************
+Load up the images used on the menu
+******************************************************************************/
+var norm_menu_img = new Image();
+var norm_help_img = new Image();
+var norm_logout_img = new Image();
+var norm_home_img = new Image();
+var norm_bluetube_img = new Image();
+
+var over_menu_img = new Image();
+var over_help_img = new Image();
+var over_logout_img = new Image();
+var over_home_img = new Image();
+var over_bluetube_img = new Image();
+
+norm_menu_img.src = "../images/GUI_Common_MenuBttnN_1.gif";
+norm_home_img.src = "../images/GUI_Common_HomeBttnN_1.gif";
+norm_help_img.src = "../images/GUI_Common_HelpBttnN_1.gif";
+norm_logout_img.src = "../images/GUI_Common_LogoutBttnN_1.gif";
+norm_bluetube_img.src = "../images/GUI_Common_BlueTubeBttnN_1.gif";
+over_menu_img.src = "../images/GUI_Common_MenuBttnO_1.gif";
+over_home_img.src = "../images/GUI_Common_HomeBttnO_1.gif";
+over_help_img.src = "../images/GUI_Common_HelpBttnO_1.gif";
+over_logout_img.src = "../images/GUI_Common_LogoutBttnO_1.gif";
+over_bluetube_img.src = "../images/GUI_Common_BlueTubeBttnO_1.gif";
+
+
+/*****************************************************************************
+Place the mouseover image onto the specified image
+******************************************************************************/
+function mOverBttn( rstrName )
+{
+	if (document.images ) 
+	{
+		document[ rstrName ].src = eval( "over_" + rstrName + ".src" );
+	}
+}
+
+
+/*****************************************************************************
+Place the normal image onto the specified image
+******************************************************************************/
+function mOutBttn( rstrName )
+{
+	if (document.images ) 
+	{
+		document[ rstrName ].src = eval( "norm_" + rstrName + ".src" );
+	}
+}
+
+
+/*****************************************************************************
+Default browsercheck
+******************************************************************************/
+function checkBrowser(){
+
+
+	this.ver=navigator.appVersion
+	this.dom=document.getElementById?1:0
+	this.ie5=((this.ver.indexOf("MSIE 5")>-1 || this.ver.indexOf("MSIE 6")>-1 || this.ver.indexOf("MSIE 7")>-1) && this.dom)?1:0;
+	this.ie4=(document.all && !this.dom)?1:0;
+	this.ns5=(this.dom && parseInt(this.ver) >= 5) ?1:0;
+	this.ns4=(document.layers && !this.dom)?1:0;
+	this.opera=!(this.ie5 || this.ie4 || this.ns4 || this.ns5) && this.dom;
+	this.bw=(this.ie5 || this.ie4 || this.ns4 || this.ns5);
+	return this;
+
+
+}
+
+var bw = new checkBrowser();
+
+var gintEraseM = 1;	// Flag to tell if mouse is over the Menu option 'Menu'
+var gintEraseD = 1;	// Flag to tell if mouse is over the dropdown
+// NOTE: Only when both flags are set will the checkEraseMenu() function
+//	erase the dropdown menu.
+
+
+
+/*****************************************************************************
+** FUNCTION NAME: getScrolled
+**
+** DESCRIPTION: This function returns an object with the current scrolled
+**	offsets of the 'frmMain' frame.
+**
+** PARAMETERS:
+**	None
+**
+******************************************************************************/
+function getScrolled(){
+
+ 
+	if(bw.dom || bw.ie4){
+		this.scrolledX = parent.frmMain.document.body.scrollLeft;
+		this.scrolledY = parent.frmMain.document.body.scrollTop;
+		this.pageWidth = parent.frmMenu.document.body.clientWidth;
+	} else {
+		this.scrolledX = parent.frmMain.pageXOffset;
+		this.scrolledY = parent.frmMain.pageYOffset;
+	}
+
+	return this;
+}
+
+
+
+function getIPTSFrameScrolled(){
+
+	if(bw.dom || bw.ie4){
+		this.scrolledX = parent.frmMain.frmWorkloadDetail.document.body.scrollLeft;
+		this.scrolledY = parent.frmMain.frmWorkloadDetail.document.body.scrollTop;
+		this.pageWidth = parent.frmMain.frmWorkloadDetail.document.body.clientWidth;
+	} else {
+		this.scrolledX = parent.frmMain.frmWorkloadDetail.pageXOffset;
+		this.scrolledY = parent.frmMain.frmWorkloadDetail.pageYOffset;
+	}
+
+	return this;
+}
+
+
+
+/*****************************************************************************
+** FUNCTION NAME: getDataMenuStyle
+**
+** DESCRIPTION: This function returns an object that references the style
+**	of the menu dropdwon in the 'frmMain' frame.
+**
+** PARAMETERS:
+**	None
+**
+******************************************************************************/
+function getDataMenuStyle()
+{
+	if ( bw.dom || bw.ie4 )
+		this.style = parent.frmMain.document.all["DataMenu"].style;
+	else if ( bw.ns4 )
+		this.style = parent.frmMain.document.DataMenu;
+
+	return this;
+}
+
+
+
+function getIPTSFrameDataMenuStyle()
+{
+	if ( bw.dom || bw.ie4 )
+		this.style = parent.frmMain.frmWorkloadDetail.document.all["DataMenu"].style;
+	else if ( bw.ns4 )
+		this.style = parent.frmMain.frmWorkloadDetail.document.DataMenu;
+
+	return this;
+}
+
+
+
+/*****************************************************************************
+** FUNCTION NAME: checkForMainBodyPage
+**
+** DESCRIPTION: Checks the 'frmMain' frame to see if the proper objects are
+**	on the page. This function is normally called before some action is
+**	taken on the 'frmMain' frame.
+**
+** PARAMETERS:
+**	None
+**
+******************************************************************************/
+function checkForMainBodyPage()
+{
+	if ( !(parent.frmMain ))
+		return false; 
+
+	if ( bw.dom || bw.ie4 )
+
+		return parent.frmMain.document.all["DataMenu"]? true: false;
+
+
+	else if ( bw.ns4 )
+ 
+		return parent.frmMain.document.DataMenu? true: false;
+
+	return false;
+}
+
+
+
+function checkForIPTSFrameMainBodyPage()
+{
+	if ( !(parent.frmMain ))
+		return false;
+
+	if ( !(parent.frmMain.frmWorkloadDetail ))
+		return false;
+
+	if ( bw.dom || bw.ie4 )
+		return parent.frmMain.frmWorkloadDetail.document.all["DataMenu"]? true: false;
+	else if ( bw.ns4 )
+		return parent.frmMain.document.frmWorkloadDetail.document.DataMenu? true: false;
+
+	return false;
+}
+
+
+
+/*****************************************************************************
+** FUNCTION NAME: makeMenuAppear
+**
+** DESCRIPTION: Causes the hidden menu in the 'frmMain' frame to appear.
+**
+** PARAMETERS:
+**	None
+**
+******************************************************************************/
+function makeMenuAppear()
+{
+	mOverBttn( "menu_img");
+
+	if ( checkForMainBodyPage())
+	{
+		var lobjMenu = new getDataMenuStyle();
+		var lobjScrolled = new getScrolled();
+
+		gintEraseM = 0;
+		lobjMenu.style.top = lobjScrolled.scrolledY;
+		lobjMenu.style.left = lobjScrolled.scrolledX + lobjScrolled.pageWidth - 150;
+		lobjMenu.style.visibility = "visible";
+		parent.frmMain.SendMessage( "Menu: Appear Called" );
+	} 
+	else if ( checkForIPTSFrameMainBodyPage())
+	{
+		var lobjMenu = new getIPTSFrameDataMenuStyle();
+		var lobjScrolled = new getIPTSFrameScrolled();
+
+		gintEraseM = 0;
+		lobjMenu.style.top = lobjScrolled.scrolledY;
+		lobjMenu.style.left = lobjScrolled.scrolledX + lobjScrolled.pageWidth - 133;
+		lobjMenu.style.visibility = "visible";
+		parent.frmMain.frmWorkloadDetail.SendMessage( "Menu: Appear Called" );
+	}
+}
+
+
+
+/*****************************************************************************
+** FUNCTION NAME: checkEraseMenu
+**
+** DESCRIPTION: Causes the dropdown menu to disappear. It first checks to be sure 
+**	that the mouse pointer has not moved over the dropdown menu.
+**
+** PARAMETERS:
+**	None
+**
+******************************************************************************/
+function checkEraseMenu()
+{
+	if ( gintEraseM == 1 && gintEraseD == 1)
+	{
+		mOutBttn( "menu_img" );
+
+		if ( checkForMainBodyPage())
+		{
+			var lobjMenu = new getDataMenuStyle();
+
+			parent.frmMain.SendMessage( "Menu: Erase Menu Called" );
+			lobjMenu.style.visibility = "hidden";
+			lobjMenu.style.left = 0;
+		} 
+		else if ( checkForIPTSFrameMainBodyPage())
+		{
+			var lobjMenu = new getIPTSFrameDataMenuStyle();
+
+			parent.frmMain.frmWorkloadDetail.SendMessage( "Menu: Erase Menu Called" );
+			lobjMenu.style.visibility = "hidden";
+			lobjMenu.style.left = 0;
+		} 
+	}
+}
+
+
+/*****************************************************************************
+** FUNCTION NAME: makeMenuDisappear
+**
+** DESCRIPTION: Causes the dropdown menu to disappear by calling the 
+**	checkErase function. This function uses a timeout to ensure that the 
+**	mouse pointer has not moved over the dropdown menu.
+**
+** PARAMETERS:
+**	None
+**
+******************************************************************************/
+function makeMenuDisappear()
+{
+
+
+	gintEraseM = 1;
+	setTimeout( "checkEraseMenu();", 2000 );
+
+	if ( checkForMainBodyPage())
+		parent.frmMain.SendMessage( "Menu: Disappear Called" );
+}   
+
+
+//********************************************************************************
+//** FUNCTION: Logout
+//**
+//** DESCRIPTION: Prompt the user to log out, then if yes, log them out and
+//**	returns them to the login screen.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function Logout()
+{
+	if ( confirm("Are you sure you want to log out?") )
+		parent.frmMain.document.location.href = "../GUI_Login_Main.asp";
+} 
+
+
+function doNothing()
+{
+	
+}
+
+
+function loadCurrentHelp()
+{
+	
+	//to get the right help content if Help is already opened
+	if (!newWindow.closed && newWindow.location) {
+		newWindow.close();
+	}
+	 
+	newWindow=parent.open(parent.frames["frmMain"].document.forms[0].elements["Help_Loc"].value, "HelpEOR");
+	newWindow.focus();
+}
+
+
+
+</script>
+
+<table cellpadding="0" cellspacing="0" border="0" width="100%"><tbody><tr>
+<td class="MenuTop"><a href="https://iv.usps.gov/" target="_blank"><img src="./iv-logo-menu.png" alt="IV Informed Visibility" title="IV Informed Visibility" border="0"></a></td>
+<td class="MenuTop"><img src="./webeor-logo-menu.png" alt="WebEOR" title="WebEOR" border="0"></td>
+<td class="MenuTop" valign="Middle" nowrap=""><span style="font-family: Arial; color: White; font-size: 16pt; font-style: italic;"></span></td>
+<td class="MenuTop" width="100%">
+<form><input type="Hidden" name="MenuVisible" value="Yes"></form>
+<img src="./ts.gif" border="0"></td>
+
+<td class="MenuTop">
+<a href="https://bluetube.usps.gov/index.cfm" target="_blank" onmouseover="mOverBttn('bluetube_img'); return true;" onmouseout="mOutBttn('bluetube_img'); return true;">
+<img name="bluetube_img" src="./GUI_Common_BlueTubeBttnN_1.gif" border="0" alt="BlueTube.usps.gov" title="BlueTube.usps.gov"></a></td>
+
+<td class="MenuTop">
+<a href="javascript:Logout();" onmouseover="mOverBttn('logout_img'); return true;" onmouseout="mOutBttn('logout_img'); return true;">
+<img name="logout_img" src="./GUI_Common_LogoutBttnN_1.gif" border="0" alt="Logout" title="Logout"></a></td>
+
+<td class="MenuTop">
+<a target="frmMain" href="https://webeor.usps.gov/GUI_MainApp_Main.asp" onmouseover="mOverBttn( 'home_img'); return true;" onmouseout="mOutBttn( 'home_img'); return true;">
+<img name="home_img" src="./GUI_Common_HomeBttnN_1.gif" border="0" alt="Home - Main Menu" title="Home - Main Menu"></a></td>
+
+<td class="MenuTop">
+<a href="javascript:loadCurrentHelp();" onmouseover="mOverBttn('help_img'); return true;" onmouseout="mOutBttn('help_img'); return true;">
+<img name="help_img" src="./GUI_Common_HelpBttnN_1.gif" border="0" alt="Help" title="Help"></a>
+</td>
+
+<td class="MenuTop">
+<a href="javascript:doNothing();" onmouseover="makeMenuAppear();" onmouseout="makeMenuDisappear();">
+<img name="menu_img" src="./GUI_Common_MenuBttnN_1.gif" border="0" alt="Menu" title="Menu"></a></td>
+
+<td class="MenuTop" width="10px">
+<img src="./ts.gif" border="0" height="10px" width="50px"></td>
+</tr>
+</tbody></table>
+
+
+
+
+
+</body></html>

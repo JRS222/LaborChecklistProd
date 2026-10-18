@@ -1,0 +1,677 @@
+
+<!-- saved from url=(0058)https://webeor.usps.gov/mapping/GUI_MachineInfo_Viewer.asp -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>USPS-DMSEOR Station Mapping</title>
+<link rel="stylesheet" href="./GUI_Common_Style.css" type="text/css">
+<script language="javascript" src="./GUI_Common_Validation.js.download"></script> 
+</head>
+
+
+<body marginwidth="0" marginheight="0" topmargin="0" leftmargin="0" backgroundx="../images/GUI_Common_Background.gif">
+
+<script language="JavaScript1.2" type="text/javascript">
+
+/*****************************************************************************
+Default browsercheck
+******************************************************************************/
+function checkBrowser(){
+	
+	this.ver=navigator.appVersion
+	this.dom=document.getElementById?1:0
+	this.ie5=((this.ver.indexOf("MSIE 5")>-1 || this.ver.indexOf("MSIE 6")>-1 || 
+		this.ver.indexOf("MSIE 7")>-1 || this.ver.indexOf("MSIE 8")>-1 || 
+		this.ver.indexOf("MSIE 9")>-1) || 
+		(this.ver.indexOf("Trident/")>-1 && this.ver.indexOf("rv:")>-1) && this.dom)?1:0;
+	this.ie4=(document.all && !this.dom)?1:0;
+	this.ns5=(this.dom && parseInt(this.ver) >= 5) ?1:0;
+	this.ns4=(document.layers && !this.dom)?1:0;
+	this.opera=!(this.ie5 || this.ie4 || this.ns4 || this.ns5) && this.dom;
+	this.bw=(this.ie5 || this.ie4 || this.ns4 || this.ns5);
+	return this;
+}
+
+var bw = new checkBrowser();
+
+
+//********************************************************************************
+//** FUNCTION: Logout
+//**
+//** DESCRIPTION: Prompt the user to log out, then if yes, log them out and
+//**	returns them to the login screen.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function Logout()
+{
+	if ( confirm("Are you sure you want to log out?") )
+		document.location.href = "../GUI_Login_Main.asp";
+} 
+
+
+function SendMessage( rstrMessage )
+{
+	//document.forms[0].elements["DebugTest"].value = document.forms[0].elements["DebugTest"].value +
+	//	rstrMessage + "\n";
+}
+
+
+
+//********************************************************************************
+//** FUNCTION: makeMenuAppear
+//**
+//** DESCRIPTION: Causes the hidden table to remain visible. This function 
+//**	is called when then mouse moves from the 'Menu' option in the top bar to
+//**	the dropdown menu that has appeared.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function makeMenuAppear()
+{
+	SendMessage( "Data: Appear Called" );
+	if ( parent.frmMenu )
+		parent.frmMenu.gintEraseD = 0;
+	else if ( parent.parent.frmMenu )
+		parent.parent.frmMenu.gintEraseD = 0;
+}
+
+
+
+//********************************************************************************
+//** FUNCTION: makeMenuDisappear
+//**
+//** DESCRIPTION: Causes the dropdown menu to disappear. This just sets the
+//**	table's "visibility" style to hidden.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function makeMenuDisappear()
+{
+	SendMessage( "Data: Disappear Called" );
+
+	if ( parent.frmMenu )
+	{
+		parent.frmMenu.gintEraseD = 1;
+		setTimeout( "parent.frmMenu.checkEraseMenu()", 100 );
+	}
+	else if ( parent.parent.frmMenu )
+	{
+		parent.parent.frmMenu.gintEraseD = 1;
+		setTimeout( "parent.parent.frmMenu.checkEraseMenu()", 100 );
+	}
+
+}
+
+
+
+//********************************************************************************
+//** FUNCTION: makeMenuDisappear
+//**
+//** DESCRIPTION: Causes the dropdown menu to disappear. This just sets the
+//**	table's "visibility" style to hidden.
+//**
+//** PARAMETERS:
+//**	None
+//**
+//** RETURN VALUES:
+//**	None
+//********************************************************************************
+function loadPage( rstrLocation )
+{
+	SendMessage( "Data: Load Page Called" );
+
+	if ( parent.frmMenu )
+	{
+		parent.frmMenu.gintEraseD = 1;
+		parent.frmMenu.checkEraseMenu();
+		document.location.href = rstrLocation;
+	}
+	else if ( parent.parent.frmMenu )
+	{
+		parent.parent.frmMenu.gintEraseD = 0;
+		parent.parent.frmMenu.checkEraseMenu();
+		parent.document.location.href = rstrLocation;
+	}
+}
+
+</script>
+
+<table cellpadding="0" cellspacing="0" border="0" width="100%">
+<tbody><tr><td width="10px"><img src="./GUI_Common_ts.gif" border="0" width="10"></td>
+<td width="100%" valign="Top">
+<script language="JavaScript">
+
+if ( parent.frmMenu )
+{
+	if ( parent.frmMenu.document.forms[0].MenuVisible.value == "No" )
+	{
+		parent.frmMenu.location.href = "../Common/GUI_Common_menu_ex1.asp";
+	}
+}
+if ( parent.parent.frmMenu )
+{
+	if ( parent.parent.frmMenu.document.forms[0].MenuVisible.value == "No" )
+	{
+		parent.parent.frmMenu.location.href = "../Common/GUI_Common_menu_ex1.asp";
+	}
+} 
+</script>
+
+
+<h2>Mapping-Machine Information-Local</h2>
+
+
+<form name="frmMachines" method="get" action="https://webeor.usps.gov/mapping/GUI_MachineInfo_Viewer.asp" language="vbscript">
+<input type="HIDDEN" name="Help_Loc" value="/WebHelp/WebEOR_Help.htm#Mapping_Machine_Information.htm">
+<center>
+</center><table align="center" border="0" cellpadding="1" cellspacing="1" width="100%">
+<tbody><tr>
+<td width="30%">&nbsp;</td>
+<td width="40%">
+    <table align="center" border="0" cellpadding="1" cellspacing="0" width="100%">
+
+  <tbody><tr>
+    <td class="Label3" width="50%">Machine Type</td>
+    <td class="Data" nowrap="" width="50%">
+<select size="1" name="MACHTYPE" onchange="">
+<option value="AAA">AAA</option>
+<option value="ADCS">ADCS</option>
+<option value="ADUS">ADUS</option>
+<option value="AFCS">AFCS</option>
+<option value="AFCS200">AFCS200</option>
+<option value="AFSM100">AFSM100</option>
+<option value="AFSM100 Canceller">AFSM100 Canceller</option>
+<option value="ALPS">ALPS</option>
+<option value="AMPS">AMPS</option>
+<option value="APBS">APBS</option>
+<option value="APPS">APPS</option>
+<option value="ATU">ATU</option>
+<option value="BCS-OSS">BCS-OSS</option>
+<option value="Bundle Unloader  Queue (BDQ)">Bundle Unloader  Queue (BDQ)</option>
+<option value="CCS">CCS</option>
+<option value="CIOSS">CIOSS</option>
+<option value="CSBCS">CSBCS</option>
+<option value="CUS">CUS</option>
+<option value="DBCS">DBCS</option>
+<option value="DBCS Phase 7">DBCS Phase 7</option>
+<option value="DIOSS">DIOSS</option>
+<option value="DSS">DSS</option>
+<option value="Digraph Flats Canceller">Digraph Flats Canceller</option>
+<option value="EAA">EAA</option>
+<option value="EDUS">EDUS</option>
+<option value="EPPS">EPPS</option>
+<option value="EPSM">EPSM</option>
+<option value="EuroSort">EuroSort</option>
+<option value="F/C">F/C</option>
+<option value="FRS">FRS</option>
+<option value="FSM">FSM</option>
+<option value="FSM881">FSM881</option>
+<option value="FSS">FSS</option>
+<option value="FSS Phase 2">FSS Phase 2</option>
+<option value="HDUS">HDUS</option>
+<option value="HOPS">HOPS</option>
+<option value="HSTS">HSTS</option>
+<option value="HSUS">HSUS</option>
+<option value="HTPS">HTPS</option>
+<option value="IEAA">IEAA</option>
+<option value="LCREM">LCREM</option>
+<option value="LCTS">LCTS</option>
+<option value="LCUS">LCUS</option>
+<option value="LIPS">LIPS</option>
+<option value="LMLM">LMLM</option>
+<option value="LMS">LMS</option>
+<option value="LPSS">LPSS</option>
+<option value="M-36 Canceller">M-36 Canceller</option>
+<option value="MEWS">MEWS</option>
+<option value="MIM">MIM</option>
+<option value="MIMS">MIMS</option>
+<option value="MLOCR">MLOCR</option>
+<option value="MODEL 16 Flats Canceller">MODEL 16 Flats Canceller</option>
+<option value="MPBCS">MPBCS</option>
+<option value="MSA">MSA</option>
+<option value="MSS">MSS</option>
+<option value="MSWYB">MSWYB</option>
+<option value="MaRS">MaRS</option>
+<option value="Manual Dispatch">Manual Dispatch</option>
+<option value="Manual Express">Manual Express</option>
+<option value="Manual Flat Case">Manual Flat Case</option>
+<option value="Manual Letter Case">Manual Letter Case</option>
+<option value="Manual Opening Unit">Manual Opening Unit</option>
+<option value="Manual Parcels">Manual Parcels</option>
+<option value="Micro Mark Canceller">Micro Mark Canceller</option>
+<option value="Model-G Canceller">Model-G Canceller</option>
+<option value="NEC Canceller">NEC Canceller</option>
+<option value="NGTC">NGTC</option>
+<option value="NMO">NMO</option>
+<option value="NMOTS">NMOTS</option>
+<option value="PILS">PILS</option>
+<option value="PSM">PSM</option>
+<option value="PSS">PSS</option>
+<option value="RAPISTAN">RAPISTAN</option>
+<option value="RBUS">RBUS</option>
+<option value="RCS">RCS</option>
+<option value="RELA">RELA</option>
+<option value="REM">REM</option>
+<option value="ROBOT">ROBOT</option>
+<option value="SAMP">SAMP</option>
+<option value="SASWYB">SASWYB</option>
+<option value="SDUS">SDUS</option>
+<option value="SIPS">SIPS</option>
+<option value="SLPS">SLPS</option>
+<option value="SPBS">SPBS</option>
+<option value="SPSS">SPSS</option>
+<option value="SSM">SSM</option>
+<option value="TABBER">TABBER</option>
+<option value="TSA">TSA</option>
+<option value="UFSM1000">UFSM1000</option>
+<option value="USM">USM</option>
+<option value="USM SPBS">USM SPBS</option>
+<option value="USS">USS</option>
+<option value="VRS">VRS</option>
+<option value="ALL" selected=""> ALL</option>
+</select>
+
+</td></tr>
+
+  <tr>
+    <td class="Label3">Site</td>
+    <td class="Data" nowrap="">
+<select size="1" name="SITEID">
+	<option value="19161">ERIE PO (old)</option>
+	<option value="19011">Greentree Branch, Pittsburgh PA</option>
+	<option value="19221">IRWIN PA PO</option>
+	<option value="19006">Monroeville Branch, Pittsburgh PA</option>
+	<option value="19121">Morgantown Anx</option>
+	<option value="19201">PIT-PLEASANT HILLS BR</option>
+	<option value="19010">PITTSBURGH PA P&amp;DC</option>
+	<option value="19401">PITTSBURGH PA PLSNT HLS S&amp;DC</option>
+	<option value="19008">Penn Hills Branch, Pittsburgh PA</option>
+	<option value="19012">Retired:150039998</option>
+	<option value="19013">Retired:150129998</option>
+	<option value="19014">Retired:150229998</option>
+	<option value="19015">Retired:150449998</option>
+	<option value="19016">Retired:150629998</option>
+	<option value="19017">Retired:150659998</option>
+	<option value="19018">Retired:150669998</option>
+	<option value="19019">Retired:150689998</option>
+	<option value="19020">Retired:150749998</option>
+	<option value="19021">Retired:150909998</option>
+	<option value="19022">Retired:151019998</option>
+	<option value="19023">Retired:151029998</option>
+	<option value="19024">Retired:151049998</option>
+	<option value="19025">Retired:151209998</option>
+	<option value="19026">Retired:151349998</option>
+	<option value="19027">Retired:151379998</option>
+	<option value="19028">Retired:151479998</option>
+	<option value="19029">Retired:152369998</option>
+	<option value="19030">Retired:152419998</option>
+	<option value="19009">Washington PA</option>
+	<option value="19007">Woods Run Sta, Pittsburgh PA</option>
+	<option value="ALL" selected="">ALL</option>
+</select>
+</td></tr>
+
+<tr>
+    <td class="Label3">Status</td>
+    <td class="Data" nowrap="">
+    <select name="Status" size="1">
+	<option value="Y" selected="">Active</option>
+	<option value="N">Inactive</option>
+	<option value="ALL">ALL</option>
+    </select>
+</td></tr>
+
+</tbody></table>
+</td>
+<td width="30%" valign="Top">
+		<span class="OneClickTitle">Links</span><br>
+		&nbsp; &nbsp;<a class="OneClickReport" href="https://webeor.usps.gov/Mapping/GUI_MachineCatalog_Viewer.asp">Machine Catalog</a><br>
+		&nbsp; &nbsp;<a class="OneClickReport" href="https://webeor.usps.gov/Mapping/GUI_MachineRelocate_Viewer.asp">Machine Relocate</a><br>
+		&nbsp; &nbsp;<a class="OneClickReport" href="https://webeor.usps.gov/Mapping/GUI_MachineTransaction_Viewer.asp">Machine Transactions</a><br>
+		
+</td>
+</tr></tbody></table><table border="0" align="center">
+<tbody><tr><td><input id="cmdRefresh" name="cmdRefresh" width="30%" type="submit" value="Refresh Table"></td>
+
+
+<td><input type="Button" value="National" onclick="document.location.href='GUI_MachineInfoNational_Viewer.asp';"></td>
+<td><input type="Button" value="TSA Config" onclick="document.location.href='GUI_TSAPrinters_Viewer.asp';"></td>
+<!--<TD><INPUT TYPE="Button" VALUE="Machine Catalog Viewer" ONCLICK="cmd_CatalogViewer();"></TD>-->
+</tr>
+
+</tbody></table>
+
+<br>
+
+<script language="Javascript">
+function goToSource( rintSiteId, rintMachineId )
+{
+	document.location.href="GUI_SortProgram_ValidOpnoViewer.asp?Display=MachineServerSource&MultiSort=&ST=&SF=&MACHTYPE=&STATUS=&FilterSiteId=&SiteId=" + rintSiteId + "&MachineId=" + rintMachineId;
+}
+function goToIDS( rstrSelectedIDSName, rstrTable, rstrMPE, rintSiteId, rintMachineId )
+{
+	document.location.href="GUI_SortProgram_ValidOpnoViewer.asp?Display=" + rstrTable + "&SelectedIDSName=" + rstrSelectedIDSName  + "&MPE=" + rstrMPE + "&FromScreen=Machine&MachMultiSort=&MachST=&MachSF=&MACHTYPE=&STATUS=&FilterSiteId=&SiteId=" + rintSiteId + "&MachineId=" + rintMachineId;
+} 
+</script>
+
+<a name="dummy">
+<input type="Hidden" name="SF" value="">
+<input type="Hidden" name="ST" value="">
+<script language="JavaScript" type="text/javascript">
+<!--
+function Foo( r_fieldname, r_value )
+{
+	this.document.forms[0].SF.value = r_fieldname;
+	this.document.forms[0].ST.value = r_value;
+	this.document.forms[0].submit();
+}
+//-->
+</script>
+<input type="Hidden" name="ARG1" value="">
+<input type="Hidden" name="ARG2" value="">
+<script language="JavaScript" type="text/javascript">
+<!--
+	this.document.forms[0].ARG1.value = '';
+	this.document.forms[0].ARG2.value = '';
+
+function getDetailed( rstrArg1, rstrArg2 )
+{
+	this.document.forms[0].ARG1.value = rstrArg1;
+	this.document.forms[0].ARG2.value = rstrArg2;
+	this.document.forms[0].action = "GUI_MachineInfo_Edit.asp";
+	this.document.forms[0].submit();
+}
+//-->
+</script>
+<input name="MultiSort" type="Hidden" value="A_SITE_NAME,A_MACHINE,A_MNO"><input name="FieldNames" type="Hidden" value="GLOBAL_MACHINE_ID,SITE_NAME,MACHINE,EQUIPMENT_CODE,MNO,MAX_BIN_NBR,EOR_SW_VER,MODS_MACH_ID,NDSS_MACH_ID,MPE_ID,IOS_MACH_ID,LIFT_UNIT_NBR,FORMAT_EFFECTIVE_START_DATE,FORMAT_EFFECTIVE_END_DATE,SERIAL_NO,CAPITAL_ID_NO,D_ENABLED,FORMAT_DATETIME_DTM,SOURCE_LINK">
+<input name="FieldLabels" type="Hidden" value="Global ID,Site Name,Machine Type,Model,MNO,Max Bin#,S/W Ver,MODS,NDSS,MPE ID,IOS,Lift Unit,Eff Start Date,Eff End Date,Serial,Capital ID,Status,Changed Date,Source">
+<script language="JavaScript">
+function encodeValue(rstrValue)
+{
+	var lstrParam = new String();
+	var lintLoop;
+	var lstrField;
+	
+	lstrField = new String( rstrValue );
+	for( lintLoop = 0; lintLoop < lstrField.length; lintLoop++ )
+	{
+		if ( lstrField.substring( lintLoop, lintLoop + 1 ) == "," )
+			lstrParam += "%2C";
+		else if ( lstrField.substring( lintLoop, lintLoop + 1 ) == "#" )
+			lstrParam += "%23";
+		else if ( lstrField.substring( lintLoop, lintLoop + 1 ) == " " )
+			lstrParam += "+";
+		else
+			lstrParam += lstrField.substring( lintLoop, lintLoop + 1 );
+	}
+
+	return lstrParam;
+}
+
+
+function showMultiSortBox()
+{
+	var lstrParam;
+	var lintLoop;
+	var lstrField;
+
+	lstrField = "FieldNames=" + encodeValue( document.forms[0].FieldNames.value ) + "&" +
+	"FieldLabels=" + encodeValue( document.forms[0].FieldLabels.value ) + "&" +
+		"Sorted=" + encodeValue( document.forms[0].MultiSort.value );
+	popbox = window.open( "/Common/GUI_Common_MultiSelect.asp?" + lstrField, "MultiSort",
+		"location=no,menubar=no,resizable=no,toolbar=no,scrollbars=no,directories=no,titlebar=no,status=no,width=440,height=240");
+}
+</script>
+<input type="Hidden" name="RecordsListed" value="85">
+</a><a href="https://webeor.usps.gov/mapping/GUI_MachineInfo_Viewer.asp#ListBottom">to Bottom</a><a name="ListTop"></a><a name="ListTop"></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+<a href="javascript:generateTableCSV()">CSV</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+Records: 85
+ <table border="0" width="100%">
+<tbody><tr class="TableTitle"><th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:showMultiSortBox()">M</a></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('GLOBAL_MACHINE_ID', 'A')">Global ID</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('SITE_NAME', 'A')">Site Name</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('MACHINE', 'A')">Machine Type</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('EQUIPMENT_CODE', 'A')">Model</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('MNO', 'A')">MNO</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('MAX_BIN_NBR', 'A')">Max Bin#</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('EOR_SW_VER', 'A')">S/W Ver</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('MODS_MACH_ID', 'A')">MODS</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('NDSS_MACH_ID', 'A')">NDSS</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('MPE_ID', 'A')">MPE ID</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('IOS_MACH_ID', 'A')">IOS</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('LIFT_UNIT_NBR', 'A')">Lift Unit</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('FORMAT_EFFECTIVE_START_DATE', 'A')">Eff Start Date</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('FORMAT_EFFECTIVE_END_DATE', 'A')">Eff End Date</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('SERIAL_NO', 'A')">Serial</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('CAPITAL_ID_NO', 'A')">Capital ID</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('D_ENABLED', 'A')">Status</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('FORMAT_DATETIME_DTM', 'A')">Changed Date</a><br><hr class="InvisibleObj"></th>
+<th style="BACKGROUND-COLOR:#003399; position:sticky; top:0;"><a class="TableSortLink" href="javascript:Foo('SOURCE_LINK', 'A')">Source</a><br><hr class="InvisibleObj"></th>
+</tr>
+
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">22662</td><td align="Left">IRWIN PA PO</td><td align="Left">SDUS</td><td align="Center">FB</td><td align="Right">2</td><td align="Right">56</td><td align="Right">3.3.0 (Build 8)</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">08/26/2022</td><td align="Center">&nbsp;</td><td align="Left">860</td><td align="Right">PT680480A000054</td><td align="Right">Active</td><td align="Center">06/05/2026 09:35:51</td><td align="Center"><a href="javascript:goToSource(19221,19003951);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7289</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">943</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52271</td><td align="Right">998A000047</td><td align="Right">Active</td><td align="Center">04/02/2012 08:08:34</td><td align="Center"><a href="javascript:goToSource(19010,1900951);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7333</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">1043</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52272</td><td align="Right">998A000048</td><td align="Right">Active</td><td align="Center">04/02/2012 08:09:30</td><td align="Center"><a href="javascript:goToSource(19010,1900991);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7376</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">3</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">3</td><td align="Right">3</td><td align="Right">&nbsp;</td><td align="Right">3</td><td align="Right">1143</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52273</td><td align="Right">998A000049</td><td align="Right">Active</td><td align="Center">04/10/2012 15:30:26</td><td align="Center"><a href="javascript:goToSource(19010,19001031);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7359</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">4</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">4</td><td align="Right">4</td><td align="Right">&nbsp;</td><td align="Right">4</td><td align="Right">1243</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52274</td><td align="Right">998A000050</td><td align="Right">Active</td><td align="Center">05/08/2012 15:58:47</td><td align="Center"><a href="javascript:goToSource(19010,19001071);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7360</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">5</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">5</td><td align="Right">5</td><td align="Right">&nbsp;</td><td align="Right">5</td><td align="Right">1343</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52275</td><td align="Right">998A000051</td><td align="Right">Active</td><td align="Center">04/28/2017 15:02:20</td><td align="Center"><a href="javascript:goToSource(19010,19001072);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7375</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">6</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">6</td><td align="Right">6</td><td align="Right">&nbsp;</td><td align="Right">6</td><td align="Right">1443</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52276</td><td align="Right">998A000052</td><td align="Right">Active</td><td align="Center">05/08/2012 16:01:26</td><td align="Center"><a href="javascript:goToSource(19010,19001132);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7335</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">7</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">7</td><td align="Right">7</td><td align="Right">&nbsp;</td><td align="Right">7</td><td align="Right">1543</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52449</td><td align="Right">998A000138</td><td align="Right">Active</td><td align="Center">04/28/2017 15:39:30</td><td align="Center"><a href="javascript:goToSource(19010,19001151);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7280</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFCS200</td><td align="Center">AA</td><td align="Right">8</td><td align="Right">12</td><td align="Right">1.0.0</td><td align="Right">8</td><td align="Right">8</td><td align="Right">&nbsp;</td><td align="Right">8</td><td align="Right">2632</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">52135</td><td align="Right">998A000132</td><td align="Right">Active</td><td align="Center">06/01/2012 16:47:36</td><td align="Center"><a href="javascript:goToSource(19010,19001191);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7357</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFSM100</td><td align="Center">AE</td><td align="Right">106</td><td align="Right">120</td><td align="Right">17.6 BUILD 1</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">82</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">0082</td><td align="Right">1217515</td><td align="Right">Active</td><td align="Center">04/21/2025 06:46:01</td><td align="Center"><a href="javascript:goToSource(19010,1900341);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7343</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFSM100</td><td align="Center">AE</td><td align="Right">107</td><td align="Right">120</td><td align="Right">17.6 BUILD 1</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">103</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">0103</td><td align="Right">1217516</td><td align="Right">Active</td><td align="Center">04/15/2025 09:53:26</td><td align="Center"><a href="javascript:goToSource(19010,1900342);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7344</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFSM100</td><td align="Center">AE</td><td align="Right">108</td><td align="Right">120</td><td align="Right">17.6 BUILD 1</td><td align="Right">3</td><td align="Right">3</td><td align="Right">&nbsp;</td><td align="Right">3</td><td align="Right">2099</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2099</td><td align="Right">1223663</td><td align="Right">Active</td><td align="Center">05/05/2025 06:33:22</td><td align="Center"><a href="javascript:goToSource(19010,1900343);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7345</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">AFSM100</td><td align="Center">AE</td><td align="Right">109</td><td align="Right">120</td><td align="Right">17.6 BUILD 1</td><td align="Right">4</td><td align="Right">4</td><td align="Right">&nbsp;</td><td align="Right">4</td><td align="Right">2123</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2123</td><td align="Right">1223664</td><td align="Right">Active</td><td align="Center">04/28/2025 08:49:17</td><td align="Center"><a href="javascript:goToSource(19010,1900344);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12476</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">ATU</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">1</td><td align="Right">1.5.0</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">ATU-0215</td><td align="Right">1898009</td><td align="Right">Active</td><td align="Center">07/31/2015 08:45:25</td><td align="Center"><a href="javascript:goToSource(19010,19001733);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">12477</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">ATU</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">1</td><td align="Right">1.5.0</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">ATU-0267</td><td align="Right">2</td><td align="Right">Active</td><td align="Center">07/31/2015 08:45:43</td><td align="Center"><a href="javascript:goToSource(19010,19001734);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12478</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">ATU</td><td align="Center">AA</td><td align="Right">3</td><td align="Right">1</td><td align="Right">1.5.0</td><td align="Right">3</td><td align="Right">3</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">ATU-0268</td><td align="Right">3</td><td align="Right">Active</td><td align="Center">07/31/2015 08:45:59</td><td align="Center"><a href="javascript:goToSource(19010,19001735);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">12479</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">ATU</td><td align="Center">AA</td><td align="Right">4</td><td align="Right">1</td><td align="Right">1.5.0</td><td align="Right">4</td><td align="Right">4</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">ATU-0269</td><td align="Right">4</td><td align="Right">Active</td><td align="Center">07/31/2015 08:46:20</td><td align="Center"><a href="javascript:goToSource(19010,19001736);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7363</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">CIOSS</td><td align="Center">AB</td><td align="Right">53</td><td align="Right">206</td><td align="Right">10.2.0</td><td align="Right">53</td><td align="Right">53</td><td align="Right">&nbsp;</td><td align="Right">53</td><td align="Right">596</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50133</td><td align="Right">1135637</td><td align="Right">Active</td><td align="Center">04/28/2017 15:40:01</td><td align="Center"><a href="javascript:goToSource(19010,1900911);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7317</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">16</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">16</td><td align="Right">16</td><td align="Right">&nbsp;</td><td align="Right">16</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">1620</td><td align="Right">885173</td><td align="Right">Active</td><td align="Center">04/20/2017 08:08:57</td><td align="Center"><a href="javascript:goToSource(19010,190056);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7318</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">17</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">17</td><td align="Right">17</td><td align="Right">&nbsp;</td><td align="Right">17</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2655</td><td align="Right">1112333</td><td align="Right">Active</td><td align="Center">04/28/2017 15:40:49</td><td align="Center"><a href="javascript:goToSource(19010,190057);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">13280</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CI</td><td align="Right">21</td><td align="Right">254</td><td align="Right">8.3.0</td><td align="Right">21</td><td align="Right">21</td><td align="Right">&nbsp;</td><td align="Right">21</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2776</td><td align="Right">1130799</td><td align="Right">Active</td><td align="Center">04/28/2017 15:48:34</td><td align="Center"><a href="javascript:goToSource(19010,190050);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7364</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CI</td><td align="Right">22</td><td align="Right">254</td><td align="Right">8.3.0</td><td align="Right">22</td><td align="Right">22</td><td align="Right">&nbsp;</td><td align="Right">22</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">1279</td><td align="Right">1124670</td><td align="Right">Active</td><td align="Center">04/28/2017 15:49:20</td><td align="Center"><a href="javascript:goToSource(19010,190054);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7293</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">23</td><td align="Right">254</td><td align="Right">8.3.0</td><td align="Right">23</td><td align="Right">23</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">11/07/2012</td><td align="Center">&nbsp;</td><td align="Left">1240</td><td align="Right">0869567</td><td align="Right">Active</td><td align="Center">07/30/2015 09:58:44</td><td align="Center"><a href="javascript:goToSource(19010,19001531);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7305</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CI</td><td align="Right">24</td><td align="Right">254</td><td align="Right">8.3.0</td><td align="Right">24</td><td align="Right">24</td><td align="Right">&nbsp;</td><td align="Right">24</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">1127</td><td align="Right">869479</td><td align="Right">Active</td><td align="Center">04/28/2017 15:50:00</td><td align="Center"><a href="javascript:goToSource(19010,190028);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7306</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CI</td><td align="Right">25</td><td align="Right">254</td><td align="Right">8.3.0</td><td align="Right">25</td><td align="Right">25</td><td align="Right">&nbsp;</td><td align="Right">25</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2803</td><td align="Right">1037112</td><td align="Right">Active</td><td align="Center">05/05/2017 07:46:12</td><td align="Center"><a href="javascript:goToSource(19010,190029);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7308</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">28</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">28</td><td align="Right">28</td><td align="Right">&nbsp;</td><td align="Right">28</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">1880</td><td align="Right">1000253</td><td align="Right">Active</td><td align="Center">03/22/2011 14:49:00</td><td align="Center"><a href="javascript:goToSource(19010,190032);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7377</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">29</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">29</td><td align="Right">29</td><td align="Right">&nbsp;</td><td align="Right">29</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">1902</td><td align="Right">1000254</td><td align="Right">Active</td><td align="Center">03/22/2011 14:49:15</td><td align="Center"><a href="javascript:goToSource(19010,190033);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7309</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">30</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">30</td><td align="Right">30</td><td align="Right">&nbsp;</td><td align="Right">30</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2596</td><td align="Right">1039448</td><td align="Right">Active</td><td align="Center">01/20/2015 12:59:53</td><td align="Center"><a href="javascript:goToSource(19010,190034);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7365</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">31</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">31</td><td align="Right">31</td><td align="Right">&nbsp;</td><td align="Right">31</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2657</td><td align="Right">1039449</td><td align="Right">Active</td><td align="Center">03/22/2011 14:49:47</td><td align="Center"><a href="javascript:goToSource(19010,190035);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7310</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">32</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">32</td><td align="Right">32</td><td align="Right">&nbsp;</td><td align="Right">32</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2686</td><td align="Right">1039450</td><td align="Right">Active</td><td align="Center">03/22/2011 14:50:03</td><td align="Center"><a href="javascript:goToSource(19010,190036);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7311</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">33</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">33</td><td align="Right">33</td><td align="Right">&nbsp;</td><td align="Right">33</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2715</td><td align="Right">1039451</td><td align="Right">Active</td><td align="Center">03/22/2011 14:50:22</td><td align="Center"><a href="javascript:goToSource(19010,190037);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7312</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">34</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">34</td><td align="Right">34</td><td align="Right">&nbsp;</td><td align="Right">34</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2744</td><td align="Right">1039452</td><td align="Right">Active</td><td align="Center">03/22/2011 14:50:38</td><td align="Center"><a href="javascript:goToSource(19010,190038);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7319</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">35</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">35</td><td align="Right">35</td><td align="Right">&nbsp;</td><td align="Right">35</td><td align="Right">&nbsp;</td><td align="Center">10/09/2019</td><td align="Center">&nbsp;</td><td align="Left">2293</td><td align="Right">1117042</td><td align="Right">Active</td><td align="Center">10/09/2019 06:26:12</td><td align="Center"><a href="javascript:goToSource(19010,190058);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7324</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">39</td><td align="Right">222</td><td align="Right">8.3.0</td><td align="Right">39</td><td align="Right">39</td><td align="Right">&nbsp;</td><td align="Right">39</td><td align="Right">&nbsp;</td><td align="Center">07/21/2021</td><td align="Center">&nbsp;</td><td align="Left">50218</td><td align="Right">1124668</td><td align="Right">Active</td><td align="Center">07/21/2021 13:12:50</td><td align="Center"><a href="javascript:goToSource(19010,190063);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7326</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">40</td><td align="Right">222</td><td align="Right">8.3.0</td><td align="Right">40</td><td align="Right">40</td><td align="Right">&nbsp;</td><td align="Right">40</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50389</td><td align="Right">1130800</td><td align="Right">Active</td><td align="Center">03/22/2011 14:51:38</td><td align="Center"><a href="javascript:goToSource(19010,190066);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7366</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">41</td><td align="Right">222</td><td align="Right">8.3.0</td><td align="Right">41</td><td align="Right">41</td><td align="Right">&nbsp;</td><td align="Right">41</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50372</td><td align="Right">1127686</td><td align="Right">Active</td><td align="Center">09/24/2020 06:54:55</td><td align="Center"><a href="javascript:goToSource(19010,190065);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7325</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">42</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">42</td><td align="Right">42</td><td align="Right">&nbsp;</td><td align="Right">42</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50235</td><td align="Right">1124669</td><td align="Right">Active</td><td align="Center">09/24/2020 06:55:29</td><td align="Center"><a href="javascript:goToSource(19010,190064);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7322</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">43</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">43</td><td align="Right">43</td><td align="Right">&nbsp;</td><td align="Right">43</td><td align="Right">&nbsp;</td><td align="Center">06/15/2021</td><td align="Center">&nbsp;</td><td align="Left">50183</td><td align="Right">1121353</td><td align="Right">Active</td><td align="Center">06/15/2021 06:24:47</td><td align="Center"><a href="javascript:goToSource(19010,190061);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7321</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">44</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">44</td><td align="Right">44</td><td align="Right">&nbsp;</td><td align="Right">44</td><td align="Right">&nbsp;</td><td align="Center">06/15/2021</td><td align="Center">&nbsp;</td><td align="Left">50167</td><td align="Right">1121352</td><td align="Right">Active</td><td align="Center">06/15/2021 06:25:35</td><td align="Center"><a href="javascript:goToSource(19010,190060);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7320</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">45</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">45</td><td align="Right">45</td><td align="Right">&nbsp;</td><td align="Right">45</td><td align="Right">&nbsp;</td><td align="Center">06/15/2021</td><td align="Center">&nbsp;</td><td align="Left">50150</td><td align="Right">1117044</td><td align="Right">Active</td><td align="Center">06/15/2021 06:26:19</td><td align="Center"><a href="javascript:goToSource(19010,190059);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7315</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">49</td><td align="Right">222</td><td align="Right">7.2.0</td><td align="Right">49</td><td align="Right">49</td><td align="Right">&nbsp;</td><td align="Right">49</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2275</td><td align="Right">1037112</td><td align="Right">Active</td><td align="Center">07/15/2021 10:09:06</td><td align="Center"><a href="javascript:goToSource(19010,190043);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">2866</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">AC</td><td align="Right">58</td><td align="Right">302</td><td align="Right">7.2.0</td><td align="Right">58</td><td align="Right">58</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">09/21/2021</td><td align="Center">&nbsp;</td><td align="Left">50534</td><td align="Right">1137217</td><td align="Right">Active</td><td align="Center">10/07/2021 10:32:09</td><td align="Center"><a href="javascript:goToSource(19010,19003551);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">2867</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CD</td><td align="Right">59</td><td align="Right">302</td><td align="Right">7.2.0</td><td align="Right">59</td><td align="Right">59</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">09/21/2021</td><td align="Center">&nbsp;</td><td align="Left">50550</td><td align="Right">1137216</td><td align="Right">Active</td><td align="Center">09/28/2021 06:29:57</td><td align="Center"><a href="javascript:goToSource(19010,19003571);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7338</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">60</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">60</td><td align="Right">60</td><td align="Right">&nbsp;</td><td align="Right">60</td><td align="Right">&nbsp;</td><td align="Center">07/29/2012</td><td align="Center">&nbsp;</td><td align="Left">1087</td><td align="Right">861288</td><td align="Right">Active</td><td align="Center">08/09/2012 09:37:14</td><td align="Center"><a href="javascript:goToSource(19010,19001351);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7371</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">61</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">61</td><td align="Right">61</td><td align="Right">&nbsp;</td><td align="Right">61</td><td align="Right">&nbsp;</td><td align="Center">07/28/2012</td><td align="Center">&nbsp;</td><td align="Left">50854</td><td align="Right">1144923</td><td align="Right">Active</td><td align="Center">08/08/2012 11:09:16</td><td align="Center"><a href="javascript:goToSource(19010,19001312);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7372</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">62</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">62</td><td align="Right">62</td><td align="Right">&nbsp;</td><td align="Right">62</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50005</td><td align="Right">1109300</td><td align="Right">Active</td><td align="Center">08/08/2012 09:44:54</td><td align="Center"><a href="javascript:goToSource(19010,1900711);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7279</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">63</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">63</td><td align="Right">63</td><td align="Right">&nbsp;</td><td align="Right">63</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50098</td><td align="Right">1112333</td><td align="Right">Active</td><td align="Center">08/08/2012 09:39:52</td><td align="Center"><a href="javascript:goToSource(19010,1900731);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7340</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">64</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">64</td><td align="Right">64</td><td align="Right">&nbsp;</td><td align="Right">64</td><td align="Right">&nbsp;</td><td align="Center">07/28/2012</td><td align="Center">&nbsp;</td><td align="Left">2713</td><td align="Right">1039419</td><td align="Right">Active</td><td align="Center">08/08/2012 09:17:01</td><td align="Center"><a href="javascript:goToSource(19010,19001311);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7287</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">65</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">65</td><td align="Right">65</td><td align="Right">&nbsp;</td><td align="Right">65</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">50116</td><td align="Right">1117042</td><td align="Right">Active</td><td align="Center">08/08/2012 09:48:02</td><td align="Center"><a href="javascript:goToSource(19010,1900751);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7341</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">66</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">66</td><td align="Right">66</td><td align="Right">&nbsp;</td><td align="Right">66</td><td align="Right">&nbsp;</td><td align="Center">07/29/2012</td><td align="Center">&nbsp;</td><td align="Left">2953</td><td align="Right">1037111</td><td align="Right">Active</td><td align="Center">08/08/2012 09:15:28</td><td align="Center"><a href="javascript:goToSource(19010,19001331);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">2896</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">67</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">67</td><td align="Right">67</td><td align="Right">&nbsp;</td><td align="Right">-1</td><td align="Right">&nbsp;</td><td align="Center">10/30/2012</td><td align="Center">&nbsp;</td><td align="Left">2595</td><td align="Right">1037092</td><td align="Right">Active</td><td align="Center">11/06/2012 10:09:33</td><td align="Center"><a href="javascript:goToSource(19010,19001411);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">10152</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">68</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">68</td><td align="Right">68</td><td align="Right">&nbsp;</td><td align="Right">-1</td><td align="Right">&nbsp;</td><td align="Center">11/02/2012</td><td align="Center">&nbsp;</td><td align="Left">1948</td><td align="Right">893238</td><td align="Right">Active</td><td align="Center">11/06/2012 10:09:52</td><td align="Center"><a href="javascript:goToSource(19010,19001511);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">2881</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">69</td><td align="Right">302</td><td align="Right">8.3.0</td><td align="Right">69</td><td align="Right">69</td><td align="Right">&nbsp;</td><td align="Right">-1</td><td align="Right">&nbsp;</td><td align="Center">10/30/2012</td><td align="Center">&nbsp;</td><td align="Left">50591</td><td align="Right">1137231</td><td align="Right">Active</td><td align="Center">11/02/2012 17:33:29</td><td align="Center"><a href="javascript:goToSource(19010,19001451);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">2884</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DBCS</td><td align="Center">CJ</td><td align="Right">70</td><td align="Right">270</td><td align="Right">8.3.0</td><td align="Right">70</td><td align="Right">70</td><td align="Right">&nbsp;</td><td align="Right">-1</td><td align="Right">&nbsp;</td><td align="Center">10/30/2012</td><td align="Center">&nbsp;</td><td align="Left">50607</td><td align="Right">1130774</td><td align="Right">Active</td><td align="Center">11/02/2012 17:30:47</td><td align="Center"><a href="javascript:goToSource(19010,19001431);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7328</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DIOSS</td><td align="Center">AE</td><td align="Right">1</td><td align="Right">206</td><td align="Right">9.2.0</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">1696</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">00082</td><td align="Right">???</td><td align="Right">Active</td><td align="Center">04/20/2007 15:10:58</td><td align="Center"><a href="javascript:goToSource(19010,190069);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7353</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DIOSS</td><td align="Center">AE</td><td align="Right">2</td><td align="Right">206</td><td align="Right">9.2.0</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">1796</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">91</td><td align="Right">???</td><td align="Right">Active</td><td align="Center">04/28/2017 15:51:16</td><td align="Center"><a href="javascript:goToSource(19010,1900382);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7354</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DIOSS</td><td align="Center">AE</td><td align="Right">3</td><td align="Right">206</td><td align="Right">9.2.0</td><td align="Right">3</td><td align="Right">3</td><td align="Right">&nbsp;</td><td align="Right">3</td><td align="Right">443</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">0112</td><td align="Right">???</td><td align="Right">Active</td><td align="Center">04/20/2007 15:12:45</td><td align="Center"><a href="javascript:goToSource(19010,1900383);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7355</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DIOSS</td><td align="Center">AE</td><td align="Right">4</td><td align="Right">238</td><td align="Right">9.2.0</td><td align="Right">4</td><td align="Right">4</td><td align="Right">&nbsp;</td><td align="Right">4</td><td align="Right">543</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">125</td><td align="Right">???</td><td align="Right">Active</td><td align="Center">04/28/2017 15:52:23</td><td align="Center"><a href="javascript:goToSource(19010,1900384);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7356</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">DIOSS</td><td align="Center">AE</td><td align="Right">5</td><td align="Right">206</td><td align="Right">9.2.0</td><td align="Right">5</td><td align="Right">5</td><td align="Right">&nbsp;</td><td align="Right">5</td><td align="Right">643</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">294</td><td align="Right">???</td><td align="Right">Active</td><td align="Center">04/28/2017 15:53:03</td><td align="Center"><a href="javascript:goToSource(19010,1900385);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12693</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">EAA</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">1</td><td align="Right">3.3.0</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">06/01/2016</td><td align="Center">&nbsp;</td><td align="Left">EAA-00044</td><td align="Right">NA</td><td align="Right">Active</td><td align="Center">06/22/2016 05:31:26</td><td align="Center"><a href="javascript:goToSource(19010,19001831);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">11809</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">EAA</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">1</td><td align="Right">3.3.0</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">09/30/2019</td><td align="Center">&nbsp;</td><td align="Left">EAA-00014</td><td align="Right">EAA02</td><td align="Right">Active</td><td align="Center">10/08/2019 09:47:38</td><td align="Center"><a href="javascript:goToSource(19010,19003311);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7284</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">F/C</td><td align="Center">J </td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">2212</td><td align="Right">1198867</td><td align="Right">Active</td><td align="Center">06/22/2008 17:44:00</td><td align="Center"> </td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7285</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">F/C</td><td align="Center">J </td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">3003</td><td align="Right">??????</td><td align="Right">Active</td><td align="Center">06/22/2008 17:45:10</td><td align="Center"> </td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7286</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">HSTS</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">52</td><td align="Right">FMPCS 9.3.2</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">-1</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">00001</td><td align="Right">00001</td><td align="Right">Active</td><td align="Center">06/23/2009 16:38:03</td><td align="Center"><a href="javascript:goToSource(19010,1900491);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">10198</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">HSTS</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">52</td><td align="Right">FMPCS 9.3.2</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">-1</td><td align="Right">&nbsp;</td><td align="Center">06/18/2013</td><td align="Center">&nbsp;</td><td align="Left">00002</td><td align="Right">00002</td><td align="Right">Active</td><td align="Center">06/20/2013 11:18:08</td><td align="Center"><a href="javascript:goToSource(19010,19001611);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7288</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">LCREM</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">5</td><td align="Right">1.30</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">LR167</td><td align="Right">000188</td><td align="Right">Active</td><td align="Center">03/21/2011 11:21:30</td><td align="Center"><a href="javascript:goToSource(19010,1900811);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">11114</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">MSWYB</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">1</td><td align="Right">7.6.0</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Center">10/01/2012</td><td align="Center">&nbsp;</td><td align="Left">C5KPD</td><td align="Right">34</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','MSWYB-15290-001',19010,19001673);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">11115</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">MSWYB</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">1</td><td align="Right">7.6.0</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Center">10/01/2012</td><td align="Center">&nbsp;</td><td align="Left">C5KPK</td><td align="Right">35</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','MSWYB-15290-002',19010,19001674);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">11116</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">MSWYB</td><td align="Center">AA</td><td align="Right">3</td><td align="Right">1</td><td align="Right">7.6.0</td><td align="Right">3</td><td align="Right">3</td><td align="Right">&nbsp;</td><td align="Right">3</td><td align="Right">&nbsp;</td><td align="Center">10/01/2012</td><td align="Center">&nbsp;</td><td align="Left">C5KQR</td><td align="Right">36</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','MSWYB-15290-003',19010,19001675);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">11117</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">MSWYB</td><td align="Center">AA</td><td align="Right">4</td><td align="Right">1</td><td align="Right">7.6.0</td><td align="Right">4</td><td align="Right">4</td><td align="Right">&nbsp;</td><td align="Right">4</td><td align="Right">&nbsp;</td><td align="Center">10/01/2012</td><td align="Center">&nbsp;</td><td align="Left">C5KQC</td><td align="Right">37</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','MSWYB-15290-004',19010,19001676);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">11112</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">MSWYB</td><td align="Center">AC</td><td align="Right">5</td><td align="Right">1</td><td align="Right">7.6.0</td><td align="Right">5</td><td align="Right">5</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">08/01/2018</td><td align="Center">&nbsp;</td><td align="Left">2UA42527Q7</td><td align="Right">5</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','MSWYB-15290-005',19010,19001671);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">11113</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">MSWYB</td><td align="Center">AC</td><td align="Right">6</td><td align="Right">1</td><td align="Right">7.6.0</td><td align="Right">6</td><td align="Right">6</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">07/19/2016</td><td align="Center">&nbsp;</td><td align="Left">2UA42516C5</td><td align="Right">6</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','MSWYB-15290-006',19010,19001672);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">&nbsp;</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">Manual Parcels</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">10</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Center">&nbsp;</td><td align="Center">&nbsp;</td><td align="Left">1</td><td align="Right">1</td><td align="Right">Active</td><td align="Center">11/30/2017 15:01:33</td><td align="Center"> </td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">&nbsp;</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">Manual Parcels</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">10</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">&nbsp;</td><td align="Center">&nbsp;</td><td align="Center">&nbsp;</td><td align="Left">2</td><td align="Right">2</td><td align="Right">Active</td><td align="Center">11/30/2017 15:02:48</td><td align="Center"> </td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">7368</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">NEC Canceller</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">56</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">xxxx</td><td align="Right">xxxx</td><td align="Right">Active</td><td align="Center">12/13/2011 13:06:41</td><td align="Center"> </td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">7291</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">NGTC</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Center">01/01/2000</td><td align="Center">&nbsp;</td><td align="Left">1</td><td align="Right">1</td><td align="Right">Active</td><td align="Center">09/21/2023 16:55:14</td><td align="Center"><a href="javascript:goToIDS('IDS15290','UNIT_LOAD_TRANSACTION','TC152PDC',19010,1900933);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">12056</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">1</td><td align="Right">10704</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">1</td><td align="Right">1</td><td align="Right">Active</td><td align="Center">11/01/2021 16:39:48</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',10704,19010,19001714);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12057</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">2</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">2</td><td align="Right">10454</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">2</td><td align="Right">2</td><td align="Right">Active</td><td align="Center">11/01/2021 16:40:15</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',10454,19010,19001715);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">12055</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">3</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">3</td><td align="Right">29954</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">3</td><td align="Right">3</td><td align="Right">Active</td><td align="Center">11/01/2021 16:40:35</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',29954,19010,19001713);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12054</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">4</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">4</td><td align="Right">30204</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">4</td><td align="Right">4</td><td align="Right">Active</td><td align="Center">11/01/2021 16:41:09</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',30204,19010,19001712);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">12910</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">5</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">5</td><td align="Right">65954</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">09/12/2016</td><td align="Center">&nbsp;</td><td align="Left">5</td><td align="Right">5</td><td align="Right">Active</td><td align="Center">09/13/2016 07:35:46</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',65954,19010,19001851);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12053</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">10</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">10</td><td align="Right">112204</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">10/01/2013</td><td align="Center">&nbsp;</td><td align="Left">10</td><td align="Right">10</td><td align="Right">Active</td><td align="Center">11/01/2021 16:41:40</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',112204,19010,19001711);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">13027</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">11</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">11</td><td align="Right">30454</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">09/07/2016</td><td align="Center">&nbsp;</td><td align="Left">30454</td><td align="Right">30454</td><td align="Right">Active</td><td align="Center">09/26/2016 13:08:35</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',30454,19010,19001911);">source</a></td></tr>
+<tr class="TableRow3"><td>&nbsp;</td><td align="Right">12911</td><td align="Left">PITTSBURGH PA P&amp;DC</td><td align="Left">PSS</td><td align="Center">AA</td><td align="Right">500</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">50</td><td align="Right">75704</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">09/12/2016</td><td align="Center">&nbsp;</td><td align="Left">500</td><td align="Right">500</td><td align="Right">Active</td><td align="Center">11/01/2021 16:42:16</td><td align="Center"><a href="javascript:goToIDS('IDS15290','GENMP',75704,19010,19001852);">source</a></td></tr>
+<tr class="TableRow4"><td>&nbsp;</td><td align="Right">16860</td><td align="Left">PITTSBURGH PA PLSNT HLS S&amp;DC</td><td align="Left">SDUS</td><td align="Center">FB</td><td align="Right">1</td><td align="Right">104</td><td align="Right">3.3.0 (Build 8)</td><td align="Right">1</td><td align="Right">1</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Right">&nbsp;</td><td align="Center">05/03/2025</td><td align="Center">&nbsp;</td><td align="Left">2574660</td><td align="Right">PT680480A000017</td><td align="Right">Active</td><td align="Center">06/05/2026 09:36:01</td><td align="Center"><a href="javascript:goToSource(19401,19004551);">source</a></td></tr>
+</tbody></table><a href="https://webeor.usps.gov/mapping/GUI_MachineInfo_Viewer.asp#ListTop">to Top</a><a name="ListBottom"></a>
+<script language="Javascript">
+var gstrTableHeaderGroup = "\"Global ID\",\"Site Name\",\"Machine Type\",\"Model\",\"MNO\",\"Max Bin#\",\"S/W Ver\",\"MODS\",\"NDSS\",\"MPE ID\",\"IOS\",\"Lift Unit\",\"Eff Start Date\",\"Eff End Date\",\"Serial\",\"Capital ID\",\"Status\",\"Changed Date\",\"Source\"";
+var gstrTableHeader = "\"Global ID\",\"Site Name\",\"Machine Type\",\"Model\",\"MNO\",\"Max Bin#\",\"S/W Ver\",\"MODS\",\"NDSS\",\"MPE ID\",\"IOS\",\"Lift Unit\",\"Eff Start Date\",\"Eff End Date\",\"Serial\",\"Capital ID\",\"Status\",\"Changed Date\",\"Source\"";
+var gstrTableColumns = "19,11,1,9,2,15,3,8,12,24,13,25,17,18,5,6,10,16,20";
+var gstrTableSource = "CLIENT";
+var gstrTableSQL = "SELECT machine.site_id, machine_type.mach_type_desc as machine, machine.machine_nbr as mno, machine.mpe_sfwe_version_id as eor_sw_ver, machine.mach_type_code, machine.serial_nbr as Serial_No, machine.capital_id_nbr as capital_id_no, machine.import_ind, machine.mods_mach_id, machine.equipment_code, DECODE( machine.active_ind, 'Y', 'Active', 'N', 'Inactive', 'Undetermined' ) d_enabled, postal_facility.site_name, machine.ndss_mach_id, machine.ios_mach_id, machine.machine_id, machine.max_bin_nbr, TO_CHAR( machine.datetime_dtm, 'MM/DD/YYYY HH24:MI:SS' ) format_datetime_dtm, TO_CHAR( machine.effective_start_date, 'MM/DD/YYYY' ) format_effective_start_date, TO_CHAR( machine.effective_end_date, 'MM/DD/YYYY' ) format_effective_end_date, machine.global_machine_id,   DECODE(machine.mach_type_code,          8,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         27,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         92,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         95,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         97,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         98,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         99,  DECODE(NVL(pssa.machine_id, -1), -1, ' ',  DECODE(NVL(machine.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         74,    DECODE(NVL(swyba.machine_id, -1), -1, ' ',    DECODE(NVL(swyba.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || swyba.Ids_Name ||   ''',' || '''UNIT_LOAD_TRANSACTION'',''' || swyba.mpe_name || ''',' || machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),         52,    DECODE(NVL(ngtca.machine_id, -1), -1, ' ',    DECODE(NVL(ngtca.Ids_name, '-1'), '-1', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToIDS(''' || ngtca.Ids_Name ||   ''',' || '''UNIT_LOAD_TRANSACTION'',''' || ngtca.mpe_name || ''',' || machine.site_id || ',' || machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>')),  DECODE(NVL(machine.server_sequence_nbr, -1),         -1, ' ', 0, ' ',  DECODE( UPPER( machine.use_ids_name_ind ), 'Y', ' ',   '" + String.fromCharCode(60) + "a href=\"javascript:goToSource(' || machine.site_id || ',' ||          machine.machine_id || ');\">source" + String.fromCharCode(60) + "/a>'))) source_link,machine.datetime_dtm, machine.effective_start_date, machine.effective_end_date, machine.mpe_id, machine.LIFT_UNIT_NBR, machine.auto_import_opn_ind FROM EOR_PSBRPA.machine, EOR_PSBRPA.machine_type, EOR_GLOBAL.SWYB_ASSIGNMENT_T swyba, EOR_GLOBAL.NGTC_ASSIGNMENT_T ngtca, EOR_GLOBAL.PSS_ASSIGNMENT_T pssa, ( SELECT site_id, site_name FROM EOR_PSBRPA.postal_facility x START WITH x.site_id = 19010 CONNECT BY PRIOR TO_NUMBER( x.site_id ) = x.parent_site_id AND x.site_id " + String.fromCharCode(60) + "> 19010 ) postal_facility WHERE machine.mach_type_code = machine_type.mach_type_code AND machine.site_id = postal_facility.site_id AND machine.Machine_ID=swyba.Machine_ID(+) AND machine.Machine_ID=ngtca.Machine_ID(+) AND machine.Machine_ID=pssa.Machine_ID(+)  AND machine.active_ind = 'Y' ORDER BY SITE_NAME ASC, MACHINE ASC, MNO ASC";
+</script>
+
+</form>
+
+
+</td>
+<td width="10px"><img src="./GUI_Common_ts.gif" border="0" width="10" alt=""></td>
+</tr>
+</tbody></table>
+
+<form name="frmTableCSV" id="frmTableCSV" method="Post" action="https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp">
+<input type="Hidden" name="tabCsvGroup" id="tabCsvGroup" value="">
+<input type="Hidden" name="tabCsvHeader" id="tabCsvHeader" value="">
+<input type="Hidden" name="tabCsvColumns" id="tabCsvColumns" value="">
+<input type="Hidden" name="tabCsvSource" id="tabCsvSource" value="">
+<input type="Hidden" name="tabCsvSQL" id="tabCsvSQL" value="">
+</form>
+
+<script language="Javascript">
+function generateTableCSV()
+{
+	document.getElementById( "tabCsvGroup" ).value   = gstrTableHeaderGroup;
+	document.getElementById( "tabCsvHeader" ).value  = gstrTableHeader;
+	document.getElementById( "tabCsvColumns" ).value = gstrTableColumns;
+	document.getElementById( "tabCsvSource" ).value  = gstrTableSource;
+	document.getElementById( "tabCsvSQL" ).value     = gstrTableSQL;
+
+	document.getElementById( "frmTableCSV" ).submit();
+}
+</script>
+
+<div id="DataMenu" class="MenuDropDown" style="visibility:hidden; position:absolute; top:0px; left:0px; color:white; background-color: #092b52; width: 120px">
+<center>
+<table border="0" cellspacing="0" cellpadding="0" width="100">
+<tbody><tr><td class="SideBarMenuTitle">File</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../Import/GUI_Imports_Edit.asp');">Import</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Export/GUI_Exp_frm.asp');" >Export</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../EORViewer/GUI_EORView_Viewer.asp');">EOR Viewer</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" target="_blank" href="https://webeor.usps.gov/WebHelp/WebEOR_Help.htm">Full Help</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../ManualDownload/GUI_ManualDownload_Edit.asp');">Manual Download</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=DOISHistory'); ">DOIS History</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../Admin/GUI_Exports_PCMODSSelect.asp');">WebMODS Viewer</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_Exports_FTPLogViewer.asp');" >FTP Logs</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+
+<tr><td class="SideBarMenuTitle">Reports</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../reportpage/GUI_ReportView.asp');">EOR Reports</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../RCR/GUI_RCR_ReportView.asp'); ">RCR Reports</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../reportpage/GUI_Report_CustomViewer.asp');">Custom Rpt.</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+
+<tr><td class="SideBarMenuTitle">Mapping</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_SiteInfo_Viewer.asp'); ">Site</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_StationInfo_Viewer.asp'); ">Station</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_MachineInfo_Viewer.asp'); ">Machine</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_Downflow_Viewer.asp'); ">Downflow</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_SortProgram_Viewer.asp'); ">Sort Prog</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_SortProgram_ValidOpNoViewer.asp'); ">Valid Opn</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../mapping/GUI_SortProgram_ValidOpNoViewer.asp?Display=EquipmentType'); ">Equip Type</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+
+<tr><td class="SideBarMenuTitle">Admin</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../Admin/GUI_AdminGroup_Viewer.asp'); ">Site Group</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_AdminUsers_Viewer.asp'); " >Users</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_Exports_Viewer.asp'); " >Exporter</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR-->
+<!--TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_AdminUsers_Password_Edit.asp'); " >Password</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR>
+<TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_Common_BackupRestore.asp?Mode=Backup'); " >Backup AP</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR>
+<TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_Common_BackupRestore.asp?Mode=Delete'); " >Delete AP</A></TD></TR>
+<TR><TD CLASS="SideBarMenuBasic"><IMG SRC="../images/GUI_Common_ts.gif" BORDER="0" HEIGHT="1"></TD></TR>
+<TR><TD CLASS="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<A CLASS="SideBarMenuLinkl" HREF="javascript:loadPage('../Admin/GUI_Common_BackupRestore.asp?Mode=Restore'); " >Restore AP</A></TD></TR-->
+
+<tr><td class="SideBarMenuTitle">IPTS</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../IPTS/GUI_IPTS_Workload_DateSelect.asp'); ">Proj Wrkload</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../IPTS/GUI_IPTS_ReportView.asp'); ">Reports</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../IPTS/GUI_IPTS_WeeklyUploadProj_DateSelect.asp'); ">Wkly Upld Proj</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="1"></td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../IPTS/GUI_IPTS_DailyUpload.asp'); ">Daily Upload</a></td></tr>
+
+<tr><td class="SideBarMenuTitle">LOGS</td></tr>
+<tr><td class="SideBarMenuLink">&nbsp;&nbsp;&nbsp;<a class="SideBarMenuLinkl" href="javascript:loadPage('../Admin/GUI_EventView_Viewer.asp'); ">Event Viewer</a></td></tr>
+<tr><td class="SideBarMenuBasic"><img src="./GUI_Common_ts.gif" border="0" height="10px"></td></tr>
+
+</tbody></table>
+</center>
+</div>
+
+<script language="JavaScript">
+if ( bw.ie4 || bw.ie5 )
+{
+	this.document.all.DataMenu.onmouseover = new Function( "makeMenuAppear()" );
+	this.document.all.DataMenu.onmouseout = new Function( "makeMenuDisappear()" );
+}
+else if ( bw.ns4 || bw.ns5 )
+{
+	this.document.DataMenu.onmouseover = new Function( "makeMenuAppear()" );
+	this.document.DataMenu.onmouseout = new Function( "makeMenuDisappear()" );
+}
+</script>
+
+
+</body></html>
