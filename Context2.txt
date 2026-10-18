@@ -1,44 +1,53 @@
-$base = "https://webeor.usps.gov"
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0> $base = "https://webeor.usps.gov"
+PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 1. Get the landing page (sets initial cookies)
+PS C:\Users\YYQTP0> $null = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 2. Submit the site-selection form (View mode, site 76003 = ABILENE TX P&DC)
+PS C:\Users\YYQTP0> $body = @{
+>>     User         = "View"
+>>     Pword        = "View"
+>>     ChildSites   = ""
+>>     ServerType   = "Production"
+>>     GroupList    = ""
+>>     FullName     = ""
+>>     EMail        = ""
+>>     ParentSiteID = "76003"                                                                                           >>     btnLogin     = "View"                                                                                            >> }                                                                                                                    PS C:\Users\YYQTP0>                                                                                                     PS C:\Users\YYQTP0> $post = Invoke-WebRequest -Uri "$base/GUI_Login_Validate.asp" `
+>>         -Method POST -Body $body -WebSession $session `
+>>         -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> "POST Status:   $($post.StatusCode)"
+POST Status:   200
+PS C:\Users\YYQTP0> "POST FinalUri: $($post.BaseResponse.ResponseUri.AbsoluteUri)"
+POST FinalUri: https://webeor.usps.gov/GUI_Login_Validate.asp
+PS C:\Users\YYQTP0> "POST Bytes:    $($post.RawContentLength)"
+POST Bytes:    204
+PS C:\Users\YYQTP0> "POST CT:       $($post.Headers['Content-Type'])"
+POST CT:       text/html
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # Show JS redirect if server used one instead of 302
+PS C:\Users\YYQTP0> $js = [regex]::Match($post.Content,
+>>       '(?:window\.|top\.|self\.)?location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
+PS C:\Users\YYQTP0> "JS redirect:   $(if($js.Success){$js.Groups[1].Value}else{'(none)'})"
+JS redirect:   https://eagnmnwbp13ec.usps.gov/GUI_Login_Auto.asp?User=VIEW&ParentSiteID=76003&ADFullName=undefined&FullName=&Email=&GroupList=&RPG=undefined
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 3. Does the viewer accept us now?
+PS C:\Users\YYQTP0> $view = Invoke-WebRequest -Uri "$base/EORViewer/GUI_EORView_Viewer.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "Viewer FinalUri: $($view.BaseResponse.ResponseUri.AbsoluteUri)"
+Viewer FinalUri: https://webeor.usps.gov/GUI_Login_View.asp
+PS C:\Users\YYQTP0> "Viewer Bytes:    $($view.RawContentLength)"
+Viewer Bytes:    162161
+PS C:\Users\YYQTP0> "Viewer loaded:   $($view.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer')"
+Viewer loaded:   False
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # 4. Show what cookies the session now has
+PS C:\Users\YYQTP0> "`n=== Cookies ==="
 
-# 1. Get the landing page (sets initial cookies)
-$null = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
-
-# 2. Submit the site-selection form (View mode, site 76003 = ABILENE TX P&DC)
-$body = @{
-    User         = "View"
-    Pword        = "View"
-    ChildSites   = ""
-    ServerType   = "Production"
-    GroupList    = ""
-    FullName     = ""
-    EMail        = ""
-    ParentSiteID = "76003"
-    btnLogin     = "View"
-}
-
-$post = Invoke-WebRequest -Uri "$base/GUI_Login_Validate.asp" `
-        -Method POST -Body $body -WebSession $session `
-        -UseDefaultCredentials -UseBasicParsing
-
-"POST Status:   $($post.StatusCode)"
-"POST FinalUri: $($post.BaseResponse.ResponseUri.AbsoluteUri)"
-"POST Bytes:    $($post.RawContentLength)"
-"POST CT:       $($post.Headers['Content-Type'])"
-
-# Show JS redirect if server used one instead of 302
-$js = [regex]::Match($post.Content,
-      '(?:window\.|top\.|self\.)?location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-"JS redirect:   $(if($js.Success){$js.Groups[1].Value}else{'(none)'})"
-
-# 3. Does the viewer accept us now?
-$view = Invoke-WebRequest -Uri "$base/EORViewer/GUI_EORView_Viewer.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"Viewer FinalUri: $($view.BaseResponse.ResponseUri.AbsoluteUri)"
-"Viewer Bytes:    $($view.RawContentLength)"
-"Viewer loaded:   $($view.BaseResponse.ResponseUri.AbsoluteUri -match 'EORViewer')"
-
-# 4. Show what cookies the session now has
-"`n=== Cookies ==="
-$session.Cookies.GetCookies($base) | ForEach-Object { "  $($_.Name) = $($_.Value)" }
+=== Cookies ===
+PS C:\Users\YYQTP0> $session.Cookies.GetCookies($base) | ForEach-Object { "  $($_.Name) = $($_.Value)" }
+  NSC_xfcfps_443 = ffffffff3bc1b6a645525d5f4f58455e445a4a42378b
+  ASPSESSIONIDCGBDSBRS = KFNNLAECCEEGAJJPEMJCKGIF
+PS C:\Users\YYQTP0>
