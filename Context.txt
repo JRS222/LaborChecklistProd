@@ -1,125 +1,65 @@
-PS C:\Users\YYQTP0> $front   = "https://webeor.usps.gov"                                                                PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession                               PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 1. Landing
-PS C:\Users\YYQTP0> $null = Invoke-WebRequest -Uri "$front/GUI_Login_View.asp" -WebSession $session `
->>         -UseDefaultCredentials -UseBasicParsing
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 2. Login form POST
-PS C:\Users\YYQTP0> $loginBody = @{
->>     User="View"; Pword="View"; ChildSites=""; ServerType="Production"
->>     GroupList=""; FullName=""; EMail=""; ParentSiteID="19010"; btnLogin="View"
->> }
-PS C:\Users\YYQTP0> $post1 = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST -Body $loginBody `
->>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 3. Follow JS redirect to backend
-PS C:\Users\YYQTP0> $js1 = [regex]::Match($post1.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-PS C:\Users\YYQTP0> $auto = [uri]$js1.Groups[1].Value
-PS C:\Users\YYQTP0> "Auto.asp: $auto"
-Auto.asp: /GUI_Login_Main.asp
-PS C:\Users\YYQTP0> $autoResp = Invoke-WebRequest -Uri $auto -WebSession $session -UseDefaultCredentials -UseBasicParsing
-Invoke-WebRequest : Invalid URI: The hostname could not be parsed.
-At line:1 char:13
-+ $autoResp = Invoke-WebRequest -Uri $auto -WebSession $session -UseDef ...
-+             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [Invoke-WebRequest], UriFormatException
-    + FullyQualifiedErrorId : System.UriFormatException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
+1.
 
-PS C:\Users\YYQTP0> "  Status=$($autoResp.StatusCode)  FinalUri=$($autoResp.BaseResponse.ResponseUri.AbsoluteUri)"
-  Status=  FinalUri=
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 4. Frameset (extract frmMain)
-PS C:\Users\YYQTP0> $js2 = [regex]::Match($autoResp.Content, 'location(?:\.href)?\s*=\s*["'']([^"'']+)', 'IgnoreCase')
-PS C:\Users\YYQTP0> $frameset = [uri]::new($auto, $js2.Groups[1].Value)
-Exception calling ".ctor" with "2" argument(s): "Specified argument was out of the range of valid values.
-Parameter name: baseUri"
-At line:1 char:1
-+ $frameset = [uri]::new($auto, $js2.Groups[1].Value)
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
-    + FullyQualifiedErrorId : ArgumentOutOfRangeException
+$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+Invoke-WebRequest -UseBasicParsing -Uri "https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp" `
+-Method "POST" `
+-WebSession $session `
+-Headers @{
+"Origin"="https://webeor.usps.gov"
+  "Referer"="https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp"
+  "Upgrade-Insecure-Requests"="1"
+  "sec-ch-ua"="`"Microsoft Edge`";v=`"155`", `"Chromium`";v=`"155`", `"Not(A:Brand`";v=`"24`""
+  "sec-ch-ua-mobile"="?0"
+  "sec-ch-ua-platform"="`"Windows`""
+} `
+-ContentType "application/x-www-form-urlencoded" `
+-Body "tabCsvGroup=+&tabCsvHeader=Site%2CMType%2CMNo%2COp+No.%2CSort+Program%2CTour%2CRun%23%2CStart%2CEnd%2CFed%2CMODS%2CDOIS&tabCsvColumns=0%2C1%2C2%2C7%2C3%2C4%2C12%2C5%2C6%2C9%2C10%2C11&tabCsvSource=CLIENT&tabCsvSQL=SELECT+%2F*%2B+ordered+*%2F+SUBSTR%28+LPAD%28+postal_facility.zip_code_id%2C+9%2C+%270%27+%29%2C+1%2C+5+%29+%7C%7C+%27-%27+%7C%7C+SUBSTR%28+LPAD%28+postal_facility.zip_code_id%2C+9%2C+%270%27+%29%2C+6+%29+site_code%2C+machine_type.mach_type_desc%2C+machine.machine_nbr%2C+TRIM%28application_data.machine_sort_program_name%29+msp%2C+application_data.tour_code%2C+TO_CHAR%28+application_data.start_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29+start_date%2C+TO_CHAR%28+application_data.end_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29+end_date%2C+GUI_Common_Helper.FormatOpNbr%28+application_data.mail_operation_nbr+%29+op_nbr%2C+application_data.app_sequence_nbr%2C+application_data.total_pieces_fed_cnt%2C+GUI_Common_Helper.GetRunTransStatus%28+application_data.mail_operation_nbr%2C+application_data.mods_trans_ind%2C+application_data.mods_trans_date+%29+ModsTrans%2C+DECODE%28+UPPER%28+application_data.dsis_ind+%29%2C+%27T%27%2C+%27S%27%2C+%27NS%27+%29+dsis%2C+end_of_run.run_nbr%2C+application_data.run_sequence_nbr+%2C+substr%28TO_CHAR%28application_data.mods_date%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29%2C+7%2C+2%29+mYear%2C+substr%28TO_CHAR%28application_data.start_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29%2C+7%2C+2%29+sYear%2C+substr%28TO_CHAR%28application_data.end_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29%2C+7%2C+2%29+eYear%2C+NVL%28substr%28TO_CHAR%28application_data.mods_trans_date%29%2C+9%2C+2%29%2C+%2700%27%29+mTransYear%2C+postal_facility.site_name+FROM+EOR_PSBRPA.application_data%2C+EOR_PSBRPA.end_of_run%2C+%28+SELECT+site_id%2C+site_name%2C+zip_code_id+FROM+EOR_PSBRPA.postal_facility+x+START+WITH+x.site_id+%3D+19010+CONNECT+BY+PRIOR+x.site_id+%3D+x.parent_site_id+AND+x.site_id+%3C%3E+19010+%29+postal_facility%2C+EOR_PSBRPA.machine_type%2C+EOR_PSBRPA.machine+WHERE+end_of_run.site_id+%3D+postal_facility.site_id+AND+end_of_run.machine_id+%3D+machine.machine_id+AND+end_of_run.site_id+%3D+machine.site_id+AND+end_of_run.run_mach_type_code+%3D+machine_type.mach_type_code+AND+end_of_run.run_sequence_nbr+%3D+application_data.run_sequence_nbr+AND+application_data.mods_date+%3E%3D+TO_DATE%28%2717-Oct-2026%27%2C+%27DD-MON-YYYY%27%29+AND+application_data.mods_date+%3C%3D+TO_DATE%28%2717-Oct-2026%27%2C+%27DD-MON-YYYY%27%29+ORDER+BY+mach_type_desc+asc%2C+machine_nbr+asc%2C++myear+asc%2C+syear+asc%2C+start_date+asc"
 
-PS C:\Users\YYQTP0> $fs = Invoke-WebRequest -Uri $frameset -WebSession $session -UseDefaultCredentials -UseBasicParsing
-Invoke-WebRequest : Cannot validate argument on parameter 'Uri'. The argument is null or empty. Provide an argument
-that is not null or empty, and then try the command again.
-At line:1 char:30
-+ $fs = Invoke-WebRequest -Uri $frameset -WebSession $session -UseDefau ...
-+                              ~~~~~~~~~
-    + CategoryInfo          : InvalidData: (:) [Invoke-WebRequest], ParameterBindingValidationException
-    + FullyQualifiedErrorId : ParameterArgumentValidationError,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
 
-PS C:\Users\YYQTP0> $frmMainSrc = [regex]::Match($fs.Content, '<FRAME[^>]*\bSRC\s*=\s*["'']([^"'']+GUI_Login_Staged[^"'']*)', 'IgnoreCase').Groups[1].Value
-PS C:\Users\YYQTP0> "frmMain  : $frmMainSrc"
-frmMain  :
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 5. Fetch staged page, POST staged form
-PS C:\Users\YYQTP0> $stagedUrl = [uri]::new($frameset, $frmMainSrc)
-Exception calling ".ctor" with "2" argument(s): "Value cannot be null.
-Parameter name: baseUri"
-At line:1 char:1
-+ $stagedUrl = [uri]::new($frameset, $frmMainSrc)
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
-    + FullyQualifiedErrorId : ArgumentNullException
+2.
 
-PS C:\Users\YYQTP0> $staged = Invoke-WebRequest -Uri $stagedUrl -WebSession $session -UseDefaultCredentials -UseBasicParsing
-Invoke-WebRequest : Cannot validate argument on parameter 'Uri'. The argument is null or empty. Provide an argument
-that is not null or empty, and then try the command again.
-At line:1 char:34
-+ $staged = Invoke-WebRequest -Uri $stagedUrl -WebSession $session -Use ...
-+                                  ~~~~~~~~~~
-    + CategoryInfo          : InvalidData: (:) [Invoke-WebRequest], ParameterBindingValidationException
-    + FullyQualifiedErrorId : ParameterArgumentValidationError,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
+o59a9A4Gx	eM8pDuIOLD4g4NHzLwkc-j75fo3i1PAZahDqt6z00lXIs4_g40uYjWgbyHgk9Z3eDta8bZJa6LnsA9MpqywzAHm__DimerBp_8FFO_BnJ06v_-AaEhO_-C-3BPDykaJLLWucFNA7is1tFaIdRhEwVoPsHxlqsasNxkd4FwYqICQK3ybIawbq6teWtVhzYVvNa3_ZaDXikqcx_cze5eA0nOc-LqpfUL5kVNwSwoz88hTFA4jBES7I-8i-wC_4YL2sKRas1EJFtKUHfJxPm6EMvn6XVysma6gXy5GdXVEbtALdTNopKQoxM0ntDmRkKXmpH-d1flV32XCEQ0gKDmkGwcC_UgjyGsLengepT4Bz-te7vXbGOe2oz85m2OffnG-yWAfd6ElbrXCco-5WAHfMb1LvCeLQeTqq9A-03WzR5wfkBfyJ4RyfAg==|d003005ba3ec8ea8761c67eb8bae0dfa273e3c39	.usps.gov	/	2027-09-11T10:54:46.513Z	490						Medium
+_gid	GA1.2.810186444.1791980535	.usps.gov	/	2026-10-19T15:41:11.000Z	30						Medium
+_ga_GRRDFJKE55	GS2.1.s1792337641$o86$g1$t1792338072$j60$l0$h0	.usps.gov	/	2027-11-22T15:41:12.018Z	60						Medium
+_ga_CKSPBVVTE7	GS2.1.s1786099990$o3$g1$t1786100082$j32$l0$h0	.usps.gov	/	2027-09-11T10:54:42.699Z	59						Medium
+_ga_8S7G3LTB6L	GS2.1.s1786726732$o2$g1$t1786728021$j60$l0$h0	.usps.gov	/	2027-09-18T17:20:21.024Z	59						Medium
+_ga	GA1.1.1744254098.1783001964	.usps.gov	/	2027-11-22T15:41:12.013Z	30						Medium
+NSC_xfcfps_443	ffffffff3bc1b6a645525d5f4f58455e445a4a42378b	webeor.usps.gov	/	Session	58	✓	✓				Medium
+CFTOKEN	Z1vd9d375i5nj28z06ddqshgkydi89hcdiwpoe5mtnz48cann1m-f207e2e9c239a6bd-B143C8CE-C398-57E9-40613386820ED3F6	.usps.gov	/	2027-11-15T14:17:24.801Z	111	✓					Medium
+CFID	Z1vd9d375i5nj28z06ddqshgkydi89hcdiwpoe5mtnz48cann1m-47560810	.usps.gov	/	2027-11-15T14:17:24.801Z	64	✓					Medium
+CFGLOBALS	urltoken%3DCFID%23%3D46665242%26CFTOKEN%23%3D885171a2d9615e13%2D46238421%2DC222%2D42A7%2DD395785CF86AD2CB%26jsessionid%23%3DBF16F49E74BDF341806C49B50A36789D%2Ecfusion%23lastvisit%3D%7Bts%20%272026%2D09%2D03%2010%3A54%3A23%27%7D%23hitcount%3D20%23timecreated%3D%7Bts%20%272026%2D09%2D03%2010%3A53%3A09%27%7D%23cftoken%3D885171a2d9615e13%2D46238421%2DC222%2D42A7%2DD395785CF86AD2CB%23cfid%3D46665242%23	.usps.gov	/	2027-10-08T15:54:23.948Z	409	✓	✓				Medium
+BLUEJSESSIONID	9E7A09E294197990DC72FD7258E04DB7.ca	.usps.gov	/	Session	49	✓	✓				Medium
+ASPSESSIONIDCGBDSBRS	JHNNLAECMINAIGLIPCAIOJHN	webeor.usps.gov	/	Session	44		✓				Medium
 
-PS C:\Users\YYQTP0> $stagedBody = @{}                                                                                   PS C:\Users\YYQTP0> [regex]::Matches($staged.Content, '<INPUT[^>]*\bNAME\s*=\s*["'']([^"'']+)["''][^>]*\bVALUE\s*=\s*["'']([^"'']*)["'']', 'IgnoreCase') |                                                                                      >>     ForEach-Object { $stagedBody[$_.Groups[1].Value] = $_.Groups[2].Value }                                          PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> $stagedPost = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -Method POST `
->>         -Body $stagedBody -WebSession $session -UseDefaultCredentials -UseBasicParsing
+3.
+
+PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0> $session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+PS C:\Users\YYQTP0> Invoke-WebRequest -UseBasicParsing -Uri "https://webeor.usps.gov/ReportPage/GUI_Report_CSV.asp" `
+>> -Method "POST" `
+>> -WebSession $session `
+>> -Headers @{
+>> "Origin"="https://webeor.usps.gov"
+>>   "Referer"="https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp"
+>>   "Upgrade-Insecure-Requests"="1"
+>>   "sec-ch-ua"="`"Microsoft Edge`";v=`"155`", `"Chromium`";v=`"155`", `"Not(A:Brand`";v=`"24`""
+>>   "sec-ch-ua-mobile"="?0"
+>>   "sec-ch-ua-platform"="`"Windows`""
+>> } `
+>> -ContentType "application/x-www-form-urlencoded" `
+>> -Body "tabCsvGroup=+&tabCsvHeader=Site%2CMType%2CMNo%2COp+No.%2CSort+Program%2CTour%2CRun%23%2CStart%2CEnd%2CFed%2CMODS%2CDOIS&tabCsvColumns=0%2C1%2C2%2C7%2C3%2C4%2C12%2C5%2C6%2C9%2C10%2C11&tabCsvSource=CLIENT&tabCsvSQL=SELECT+%2F*%2B+ordered+*%2F+SUBSTR%28+LPAD%28+postal_facility.zip_code_id%2C+9%2C+%270%27+%29%2C+1%2C+5+%29+%7C%7C+%27-%27+%7C%7C+SUBSTR%28+LPAD%28+postal_facility.zip_code_id%2C+9%2C+%270%27+%29%2C+6+%29+site_code%2C+machine_type.mach_type_desc%2C+machine.machine_nbr%2C+TRIM%28application_data.machine_sort_program_name%29+msp%2C+application_data.tour_code%2C+TO_CHAR%28+application_data.start_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29+start_date%2C+TO_CHAR%28+application_data.end_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29+end_date%2C+GUI_Common_Helper.FormatOpNbr%28+application_data.mail_operation_nbr+%29+op_nbr%2C+application_data.app_sequence_nbr%2C+application_data.total_pieces_fed_cnt%2C+GUI_Common_Helper.GetRunTransStatus%28+application_data.mail_operation_nbr%2C+application_data.mods_trans_ind%2C+application_data.mods_trans_date+%29+ModsTrans%2C+DECODE%28+UPPER%28+application_data.dsis_ind+%29%2C+%27T%27%2C+%27S%27%2C+%27NS%27+%29+dsis%2C+end_of_run.run_nbr%2C+application_data.run_sequence_nbr+%2C+substr%28TO_CHAR%28application_data.mods_date%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29%2C+7%2C+2%29+mYear%2C+substr%28TO_CHAR%28application_data.start_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29%2C+7%2C+2%29+sYear%2C+substr%28TO_CHAR%28application_data.end_dtm%2C+%27MM%2FDD%2FYY+HH24%3AMI%27%29%2C+7%2C+2%29+eYear%2C+NVL%28substr%28TO_CHAR%28application_data.mods_trans_date%29%2C+9%2C+2%29%2C+%2700%27%29+mTransYear%2C+postal_facility.site_name+FROM+EOR_PSBRPA.application_data%2C+EOR_PSBRPA.end_of_run%2C+%28+SELECT+site_id%2C+site_name%2C+zip_code_id+FROM+EOR_PSBRPA.postal_facility+x+START+WITH+x.site_id+%3D+19010+CONNECT+BY+PRIOR+x.site_id+%3D+x.parent_site_id+AND+x.site_id+%3C%3E+19010+%29+postal_facility%2C+EOR_PSBRPA.machine_type%2C+EOR_PSBRPA.machine+WHERE+end_of_run.site_id+%3D+postal_facility.site_id+AND+end_of_run.machine_id+%3D+machine.machine_id+AND+end_of_run.site_id+%3D+machine.site_id+AND+end_of_run.run_mach_type_code+%3D+machine_type.mach_type_code+AND+end_of_run.run_sequence_nbr+%3D+application_data.run_sequence_nbr+AND+application_data.mods_date+%3E%3D+TO_DATE%28%2717-Oct-2026%27%2C+%27DD-MON-YYYY%27%29+AND+application_data.mods_date+%3C%3D+TO_DATE%28%2717-Oct-2026%27%2C+%27DD-MON-YYYY%27%29+ORDER+BY+mach_type_desc+asc%2C+machine_nbr+asc%2C++myear+asc%2C+syear+asc%2C+start_date+asc"
 Invoke-WebRequest :
-500 - Internal server error.
+401 - Unauthorized: Access is denied due to invalid credentials.
 Server Error
 
-  500 - Internal server error.
-  There is a problem with the resource you are looking for, and it cannot be displayed.
+  401 - Unauthorized: Access is denied due to invalid credentials.
+  You do not have permission to view this directory or page using the credentials that you supplied.
 
-At line:1 char:15
-+ ... tagedPost = Invoke-WebRequest -Uri "$front/GUI_Login_Validate.asp" -M ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+At line:1 char:1
++ Invoke-WebRequest -UseBasicParsing -Uri "https://webeor.usps.gov/Repo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-WebRequest], WebExc
    eption
     + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
-PS C:\Users\YYQTP0> "Staged POST: Status=$($stagedPost.StatusCode)  FinalUri=$($stagedPost.BaseResponse.ResponseUri.AbsoluteUri)"
-Staged POST: Status=  FinalUri=
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 6. ★ THE NEW STEP: viewer on the FRONT-END host
-PS C:\Users\YYQTP0> $viewer = Invoke-WebRequest -Uri "$front/EORViewer/GUI_EORView_Viewer.asp" `
->>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
-PS C:\Users\YYQTP0> "Viewer (front): Status=$($viewer.StatusCode)  Bytes=$($viewer.RawContentLength)  FinalUri=$($viewer.BaseResponse.ResponseUri.AbsoluteUri)"
-Viewer (front): Status=200  Bytes=162161  FinalUri=https://webeor.usps.gov/GUI_Login_View.asp
-PS C:\Users\YYQTP0> "  Has gstrTableSQL: $([bool]($viewer.Content -match 'gstrTableSQL'))"
-  Has gstrTableSQL: False
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 7. Extract the actual gstrTableSQL from the loaded viewer
-PS C:\Users\YYQTP0> $realSql = ""
-PS C:\Users\YYQTP0> if ($viewer.Content -match 'gstrTableSQL\s*=\s*"([^"]+)"') {
->>     $realSql = $Matches[1] -replace '\\x3C', '<' -replace '\\x3E', '>' -replace '&lt;','<' -replace '&gt;','>' -replace '&amp;','&'
->>     "  SQL matches captured: $($realSql -eq $null -or $realSql.Length -lt 100)"
->> }
-PS C:\Users\YYQTP0>
-PS C:\Users\YYQTP0> # 8. ★ CSV POST — front-end, using the SQL just extracted from the viewer
-PS C:\Users\YYQTP0> if ($realSql) {
->>     $csvBody = @{
->>         tabCsvGroup   = " "
->>         tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
->>         tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
->>         tabCsvSource  = "CLIENT"
->>         tabCsvSQL     = $realSql
->>     }
->>     $csv = Invoke-WebRequest -Uri "$front/ReportPage/GUI_Report_CSV.asp" -Method POST `
->>             -Body $csvBody -WebSession $session -UseDefaultCredentials -UseBasicParsing
->>     "`nCSV POST (front): Status=$($csv.StatusCode)  CT=$($csv.Headers['Content-Type'])  Bytes=$($csv.RawContentLength)"
->>     "  First 400:"
->>     $csv.Content.Substring(0, [Math]::Min(400, $csv.Content.Length))
->> } else {
->>     "  No SQL extracted — viewer didn't load as expected"
->> }
-  No SQL extracted — viewer didn't load as expected
 PS C:\Users\YYQTP0>
