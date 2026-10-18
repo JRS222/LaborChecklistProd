@@ -1,6 +1,33 @@
+PS C:\Users\YYQTP0\Desktop> .\WEBEOR.ps1
+                                                                                                                        ==================== WEBEOR GUI START ====================                                                              Cleaning 1 bad EOR CSV(s) from Downloads...                                                                               removing: EOR_65021_20251017_20261017.csv                                                                             === Reload sites ===
+Get-SiteList: fetching landing page...
+  351 sites loaded
+
+=== Download clicked ===                                                                                                  site: 20010  JOHNSTOWN PA P&DF                                                                                          range: 2026-09-19..2026-10-18  dateOnly=True                                                                            output: C:\Users\YYQTP0\Downloads\EOR_20010_20260919_20261018.csv                                                     Connect-WebEor: site=20010                                                                                                GET /GUI_Login_View.asp
+  POST /GUI_Login_Validate.asp
+    status=200  bytes=42491
+  Login OK                                                                                                                                                                                                                                      ==========================================================                                                               Save-EorCsv  site=20010  from=2026-09-19  to=2026-10-18                                                                ==========================================================
+[1/5] POST viewer to register session SQL...                                                                                  status=200  bytes=1513064  final=https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp                         [2/5] Extract gstrTableSQL from viewer response...                                                                            SQL length: 1866 chars                                                                                                  OK viewer SQL contains requested date '19-Sep-2026'
+[3/5] POST /ReportPage/GUI_Report_CSV.asp...
+=== FAILED: Cannot index into a null array. ===
+
+=== Download clicked ===
+  site: 20010  JOHNSTOWN PA P&DF
+  range: 2026-10-18..2026-10-18  dateOnly=True
+  output: C:\Users\YYQTP0\Downloads\EOR_20010_20261018_20261018.csv
+Connect-WebEor: site=20010
+  GET /GUI_Login_View.asp
+  POST /GUI_Login_Validate.asp
+    status=200  bytes=42389
+  Login OK
+
 ==========================================================
- Save-EorCsv  site=19010  from=2025-10-17  to=2026-10-17
+ Save-EorCsv  site=20010  from=2026-10-18  to=2026-10-18
 ==========================================================
 [1/5] POST viewer to register session SQL...
-      viewer POST failed: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.
-=== FAILED: Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host. ===
+      status=200  bytes=68668  final=https://webeor.usps.gov/EORViewer/GUI_EORView_Viewer.asp
+[2/5] Extract gstrTableSQL from viewer response...
+      SQL length: 1866 chars
+      OK viewer SQL contains requested date '18-Oct-2026'
+[3/5] POST /ReportPage/GUI_Report_CSV.asp...
+=== FAILED: Cannot index into a null array. ===
