@@ -1,42 +1,64 @@
-$base = "https://webeor.usps.gov"
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0> $base = "https://webeor.usps.gov"
+PS C:\Users\YYQTP0> $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> $landing = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
+>>         -WebSession $session -UseDefaultCredentials -UseBasicParsing
+PS C:\Users\YYQTP0> "Landing: $($landing.BaseResponse.ResponseUri.AbsoluteUri)  Bytes: $($landing.RawContentLength)"
+Landing: https://webeor.usps.gov/GUI_Login_View.asp  Bytes: 161995
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # ---- Dump every form; note which ones contain a <select> ----
+PS C:\Users\YYQTP0> "`n=== FORMS ==="
 
-$landing = Invoke-WebRequest -Uri "$base/GUI_Login_View.asp" `
-        -WebSession $session -UseDefaultCredentials -UseBasicParsing
-"Landing: $($landing.BaseResponse.ResponseUri.AbsoluteUri)  Bytes: $($landing.RawContentLength)"
+=== FORMS ===
+PS C:\Users\YYQTP0> $forms = [regex]::Matches($landing.Content, '<form\b[\s\S]*?</form>', 'IgnoreCase')
+PS C:\Users\YYQTP0> "Form count: $($forms.Count)"
+Form count: 1
+PS C:\Users\YYQTP0> $targetForm = $null
+PS C:\Users\YYQTP0> foreach ($fm in $forms) {
+>>     $f = $fm.Value
+>>     $action = [regex]::Match($f, 'action\s*=\s*["'']([^"'']+)', 'IgnoreCase').Groups[1].Value
+>>     $method = [regex]::Match($f, 'method\s*=\s*["'']([^"'']+)', 'IgnoreCase').Groups[1].Value
+>>     $name   = [regex]::Match($f, 'name\s*=\s*["'']([^"'']+)',   'IgnoreCase').Groups[1].Value
+>>     $hasSel = $f -match '<select'
+>>     "FORM name='$name' method='$method' action='$action' hasSelect=$hasSel"
+>>     if ($hasSel -and -not $targetForm) { $targetForm = $f }
+>> }
+FORM name='FormPassword' method='post' action='GUI_Login_Validate.asp' hasSelect=True
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> if ($targetForm) {
+>>     "`n=== TARGET FORM FIELDS ==="
+>>     [regex]::Matches($targetForm, '<input\b[^>]*>', 'IgnoreCase') | ForEach-Object { "  INPUT : $($_.Value)" }
+>>     [regex]::Matches($targetForm, '<select\b[^>]*>', 'IgnoreCase') | ForEach-Object { "  SELECT: $($_.Value)" }
+>>     # Show any JS submit/onchange handlers
+>>     [regex]::Matches($targetForm, '(onclick|onchange|onsubmit)\s*=\s*["''][^"'']+["'']', 'IgnoreCase') |
+>>         ForEach-Object { "  HANDLER: $($_.Value)" }
+>> }
 
-# ---- Dump every form; note which ones contain a <select> ----
-"`n=== FORMS ==="
-$forms = [regex]::Matches($landing.Content, '<form\b[\s\S]*?</form>', 'IgnoreCase')
-"Form count: $($forms.Count)"
-$targetForm = $null
-foreach ($fm in $forms) {
-    $f = $fm.Value
-    $action = [regex]::Match($f, 'action\s*=\s*["'']([^"'']+)', 'IgnoreCase').Groups[1].Value
-    $method = [regex]::Match($f, 'method\s*=\s*["'']([^"'']+)', 'IgnoreCase').Groups[1].Value
-    $name   = [regex]::Match($f, 'name\s*=\s*["'']([^"'']+)',   'IgnoreCase').Groups[1].Value
-    $hasSel = $f -match '<select'
-    "FORM name='$name' method='$method' action='$action' hasSelect=$hasSel"
-    if ($hasSel -and -not $targetForm) { $targetForm = $f }
-}
+=== TARGET FORM FIELDS ===
+  INPUT : <INPUT TYPE="Hidden" NAME="User" VALUE="View">
+  INPUT : <INPUT TYPE="Hidden" NAME="Pword" VALUE="View">
+  INPUT : <INPUT TYPE=checkbox ID="ChildSites" NAME="ChildSites" VALUE="" OnClick="SetSiteList();SetChildSiteList();" checked>                                                                                                                    INPUT : <INPUT TYPE=checkbox NAME="Offline" VALUE="" OnClick="SetSiteList();">                                          INPUT : <INPUT TYPE="Hidden" NAME="ServerType" VALUE="Production">                                                      INPUT : <INPUT TYPE="Submit" VALUE="&nbsp;&nbsp;&nbsp;View&nbsp;&nbsp;&nbsp;" NAME="btnLogin" TABINDEX="4" >            INPUT : <INPUT TYPE="Hidden" NAME="GroupList" VALUE="">                                                                 INPUT : <INPUT TYPE="Hidden" NAME="FullName" VALUE="">                                                                  INPUT : <INPUT TYPE="Hidden" NAME="EMail" VALUE="">                                                                     SELECT: <SELECT SIZE="1" NAME="ParentSiteID" ONCHANGE="SetChildSiteList()">                                             HANDLER: onSubmit="return ValidateInput()"
+  HANDLER: ONCHANGE="SetChildSiteList()"
+  HANDLER: OnClick="SetSiteList();SetChildSiteList();"
+  HANDLER: OnClick="SetSiteList();"
+PS C:\Users\YYQTP0>
+PS C:\Users\YYQTP0> # ---- Try bypassing the form: does the viewer accept a site_id in the query string? ----
+PS C:\Users\YYQTP0> "`n=== DIRECT VIEWER URL ATTEMPTS (site 76003 = ABILENE TX P&DC) ==="
 
-if ($targetForm) {
-    "`n=== TARGET FORM FIELDS ==="
-    [regex]::Matches($targetForm, '<input\b[^>]*>', 'IgnoreCase') | ForEach-Object { "  INPUT : $($_.Value)" }
-    [regex]::Matches($targetForm, '<select\b[^>]*>', 'IgnoreCase') | ForEach-Object { "  SELECT: $($_.Value)" }
-    # Show any JS submit/onchange handlers
-    [regex]::Matches($targetForm, '(onclick|onchange|onsubmit)\s*=\s*["''][^"'']+["'']', 'IgnoreCase') |
-        ForEach-Object { "  HANDLER: $($_.Value)" }
-}
-
-# ---- Try bypassing the form: does the viewer accept a site_id in the query string? ----
-"`n=== DIRECT VIEWER URL ATTEMPTS (site 76003 = ABILENE TX P&DC) ==="
-foreach ($p in @("site_id","SiteID","site","SiteId","loc","location")) {
-    try {
-        $r = Invoke-WebRequest -Uri "$base/EORViewer/GUI_EORView_Viewer.asp?$p=76003" `
-                -WebSession $session -UseDefaultCredentials -UseBasicParsing -ErrorAction Stop
-        $u = $r.BaseResponse.ResponseUri.AbsoluteUri
-        $ok = $u -notmatch 'GUI_Login_View\.asp'
-        "  ?$p=76003 => $(if($ok){'*** VIEWER LOADED ***'}else{'bounced'})  ($($r.RawContentLength) bytes)  $u"
-    } catch { "  ?$p=76003 => ERROR: $($_.Exception.Message)" }
-}
+=== DIRECT VIEWER URL ATTEMPTS (site 76003 = ABILENE TX P&DC) ===
+PS C:\Users\YYQTP0> foreach ($p in @("site_id","SiteID","site","SiteId","loc","location")) {
+>>     try {
+>>         $r = Invoke-WebRequest -Uri "$base/EORViewer/GUI_EORView_Viewer.asp?$p=76003" `
+>>                 -WebSession $session -UseDefaultCredentials -UseBasicParsing -ErrorAction Stop
+>>         $u = $r.BaseResponse.ResponseUri.AbsoluteUri
+>>         $ok = $u -notmatch 'GUI_Login_View\.asp'
+>>         "  ?$p=76003 => $(if($ok){'*** VIEWER LOADED ***'}else{'bounced'})  ($($r.RawContentLength) bytes)  $u"
+>>     } catch { "  ?$p=76003 => ERROR: $($_.Exception.Message)" }
+>> }
+  ?site_id=76003 => bounced  (162161 bytes)  https://webeor.usps.gov/GUI_Login_View.asp
+  ?SiteID=76003 => bounced  (162161 bytes)  https://webeor.usps.gov/GUI_Login_View.asp
+  ?site=76003 => bounced  (162161 bytes)  https://webeor.usps.gov/GUI_Login_View.asp
+  ?SiteId=76003 => bounced  (162161 bytes)  https://webeor.usps.gov/GUI_Login_View.asp
+  ?loc=76003 => bounced  (162161 bytes)  https://webeor.usps.gov/GUI_Login_View.asp
+  ?location=76003 => bounced  (162161 bytes)  https://webeor.usps.gov/GUI_Login_View.asp
+PS C:\Users\YYQTP0>
