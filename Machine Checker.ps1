@@ -140,6 +140,784 @@ function Get-CsvColumns {
 }
 
 ################################################################################
+#                   WEBEOR FETCH FUNCTIONS                                     #
+#  Consolidated from WEBEOR.ps1 so Machine Checker can download EOR run CSVs   #
+#  (and the site machine-mapping CSV) directly instead of requiring a separate  #
+#  script + manual folder import.                                              #
+#                                                                              #
+#  Requires Windows PowerShell 5.1 and an on-intranet USPS workstation with     #
+#  Windows auth to https://webeor.usps.gov.                                    #
+################################################################################
+
+$script:WebEorBase         = "https://webeor.usps.gov"
+$script:WebEorUA           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                             "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                             "Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+$script:WebEorDownloadsDir = Join-Path $env:USERPROFILE "Downloads"
+$script:WebEorSession      = $null
+$script:WebEorSessionSite  = $null
+$script:WebEorChunkSize    = 14
+$script:WebEorChunkRetries = 1
+
+# Classic fix for POST connection aborts against IIS/NetScaler (large CSVs).
+[System.Net.ServicePointManager]::Expect100Continue = $false
+
+
+# ---------------------------------------------------------------------
+# Connect-WebEor
+#   Establishes an authenticated WebEOR session for a parent site id.
+#   Returns a Microsoft.PowerShell.Commands.WebRequestSession.
+#
+#   NOTE: do NOT follow the JS "location.href=/GUI_Login_Main.asp"
+#   redirect that appears in the login response -- that is the logout
+#   link. A successful login returns the "DMS/EOR Main Menu" page.
+# ---------------------------------------------------------------------
+function Connect-WebEor {
+    param([int]$SiteId)
+
+    Write-Host "Connect-WebEor: site=$SiteId" -ForegroundColor Cyan
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.UserAgent = $script:WebEorUA
+
+    Write-Host "  GET /GUI_Login_View.asp" -ForegroundColor DarkGray
+    $null = Invoke-WebRequest -Uri "$($script:WebEorBase)/GUI_Login_View.asp" `
+        -WebSession $s -UseDefaultCredentials -UseBasicParsing -TimeoutSec 60
+
+    $body = @{
+        User="View"; Pword="View"; ChildSites=""; ServerType="Production"
+        GroupList=""; FullName=""; EMail=""; ParentSiteID="$SiteId"; btnLogin="View"
+    }
+    Write-Host "  POST /GUI_Login_Validate.asp" -ForegroundColor DarkGray
+    $r = Invoke-WebRequest -Uri "$($script:WebEorBase)/GUI_Login_Validate.asp" `
+        -Method POST -Body $body -WebSession $s -UseDefaultCredentials -UseBasicParsing `
+        -Headers @{ Origin = $script:WebEorBase; Referer = "$($script:WebEorBase)/GUI_Login_View.asp" } `
+        -TimeoutSec 60
+    Write-Host "    status=$($r.StatusCode)  bytes=$($r.RawContentLength)" -ForegroundColor DarkGray
+
+    if ($r.Content -notmatch 'DMS/EOR Main Menu') {
+        throw "Login failed for site $SiteId (got $($r.RawContentLength) bytes)"
+    }
+    Write-Host "  Login OK" -ForegroundColor Green
+    return $s
+}
+
+
+# ---------------------------------------------------------------------
+# Get-WebEorSiteList
+#   Parses every "<option value='NNNNN'>Site Name</option>" from the
+#   WebEOR landing page. Returns [pscustomobject]@{Id;Name} sorted.
+# ---------------------------------------------------------------------
+function Get-WebEorSiteList {
+    Write-Host "Get-WebEorSiteList: fetching landing page..." -ForegroundColor Cyan
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.UserAgent = $script:WebEorUA
+    $landing = Invoke-WebRequest -Uri "$($script:WebEorBase)/GUI_Login_View.asp" `
+        -WebSession $s -UseDefaultCredentials -UseBasicParsing -TimeoutSec 60
+    $items = [regex]::Matches($landing.Content,
+        '<option\s+value\s*="(?<id>\d+)"\s*>(?<name>[^<]+)</option>', 'IgnoreCase') |
+        ForEach-Object {
+            [pscustomobject]@{
+                Id   = $_.Groups['id'].Value
+                Name = [System.Net.WebUtility]::HtmlDecode($_.Groups['name'].Value.Trim())
+            }
+        } | Sort-Object Name
+    Write-Host "  $($items.Count) sites loaded" -ForegroundColor Green
+    return $items
+}
+
+
+# ---------------------------------------------------------------------
+# Save-EorCsvSingleChunk
+#   One viewer POST + one CSV POST. The CSV streams to disk via -OutFile
+#   (no in-memory buffering -- that aborted large multi-day downloads)
+#   and is verified from the downloaded file bytes, not from $r.Headers
+#   (which are null after -OutFile in PS 5.1).
+# ---------------------------------------------------------------------
+function Save-EorCsvSingleChunk {
+    param(
+        [Parameter(Mandatory)] $Session,
+        [Parameter(Mandatory)] [int]      $SiteId,
+        [Parameter(Mandatory)] [datetime] $From,
+        [Parameter(Mandatory)] [datetime] $To,
+        [Parameter(Mandatory)] [string]   $OutFile
+    )
+
+    $ci = [System.Globalization.CultureInfo]::InvariantCulture
+
+    # --- 1. POST viewer to register the SQL in the ASP session ---------
+    Write-Host "  [viewer POST] $($From.ToString('yyyy-MM-dd'))..$($To.ToString('yyyy-MM-dd'))" -ForegroundColor Yellow
+
+    $viewerBody = @{
+        Help_Loc          = "/WebHelp/WebEOR_Help.htm#Viewing_End_of_Runs.htm"
+        FirstLoad         = "FALSE"
+        ClickDeleteButton = "FALSE"
+        SiteID            = "$SiteId"
+        ActiveSites       = "on"
+        DisplaySiteOrZIP  = "EORZIP"
+        MachineGroup      = "ALL"
+        MachineType       = "ALL"
+        MachineNo         = "ALL"
+        OperationNo       = ""
+        TourCode          = "ALL"
+        SortProgram       = ""
+        Filter            = "All Runs"
+        DsisStatus        = ""
+        ModsStatus        = ""
+        StartDateFrom     = $From.ToString("MM/dd/yyyy", $ci)
+        StartDateTo       = $To.ToString("MM/dd/yyyy", $ci)
+        SF                = ""
+        ST                = ""
+        MultiSort         = "A_mach_type_desc,A_machine_nbr,A_start_date"
+        FieldNames        = "SITE_CODE,MACH_TYPE_DESC,MACHINE_NBR,OP_NBR,MSP,TOUR_CODE,RUN_NBR,START_DATE,END_DATE,TOTAL_PIECES_FED_CNT,MODSTRANS,DSIS"
+        FieldLabels       = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+        RecordsListed     = "0"
+        ARG1              = ""
+        ARG2              = ""
+        Active            = "Y"
+        Update            = ""
+        FullQuery         = ""
+    }
+    try {
+        $viewer = Invoke-WebRequest -Uri "$($script:WebEorBase)/EORViewer/GUI_EORView_Viewer.asp" `
+            -Method POST -Body $viewerBody -WebSession $Session `
+            -UseDefaultCredentials -UseBasicParsing `
+            -Headers @{ Origin = $script:WebEorBase; Referer = "$($script:WebEorBase)/EORViewer/GUI_EORView_Viewer.asp" } `
+            -TimeoutSec 900
+        Write-Host "    status=$($viewer.StatusCode)  bytes=$($viewer.RawContentLength)" -ForegroundColor DarkGray
+    } catch {
+        Write-Host "    viewer POST failed: $($_.Exception.Message)" -ForegroundColor Red
+        throw
+    }
+
+    if ($viewer.Content -notmatch 'gstrTableSQL\s*=\s*"([^"]+)"') {
+        throw "Viewer response missing gstrTableSQL (bytes=$($viewer.RawContentLength))"
+    }
+    $viewerSql = $Matches[1] `
+        -replace '\\x3C', '<' -replace '\\x3E', '>' `
+        -replace '&lt;', '<' -replace '&gt;', '>' -replace '&amp;', '&'
+
+    $expectedDate = $From.ToString("dd-MMM-yyyy", $ci)
+    if ($viewerSql -notmatch [regex]::Escape($expectedDate)) {
+        Write-Host "    WARN viewer SQL missing '$expectedDate'" -ForegroundColor Yellow
+    }
+
+    # --- 2. POST CSV with streaming to disk ---------------------------
+    $body = @{
+        tabCsvGroup   = " "
+        tabCsvHeader  = "Site,MType,MNo,Op No.,Sort Program,Tour,Run#,Start,End,Fed,MODS,DOIS"
+        tabCsvColumns = "0,1,2,7,3,4,12,5,6,9,10,11"
+        tabCsvSource  = "CLIENT"
+        tabCsvSQL     = $viewerSql
+    }
+
+    $tmp = "$OutFile.tmp"
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+
+    Write-Host "    [csv POST] $($viewerSql.Length) chars of SQL, streaming..." -ForegroundColor Yellow
+    try {
+        $null = Invoke-WebRequest -Uri "$($script:WebEorBase)/ReportPage/GUI_Report_CSV.asp" `
+            -Method POST -Body $body -WebSession $Session `
+            -UseDefaultCredentials -UseBasicParsing `
+            -Headers @{ Origin = $script:WebEorBase; Referer = "$($script:WebEorBase)/EORViewer/GUI_EORView_Viewer.asp" } `
+            -OutFile $tmp -TimeoutSec 900
+    } catch {
+        $partial = if (Test-Path $tmp) { (Get-Item $tmp).Length } else { 0 }
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "CSV POST failed after $partial bytes: $($_.Exception.Message)"
+    }
+
+    if (-not (Test-Path $tmp)) { throw "CSV POST produced no file" }
+    $size = (Get-Item $tmp).Length
+    if ($size -lt 100) {
+        $head = Get-Content $tmp -Raw -ErrorAction SilentlyContinue
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "CSV response too small ($size bytes). Content: $head"
+    }
+
+    # --- 3. Verify CSV from file bytes (not headers) ------------------
+    $fs = [System.IO.File]::OpenRead($tmp)
+    try {
+        $headBytes = New-Object byte[] ([Math]::Min(300, $size))
+        $null = $fs.Read($headBytes, 0, $headBytes.Length)
+        $headText = [System.Text.Encoding]::ASCII.GetString($headBytes)
+    } finally { $fs.Close() }
+
+    if ($headText -match '<HTML|Unrecongized|Unrecognized|Data Source') {
+        Write-Host "    FAIL - response is HTML ($size bytes)" -ForegroundColor Red
+        Write-Host "    First 300: $headText" -ForegroundColor DarkRed
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "CSV endpoint returned HTML ($size bytes)"
+    }
+    if ($headText -notmatch '^Site,MType,MNo') {
+        Write-Host "    FAIL - header mismatch ($size bytes)" -ForegroundColor Red
+        Write-Host "    First 200: $($headText.Substring(0,[Math]::Min(200,$headText.Length)))" -ForegroundColor DarkRed
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "CSV header mismatch ($size bytes)"
+    }
+
+    if (Test-Path $OutFile) { Remove-Item $OutFile -Force }
+    Move-Item $tmp $OutFile
+    Write-Host "    OK $size bytes -> $OutFile" -ForegroundColor Green
+    return (Get-Item $OutFile)
+}
+
+
+# ---------------------------------------------------------------------
+# Save-EorCsv
+#   Public entry point. Ranges <= ChunkSize days: one request. Larger
+#   ranges: split into ChunkSize-day windows, download each (with
+#   retry), and merge into a single CSV.
+# ---------------------------------------------------------------------
+function Save-EorCsv {
+    param(
+        [Parameter(Mandatory)] $Session,
+        [Parameter(Mandatory)] [int]      $SiteId,
+        [Parameter(Mandatory)] [datetime] $From,
+        [Parameter(Mandatory)] [datetime] $To,
+        [Parameter(Mandatory)] [string]   $OutFile
+    )
+
+    $dayCount  = ($To.Date - $From.Date).Days + 1
+    $chunkSize = $script:WebEorChunkSize
+
+    Write-Host ""
+    Write-Host "==========================================================" -ForegroundColor Cyan
+    Write-Host " Save-EorCsv  site=$SiteId  from=$($From.ToString('yyyy-MM-dd'))  to=$($To.ToString('yyyy-MM-dd'))  ($dayCount days)" -ForegroundColor Cyan
+    Write-Host "==========================================================" -ForegroundColor Cyan
+
+    if ($dayCount -le $chunkSize) {
+        $f = Save-EorCsvSingleChunk -Session $Session -SiteId $SiteId -From $From -To $To -OutFile $OutFile
+        Write-Host "SAVED: $OutFile  ($([math]::Round($f.Length/1KB,1)) KB)" -ForegroundColor Green
+        return $f
+    }
+
+    $chunks = @()
+    $cursor = $From.Date
+    while ($cursor -le $To.Date) {
+        $end = $cursor.AddDays($chunkSize - 1)
+        if ($end -gt $To.Date) { $end = $To.Date }
+        $chunks += @{ From = $cursor; To = $end }
+        $cursor = $end.AddDays(1)
+    }
+
+    Write-Host "Range is $dayCount days - splitting into $($chunks.Count) chunks of <=$chunkSize days" -ForegroundColor Yellow
+    Write-Host ""
+
+    $tempFiles = @()
+    $totalRows = 0
+    $failedChunks = @()
+
+    for ($i = 0; $i -lt $chunks.Count; $i++) {
+        $c = $chunks[$i]
+        Write-Host "--- Chunk $($i+1)/$($chunks.Count): $($c.From.ToString('yyyy-MM-dd'))..$($c.To.ToString('yyyy-MM-dd')) ---" -ForegroundColor Cyan
+        $chunkOut = "$OutFile.chunk$i.csv"
+
+        $attempt = 0
+        $ok = $false
+        while (-not $ok -and $attempt -le $script:WebEorChunkRetries) {
+            $attempt++
+            try {
+                $f = Save-EorCsvSingleChunk -Session $Session -SiteId $SiteId -From $c.From -To $c.To -OutFile $chunkOut
+                $lines = (Get-Content $f.FullName | Measure-Object -Line).Lines
+                $dataRows = [Math]::Max(0, $lines - 1)
+                $totalRows += $dataRows
+                Write-Host "    $dataRows rows, $([math]::Round($f.Length/1KB,1)) KB" -ForegroundColor Green
+                $tempFiles += $chunkOut
+                $ok = $true
+            } catch {
+                Write-Host "    attempt $attempt failed: $($_.Exception.Message)" -ForegroundColor Red
+                Remove-Item $chunkOut -Force -ErrorAction SilentlyContinue
+                if ($attempt -le $script:WebEorChunkRetries) {
+                    Write-Host "    retrying in 2 seconds..." -ForegroundColor Yellow
+                    Start-Sleep -Seconds 2
+                }
+            }
+        }
+        if (-not $ok) {
+            $failedChunks += "$($c.From.ToString('yyyy-MM-dd'))..$($c.To.ToString('yyyy-MM-dd'))"
+        }
+    }
+
+    if ($tempFiles.Count -eq 0) { throw "All chunks failed - no CSV produced" }
+
+    Write-Host "Merging $($tempFiles.Count) chunk file(s)..." -ForegroundColor Yellow
+    $header = Get-Content $tempFiles[0] -TotalCount 1
+    $allData = New-Object System.Collections.Generic.List[string]
+    foreach ($tf in $tempFiles) {
+        $lines = Get-Content $tf
+        for ($j = 1; $j -lt $lines.Count; $j++) { $allData.Add($lines[$j]) }
+    }
+
+    $tmpFinal = "$OutFile.tmpmerge"
+    $writer = New-Object System.IO.StreamWriter($tmpFinal, $false, [System.Text.Encoding]::UTF8)
+    try {
+        $writer.WriteLine($header)
+        foreach ($row in $allData) { $writer.WriteLine($row) }
+    } finally { $writer.Close() }
+
+    if (Test-Path $OutFile) { Remove-Item $OutFile -Force }
+    Move-Item $tmpFinal $OutFile
+    foreach ($tf in $tempFiles) { Remove-Item $tf -Force -ErrorAction SilentlyContinue }
+
+    $finalSize = (Get-Item $OutFile).Length
+    Write-Host "SAVED: $OutFile  ($([math]::Round($finalSize/1KB,1)) KB, ~$totalRows rows)" -ForegroundColor Green
+
+    if ($failedChunks.Count -gt 0) {
+        Write-Host "WARNING: $($failedChunks.Count) chunk(s) failed and are NOT in the merged file:" -ForegroundColor Yellow
+        foreach ($r in $failedChunks) { Write-Host "  - $r" -ForegroundColor Yellow }
+    }
+
+    return (Get-Item $OutFile)
+}
+
+
+# ---------------------------------------------------------------------
+# Save-MachineMappingCsv   (NOT VERIFIED on intranet)
+#   Downloads the site's active-machine inventory ("Machine Mapping")
+#   CSV using the same register-then-export pattern as the EOR CSV.
+#
+#   The mapping page emits gstrTableSQL as a JavaScript expression with
+#   string concatenation + String.fromCharCode(60)/(62), unlike the EOR
+#   page's plain string literal. We reconstruct the SQL, strip the HTML
+#   "source" hyperlink decoration, and POST it back. Verify the output
+#   columns before relying on this.
+# ---------------------------------------------------------------------
+function Save-MachineMappingCsv {
+    param(
+        [Parameter(Mandatory)] $Session,
+        [Parameter(Mandatory)] [int]      $SiteId,
+        [Parameter(Mandatory)] [string]   $OutFile
+    )
+
+    $ci = [System.Globalization.CultureInfo]::InvariantCulture
+
+    # The machine-info viewer form (frmMachines) uses method="get", so pass
+    # the same fields as a query string.
+    Write-Host "  [mapping viewer GET] site=$SiteId" -ForegroundColor Yellow
+    $viewerFields = @{
+        Help_Loc      = "/WebHelp/WebEOR_Help.htm#Mapping_Machine_Information.htm"
+        MACHTYPE      = "ALL"
+        SITEID        = "$SiteId"
+        Status        = "Active"
+        cmdRefresh    = "Refresh Table"
+        SF            = ""
+        ST            = ""
+        ARG1          = ""
+        ARG2          = ""
+        MultiSort     = "A_SITE_NAME,A_MACHINE,A_MNO"
+        FieldNames    = "GLOBAL_MACHINE_ID,SITE_NAME,MACHINE,EQUIPMENT_CODE,MNO,MAX_BIN_NBR,EOR_SW_VER,MODS_MACH_ID,NDSS_MACH_ID,MPE_ID,IOS_MACH_ID,LIFT_UNIT_NBR,FORMAT_EFFECTIVE_START_DATE,FORMAT_EFFECTIVE_END_DATE,SERIAL_NO,CAPITAL_ID_NO,D_ENABLED,FORMAT_DATETIME_DTM,SOURCE_LINK"
+        FieldLabels   = "Global ID,Site Name,Machine Type,Model,MNO,Max Bin#,S/W Ver,MODS,NDSS,MPE ID,IOS,Lift Unit,Eff Start Date,Eff End Date,Serial,Capital ID,Status,Changed Date,Source"
+        RecordsListed = "0"
+    }
+    $qs = ($viewerFields.GetEnumerator() | ForEach-Object {
+        "$([uri]::EscapeDataString($_.Key))=$([uri]::EscapeDataString([string]$_.Value))"
+    }) -join '&'
+
+    $viewer = Invoke-WebRequest -Uri "$($script:WebEorBase)/mapping/GUI_MachineInfo_Viewer.asp?$qs" `
+        -WebSession $Session -UseDefaultCredentials -UseBasicParsing `
+        -Headers @{ Referer = "$($script:WebEorBase)/mapping/GUI_MachineInfo_Viewer.asp" } `
+        -TimeoutSec 900
+    Write-Host "    status=$($viewer.StatusCode)  bytes=$($viewer.RawContentLength)" -ForegroundColor DarkGray
+
+    # Capture the JS expression that builds the mapping SQL. ([\s\S] also
+    # spans newlines, since the server may wrap this long expression.)
+    if ($viewer.Content -notmatch 'gstrTableSQL\s*=\s*([\s\S]*?);') {
+        throw "Mapping viewer response missing gstrTableSQL (bytes=$($viewer.RawContentLength))"
+    }
+    $jsSql = $Matches[1]
+
+    # Rebuild the plain SQL: resolve String.fromCharCode() and join the
+    # double-quoted string literals (skipping escaped \" sequences).
+    $jsSql = $jsSql -replace 'String\.fromCharCode\(60\)', '<'
+    $jsSql = $jsSql -replace 'String\.fromCharCode\(62\)', '>'
+    $parts = [regex]::Matches($jsSql, '"((?:[^"\\]|\\.)*)"') | ForEach-Object {
+        $_.Groups[1].Value -replace '\\"', '"' -replace "\\\\", "\"
+    }
+    $mappingSql = ($parts -join '')
+
+    # Strip the HTML "<a ...>source</a>" decoration from the source_link
+    # column so the CSV is clean (that column is only for the viewer UI).
+    $mappingSql = $mappingSql -replace '<a\s+[^>]*>source</a>', ''
+
+    if ($mappingSql -notmatch [regex]::Escape($SiteId)) {
+        Write-Host "    WARN mapping SQL missing site id $SiteId" -ForegroundColor Yellow
+    }
+
+    $body = @{
+        tabCsvGroup   = " "
+        tabCsvHeader  = "Global ID,Site Name,Machine Type,Model,MNO,Max Bin#,S/W Ver,MODS,NDSS,MPE ID,IOS,Lift Unit,Eff Start Date,Eff End Date,Serial,Capital ID,Status,Changed Date,Source"
+        tabCsvColumns = "19,11,1,9,2,15,3,8,12,24,13,25,17,18,5,6,10,16,20"
+        tabCsvSource  = "CLIENT"
+        tabCsvSQL     = $mappingSql
+    }
+
+    $tmp = "$OutFile.tmp"
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+
+    Write-Host "    [mapping csv POST] $($mappingSql.Length) chars, streaming..." -ForegroundColor Yellow
+    try {
+        $null = Invoke-WebRequest -Uri "$($script:WebEorBase)/ReportPage/GUI_Report_CSV.asp" `
+            -Method POST -Body $body -WebSession $Session `
+            -UseDefaultCredentials -UseBasicParsing `
+            -Headers @{ Origin = $script:WebEorBase; Referer = "$($script:WebEorBase)/mapping/GUI_MachineInfo_Viewer.asp" } `
+            -OutFile $tmp -TimeoutSec 900
+    } catch {
+        $partial = if (Test-Path $tmp) { (Get-Item $tmp).Length } else { 0 }
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "Mapping CSV POST failed after $partial bytes: $($_.Exception.Message)"
+    }
+
+    if (-not (Test-Path $tmp)) { throw "Mapping CSV POST produced no file" }
+    $size = (Get-Item $tmp).Length
+    if ($size -lt 100) {
+        $head = Get-Content $tmp -Raw -ErrorAction SilentlyContinue
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "Mapping CSV response too small ($size bytes). Content: $head"
+    }
+
+    $fs = [System.IO.File]::OpenRead($tmp)
+    try {
+        $headBytes = New-Object byte[] ([Math]::Min(300, $size))
+        $null = $fs.Read($headBytes, 0, $headBytes.Length)
+        $headText = [System.Text.Encoding]::ASCII.GetString($headBytes)
+    } finally { $fs.Close() }
+
+    if ($headText -match '<HTML|Unrecongized|Unrecognized|Data Source') {
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "Mapping CSV endpoint returned HTML ($size bytes)"
+    }
+    if ($headText -notmatch 'Global ID|Site Name|Machine Type') {
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        throw "Mapping CSV header mismatch ($size bytes). Head: $($headText.Substring(0,[Math]::Min(200,$headText.Length)))"
+    }
+
+    if (Test-Path $OutFile) { Remove-Item $OutFile -Force }
+    Move-Item $tmp $OutFile
+    Write-Host "    OK $size bytes -> $OutFile" -ForegroundColor Green
+    return (Get-Item $OutFile)
+}
+
+
+# ---------------------------------------------------------------------
+# Process-EorCsvFile
+#   Shared import pipeline: loads a downloaded EOR CSV, computes machine
+#   metrics (Days/Week, Tours/Day, Yearly Fed), populates the ListView,
+#   and writes a processed CSV. Used by both the "Fetch EOR" button and
+#   available for reuse.
+# ---------------------------------------------------------------------
+function Process-EorCsvFile {
+    param(
+        [Parameter(Mandatory)][string]$CsvPath,
+        [Parameter(Mandatory)][string]$OutputDir
+    )
+
+    Write-DebugLog "Processing EOR CSV: $CsvPath" -Category "Import"
+
+    $progressForm = New-Object System.Windows.Forms.Form
+    $progressForm.Text = "Processing EOR Data..."
+    $progressForm.Size = New-Object System.Drawing.Size(400, 100)
+    $progressForm.StartPosition = "CenterScreen"
+    $progressForm.FormBorderStyle = "FixedDialog"
+    $progressForm.ControlBox = $false
+
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $progressBar.Maximum = 100
+    $progressBar.Value = 0
+    $progressBar.Size = New-Object System.Drawing.Size(360, 20)
+    $progressBar.Location = New-Object System.Drawing.Point(10, 10)
+
+    $progressLabel = New-Object System.Windows.Forms.Label
+    $progressLabel.Size = New-Object System.Drawing.Size(360, 20)
+    $progressLabel.Location = New-Object System.Drawing.Point(10, 35)
+    $progressLabel.Text = "Loading data..."
+
+    $progressForm.Controls.Add($progressBar)
+    $progressForm.Controls.Add($progressLabel)
+    $progressForm.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+
+    try {
+        $progressBar.Value = 20
+        $progressLabel.Text = "Loading data..."
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $importedData = Import-Csv -Path $CsvPath
+        $global:ImportedData = $importedData
+
+        $progressBar.Value = 25
+        $progressLabel.Text = "Processing raw data..."
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $processedData = $importedData | ForEach-Object {
+            $machineType = if ($_.MType) { $_.MType }
+                          elseif ($_.'Machine Type') { $_.'Machine Type' }
+                          elseif ($_.Type) { $_.Type }
+                          else { "UNKNOWN" }
+
+            $machineNo = if ($_.MNo) { $_.MNo }
+                        elseif ($_.'Machine No') { $_.'Machine No' }
+                        elseif ($_.Number) { $_.Number }
+                        else { "000" }
+
+            $startTime = if ($_.Start) { $_.Start }
+                        elseif ($_.'Start Time') { $_.'Start Time' }
+                        elseif ($_.Begin) { $_.Begin }
+                        else { Get-Date }
+
+            $tour = if ($_.Tour) { $_.Tour }
+                   elseif ($_.'Tour#') { $_.'Tour#' }
+                   elseif ($_.Shift) { $_.Shift }
+                   else { 1 }
+
+            $fed = if ($_.Fed) { $_.Fed }
+                  elseif ($_.'Fed Count') { $_.'Fed Count' }
+                  elseif ($_.Volume) { $_.Volume }
+                  else { 0 }
+
+            $runNo = if ($_.'Run#') { $_.'Run#' }
+                    elseif ($_.RunNo) { $_.RunNo }
+                    elseif ($_.'Run No.') { $_.'Run No.' }
+                    elseif ($_.'Op No.') { $_.'Op No.' }
+                    else { "R000" }
+
+            $machineID = "$machineType $machineNo"
+            $date = if ($startTime -is [DateTime]) { $startTime } else {
+                try { [DateTime]::Parse($startTime) } catch { Get-Date }
+            }
+
+            [PSCustomObject]@{
+                Machine_ID = $machineID
+                MType = $machineType
+                MNo = $machineNo
+                Date = $date.Date
+                Tour = [int]$tour
+                Fed = [int]$fed
+                Run_No = $runNo
+            }
+        }
+
+        $progressBar.Value = 35
+        $progressLabel.Text = "Analyzing date ranges..."
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $allDates = $processedData | Select-Object -ExpandProperty Date -Unique | Sort-Object
+        if ($allDates.Count -gt 0) {
+            $startDate = $allDates[0]
+            $endDate = $allDates[-1]
+            $totalDays = ($endDate - $startDate).Days + 1
+            $totalWeeks = if ($totalDays -gt 0) { $totalDays / 7 } else { 1 }
+
+            Write-DebugLog "Date range: $startDate to $endDate ($totalDays days, $([Math]::Round($totalWeeks, 1)) weeks)" -Category "Import"
+
+            $progressBar.Value = 45
+            $progressLabel.Text = "Grouping data by machine..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $machineGroups = $processedData | Group-Object -Property MType, MNo
+            $totalMachines = $machineGroups.Count
+            $machineMetrics = @{}
+
+            Write-DebugLog "Found $totalMachines unique machines in combined data" -Category "Import"
+
+            for ($i = 0; $i -lt $machineGroups.Count; $i++) {
+                $group = $machineGroups[$i]
+                $progress = 45 + [Math]::Min(35 * ($i / $totalMachines), 35)
+                $progressBar.Value = $progress
+                $progressLabel.Text = "Calculating metrics for machine $($i+1) of $totalMachines..."
+                [System.Windows.Forms.Application]::DoEvents()
+
+                $machineInfo = $group.Name -split ', '
+                $mType = $machineInfo[0] -replace "'", "" -replace '"', ''
+                $mNo = $machineInfo[1] -replace "'", "" -replace '"', ''
+
+                $machineData = $group.Group
+
+                $dailyMetrics = $machineData | Group-Object Date | ForEach-Object {
+                    $date = $_.Name
+                    $dayData = $_.Group
+
+                    $distinctTours = $dayData |
+                        Where-Object { $_.Tour -gt 0 } |
+                        Select-Object -ExpandProperty Tour -Unique
+
+                    $dailyFed = ($dayData | Measure-Object -Property Fed -Sum).Sum
+
+                    [PSCustomObject]@{
+                        Date = $date
+                        DistinctTours = $distinctTours.Count
+                        Fed = $dailyFed
+                    }
+                }
+
+                $activeDays = @($dailyMetrics | Where-Object { $_.DistinctTours -gt 0 })
+                $avgTours = if ($activeDays.Count -gt 0) {
+                    ($activeDays | Measure-Object -Property DistinctTours -Average).Average
+                } else { 0 }
+
+                $daysOperated = $activeDays.Count
+                $avgDaysPerWeek = if ($totalWeeks -gt 0) { $daysOperated / $totalWeeks } else { 0 }
+
+                $totalFed = ($dailyMetrics | Measure-Object -Property Fed -Sum).Sum
+                $avgDailyFed = if ($totalDays -gt 0) { $totalFed / $totalDays } else { 0 }
+                $yearlyFed = $avgDailyFed * 365
+
+                $machineKey = "$mType $mNo"
+                $machineMetrics[$machineKey] = @{
+                    MType = $mType
+                    MNo = $mNo
+                    AvgToursPerDay = [Math]::Round($avgTours, 1)
+                    AvgDaysPerWeek = [Math]::Round($avgDaysPerWeek, 1)
+                    YearlyFed = [Math]::Round($yearlyFed)
+                    ActiveDays = $daysOperated
+                    TotalRecords = $machineData.Count
+                }
+
+                Write-DebugLog "Machine ${machineKey}: $($daysOperated) active days, avg $([Math]::Round($avgTours, 1)) tours/day, $([Math]::Round($avgDaysPerWeek, 1)) days/week" -Category "Import"
+            }
+
+            $progressBar.Value = 85
+            $progressLabel.Text = "Adding machines to list..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $addedCount = 0
+            $skippedCount = 0
+
+            foreach ($machineKey in $machineMetrics.Keys) {
+                $metrics = $machineMetrics[$machineKey]
+                $mType = $metrics.MType
+                $mNo = $metrics.MNo
+
+                if ($metrics.ActiveDays -lt 3 -or $metrics.TotalRecords -lt 5) {
+                    $skippedCount++
+                    Write-DebugLog "Skipped $machineKey (insufficient data: $($metrics.ActiveDays) days, $($metrics.TotalRecords) records)" -Category "Import"
+                    continue
+                }
+
+                $isDuplicate = $false
+                foreach ($existingItem in $listView.Items) {
+                    if ($existingItem.SubItems[0].Text -eq $mType -and $existingItem.SubItems[1].Text -eq $mNo) {
+                        $isDuplicate = $true
+                        break
+                    }
+                }
+
+                if ($isDuplicate) {
+                    $skippedCount++
+                    Write-DebugLog "Skipped $machineKey (already exists in list)" -Category "Import"
+                    continue
+                }
+
+                $item = New-Object System.Windows.Forms.ListViewItem($mType)
+                $item.SubItems.Add([string]$mNo)
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add([string]$metrics.AvgDaysPerWeek)
+                $item.SubItems.Add([string]$metrics.AvgToursPerDay)
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+                $item.SubItems.Add("")
+
+                $item.Tag = @{
+                    OriginalDaysPerWeek = $metrics.AvgDaysPerWeek
+                    OriginalToursPerDay = $metrics.AvgToursPerDay
+                    Adjusted = $false
+                    DataQuality = @{
+                        ActiveDays = $metrics.ActiveDays
+                        TotalRecords = $metrics.TotalRecords
+                        YearlyFed = $metrics.YearlyFed
+                    }
+                }
+
+                $listView.Items.Add($item)
+                $addedCount++
+            }
+
+            $progressBar.Value = 95
+            $progressLabel.Text = "Exporting data..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $exportData = @()
+            foreach ($item in $listView.Items) {
+                $exportData += [PSCustomObject]@{
+                    Acronym = $item.SubItems[0].Text
+                    Number = $item.SubItems[1].Text
+                    ClassCode = $item.SubItems[2].Text
+                    MMO = $item.SubItems[3].Text
+                    DaysPerWeek = $item.SubItems[4].Text
+                    ToursPerDay = $item.SubItems[5].Text
+                    Stackers = $item.SubItems[6].Text
+                    Inductions = $item.SubItems[7].Text
+                    Transports = $item.SubItems[8].Text
+                    LIMModules = $item.SubItems[9].Text
+                    MachineType = $item.SubItems[10].Text
+                    Site = $item.SubItems[11].Text
+                    PSMN = $item.SubItems[12].Text
+                    TerminalType = $item.SubItems[13].Text
+                    EquipmentCode = $item.SubItems[14].Text
+                    Machines = $item.SubItems[15].Text
+                }
+            }
+
+            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+            $exportPath = Join-Path $OutputDir "WebEOR-Processed-$timestamp.csv"
+            $exportData | Export-Csv -Path $exportPath -NoTypeInformation
+
+            $progressBar.Value = 100
+            $progressLabel.Text = "Completing import..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $listView.Columns | ForEach-Object { $_.Width = -2 }
+
+            $progressForm.Close()
+
+            $dataRowCount = @($processedData).Count
+            $summaryMessage = "Import Complete!`r`n`r`n" +
+                "Source File: $CsvPath`r`n" +
+                "Data Rows: $dataRowCount`r`n" +
+                "Machines Found: $totalMachines`r`n" +
+                "Machines Added: $addedCount`r`n" +
+                "Machines Skipped: $skippedCount (duplicates or insufficient data)`r`n`r`n" +
+                "Files Created:`r`n" +
+                "- Processed data: $exportPath`r`n`r`n" +
+                "Date Range: $($startDate.ToString('yyyy-MM-dd')) to $($endDate.ToString('yyyy-MM-dd'))`r`n" +
+                "Analysis Period: $totalDays days ($([Math]::Round($totalWeeks, 1)) weeks)"
+
+            [System.Windows.Forms.MessageBox]::Show(
+                $summaryMessage,
+                "Import Success",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            )
+        } else {
+            $progressForm.Close()
+            [System.Windows.Forms.MessageBox]::Show(
+                "The downloaded data file contains no valid dates.",
+                "Error",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+        }
+    }
+    catch {
+        if ($progressForm -and $progressForm.Visible) { $progressForm.Close() }
+        Write-DebugLog "Processing failed: $_" -Category "Import"
+        throw
+    }
+    finally {
+        if ($progressForm -and $progressForm.Visible) { $progressForm.Close() }
+    }
+}
+
+
+################################################################################
 #                MACHINE CONFIGURATION DIALOG FUNCTIONS                        #
 ################################################################################
 
@@ -1881,16 +2659,17 @@ $form.Add_Resize({
  
     # --- Button Positioning ---
     $buttonY = $form.ClientSize.Height - $buttonHeight - $bottomMargin
-    $totalButtonsWidth = ($buttonWidth * 7) + ($buttonSpacing * 6)  # Now 7 buttons with 6 spaces
+    $totalButtonsWidth = ($buttonWidth * 8) + ($buttonSpacing * 7)  # 8 buttons with 7 spaces
     $startX = ($form.ClientSize.Width - $totalButtonsWidth) / 2
 
     $btnRestoreSession.Location = New-Object System.Drawing.Point([int]$startX, [int]$buttonY)
     $btnSave.Location = New-Object System.Drawing.Point([int]($startX + $buttonWidth + $buttonSpacing), [int]$buttonY)
     $btnImport.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 2), [int]$buttonY)
-    $btnExport.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 3), [int]$buttonY)
-    $btnConfigure.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 4), [int]$buttonY)
-    $btnViewDetails.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 5), [int]$buttonY)
-    $btnGenerateReport.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 6), [int]$buttonY)
+    $btnFetchEor.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 3), [int]$buttonY)
+    $btnExport.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 4), [int]$buttonY)
+    $btnConfigure.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 5), [int]$buttonY)
+    $btnViewDetails.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 6), [int]$buttonY)
+    $btnGenerateReport.Location = New-Object System.Drawing.Point([int]($startX + ($buttonWidth + $buttonSpacing) * 7), [int]$buttonY)
 
     # Set anchoring for all controls
     $listView.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor
@@ -1907,6 +2686,7 @@ $form.Add_Resize({
     
     $btnSave.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
     $btnImport.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
+    $btnFetchEor.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
     $btnConfigure.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
     $btnViewDetails.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
     $btnExport.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
@@ -1956,8 +2736,8 @@ $buttonHeight = 30
 $buttonSpacing = 10
 $bottomMargin = 20
 
-# Calculate total width needed for all 7 buttons (including Restore Session and Generate Report)
-$totalButtonsWidth = ($buttonWidth * 7) + ($buttonSpacing * 6)  # 7 buttons with 6 spaces
+# Calculate total width needed for all 8 buttons (including Restore Session and Generate Report)
+$totalButtonsWidth = ($buttonWidth * 8) + ($buttonSpacing * 7)  # 8 buttons with 7 spaces
 
 # Calculate starting X position to center the buttons
 $startX = ($form.ClientSize.Width - $totalButtonsWidth) / 2
@@ -1987,17 +2767,24 @@ $btnImport = New-Object System.Windows.Forms.Button -Property @{
     Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
 }
 
+$btnFetchEor = New-Object System.Windows.Forms.Button -Property @{
+    Text = "Fetch EOR"
+    Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
+    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 3), $buttonY)
+    Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
+}
+
 $btnExport = New-Object System.Windows.Forms.Button -Property @{
     Text = "Export to CSV"
     Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
-    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 3), $buttonY)
+    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 4), $buttonY)
     Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
 }
 
 $btnConfigure = New-Object System.Windows.Forms.Button -Property @{
     Text = "Configure"
     Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
-    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 4), $buttonY)
+    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 5), $buttonY)
     Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
     Enabled = $false
 }
@@ -2005,7 +2792,7 @@ $btnConfigure = New-Object System.Windows.Forms.Button -Property @{
 $btnViewDetails = New-Object System.Windows.Forms.Button -Property @{
     Text = "View Details"
     Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
-    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 5), $buttonY)
+    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 6), $buttonY)
     Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
     Enabled = $false
 }
@@ -2013,12 +2800,12 @@ $btnViewDetails = New-Object System.Windows.Forms.Button -Property @{
 $btnGenerateReport = New-Object System.Windows.Forms.Button -Property @{
     Text = "Generate Report"
     Size = New-Object System.Drawing.Size($buttonWidth, $buttonHeight)
-    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 6), $buttonY)
+    Location = New-Object System.Drawing.Point(($startX + ($buttonWidth + $buttonSpacing) * 7), $buttonY)
     Anchor = [System.Windows.Forms.AnchorStyles]::Bottom
 }
 
 # Add all buttons to the form
-$form.Controls.AddRange(@($btnRestoreSession, $btnSave, $btnImport, $btnExport, $btnConfigure, $btnViewDetails, $btnGenerateReport))
+$form.Controls.AddRange(@($btnRestoreSession, $btnSave, $btnImport, $btnFetchEor, $btnExport, $btnConfigure, $btnViewDetails, $btnGenerateReport))
 
 
 ################################################################################
@@ -2124,6 +2911,247 @@ $btnSave.Add_Click({
     # Clear inputs
     $cmbAcronym.SelectedIndex = -1
     $txtNumber.Clear()
+})
+
+# ---------------------------------------------------------------------
+# Show-WebEorFetchDialog
+#   Modal dialog: pick a site + date range, download the EOR run CSV
+#   from WebEOR, then process it into the machine list (same pipeline
+#   as the Import CSV button). Optionally also grabs the machine
+#   mapping CSV.
+# ---------------------------------------------------------------------
+function Show-WebEorFetchDialog {
+
+    # ---- Load the site list up front (blocking, ~2s) ----
+    $sites = $null
+    try {
+        Write-Host "Fetch EOR: loading site list..." -ForegroundColor Cyan
+        $sites = Get-WebEorSiteList
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Could not reach WebEOR to load the site list.`r`n`r`n" +
+            "Make sure you are on the USPS intranet.`r`n`r`n$_",
+            "WebEOR unavailable", 'OK', 'Error') | Out-Null
+        return $null
+    }
+
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Text            = "Fetch EOR CSV from WebEOR"
+    $dlg.ClientSize      = New-Object System.Drawing.Size(620, 300)
+    $dlg.StartPosition   = "CenterScreen"
+    $dlg.FormBorderStyle = "FixedSingle"
+    $dlg.MaximizeBox     = $false
+    $dlg.Font            = New-Object System.Drawing.Font("Segoe UI", 9)
+
+    # --- Site ---
+    $lblSite = New-Object System.Windows.Forms.Label
+    $lblSite.Text = "Site:"
+    $lblSite.Location = New-Object System.Drawing.Point(15, 18)
+    $lblSite.Size = New-Object System.Drawing.Size(60, 20)
+    $dlg.Controls.Add($lblSite)
+
+    $cmbSite = New-Object System.Windows.Forms.ComboBox
+    $cmbSite.Location = New-Object System.Drawing.Point(80, 15)
+    $cmbSite.Size = New-Object System.Drawing.Size(520, 24)
+    $cmbSite.DropDownStyle = 'DropDown'
+    $cmbSite.AutoCompleteMode = 'SuggestAppend'
+    $cmbSite.AutoCompleteSource = 'ListItems'
+    $cmbSite.Sorted = $true
+    foreach ($s in $sites) { [void]$cmbSite.Items.Add("$($s.Id)  $($s.Name)") }
+    $dlg.Controls.Add($cmbSite)
+
+    # --- Date presets ---
+    $presets = @(
+        @{ Name = "Yesterday"; Off = -1; OffTo = -1 }
+        @{ Name = "Today";     Off =  0; OffTo =  0 }
+        @{ Name = "Last 7d";   Off = -6; OffTo =  0 }
+        @{ Name = "Last 30d";  Off = -29; OffTo = 0 }
+    )
+    $px = 80
+    foreach ($p in $presets) {
+        $b = New-Object System.Windows.Forms.Button
+        $b.Text = $p.Name
+        $b.Location = New-Object System.Drawing.Point($px, 52)
+        $b.Size = New-Object System.Drawing.Size(85, 24)
+        $b.Tag = $p
+        $dlg.Controls.Add($b)
+        $b.Add_Click({
+            $cfg = $this.Tag
+            $today = (Get-Date).Date
+            $dtpFrom.Value = $today.AddDays($cfg.Off)
+            $dtpTo.Value   = $today.AddDays($cfg.OffTo)
+        })
+        $px += 90
+    }
+
+    $chkDateOnly = New-Object System.Windows.Forms.CheckBox
+    $chkDateOnly.Text = "Date only (whole days)"
+    $chkDateOnly.Location = New-Object System.Drawing.Point(450, 55)
+    $chkDateOnly.Size = New-Object System.Drawing.Size(155, 22)
+    $chkDateOnly.Checked = $true
+    $dlg.Controls.Add($chkDateOnly)
+
+    # --- From / To ---
+    $lblFrom = New-Object System.Windows.Forms.Label
+    $lblFrom.Text = "From:"
+    $lblFrom.Location = New-Object System.Drawing.Point(15, 94)
+    $lblFrom.Size = New-Object System.Drawing.Size(60, 20)
+    $dlg.Controls.Add($lblFrom)
+
+    $dtpFrom = New-Object System.Windows.Forms.DateTimePicker
+    $dtpFrom.Location = New-Object System.Drawing.Point(80, 91)
+    $dtpFrom.Size = New-Object System.Drawing.Size(230, 24)
+    $dtpFrom.Format = 'Custom'
+    $dtpFrom.CustomFormat = 'yyyy-MM-dd'
+    $dtpFrom.ShowUpDown = $true
+    $dtpFrom.Value = (Get-Date).Date.AddDays(-1)
+    $dlg.Controls.Add($dtpFrom)
+
+    $lblTo = New-Object System.Windows.Forms.Label
+    $lblTo.Text = "To:"
+    $lblTo.Location = New-Object System.Drawing.Point(325, 94)
+    $lblTo.Size = New-Object System.Drawing.Size(30, 20)
+    $dlg.Controls.Add($lblTo)
+
+    $dtpTo = New-Object System.Windows.Forms.DateTimePicker
+    $dtpTo.Location = New-Object System.Drawing.Point(360, 91)
+    $dtpTo.Size = New-Object System.Drawing.Size(230, 24)
+    $dtpTo.Format = 'Custom'
+    $dtpTo.CustomFormat = 'yyyy-MM-dd'
+    $dtpTo.ShowUpDown = $true
+    $dtpTo.Value = (Get-Date).Date.AddDays(-1)
+    $dlg.Controls.Add($dtpTo)
+
+    $chkDateOnly.Add_CheckedChanged({
+        if ($chkDateOnly.Checked) {
+            $dtpFrom.CustomFormat = 'yyyy-MM-dd'
+            $dtpTo.CustomFormat   = 'yyyy-MM-dd'
+            $dtpFrom.Value = $dtpFrom.Value.Date
+            $dtpTo.Value   = $dtpTo.Value.Date
+        } else {
+            $dtpFrom.CustomFormat = 'yyyy-MM-dd HH:mm'
+            $dtpTo.CustomFormat   = 'yyyy-MM-dd HH:mm'
+        }
+    })
+
+    # --- Mapping + actions ---
+    $chkMapping = New-Object System.Windows.Forms.CheckBox
+    $chkMapping.Text = "Also fetch machine mapping CSV (unverified)"
+    $chkMapping.Location = New-Object System.Drawing.Point(80, 130)
+    $chkMapping.Size = New-Object System.Drawing.Size(300, 22)
+    $chkMapping.Checked = $false
+    $dlg.Controls.Add($chkMapping)
+
+    $lblStatus = New-Object System.Windows.Forms.Label
+    $lblStatus.Text = "Select a site and date range, then Download & Import."
+    $lblStatus.Location = New-Object System.Drawing.Point(15, 165)
+    $lblStatus.Size = New-Object System.Drawing.Size(590, 20)
+    $lblStatus.ForeColor = [System.Drawing.Color]::Gray
+    $dlg.Controls.Add($lblStatus)
+
+    $btnGo = New-Object System.Windows.Forms.Button
+    $btnGo.Text = "Download && Import"
+    $btnGo.Location = New-Object System.Drawing.Point(15, 205)
+    $btnGo.Size = New-Object System.Drawing.Size(150, 38)
+    $btnGo.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $dlg.Controls.Add($btnGo)
+
+    $btnCancel = New-Object System.Windows.Forms.Button
+    $btnCancel.Text = "Cancel"
+    $btnCancel.Location = New-Object System.Drawing.Point(180, 205)
+    $btnCancel.Size = New-Object System.Drawing.Size(90, 38)
+    $dlg.Controls.Add($btnCancel)
+
+    $btnGo.Add_Click({
+        $siteText = $cmbSite.Text
+        if ($siteText -notmatch '^(\d{5})\s+(.+)$') {
+            [System.Windows.Forms.MessageBox]::Show(
+                "Pick a site from the dropdown.", "No site", 'OK', 'Warning') | Out-Null
+            return
+        }
+        $sid = [int]$Matches[1]
+        $siteName = $Matches[2]
+
+        $from = $dtpFrom.Value
+        $to   = $dtpTo.Value
+        if ($to.Date -lt $from.Date) {
+            [System.Windows.Forms.MessageBox]::Show(
+                "'To' is earlier than 'From'.", "Bad range", 'OK', 'Warning') | Out-Null
+            return
+        }
+
+        $btnGo.Enabled = $false
+        $btnCancel.Enabled = $false
+        $lblStatus.Text = "Downloading..."
+        $lblStatus.ForeColor = [System.Drawing.Color]::Black
+        [System.Windows.Forms.Application]::DoEvents()
+
+        try {
+            if (-not $script:WebEorSession -or $script:WebEorSessionSite -ne $sid) {
+                Write-Host "Fetch EOR: logging in as $sid ($siteName)..." -ForegroundColor Cyan
+                $script:WebEorSession = Connect-WebEor -SiteId $sid
+                $script:WebEorSessionSite = $sid
+            }
+
+            $eorFile = Join-Path $script:WebEorDownloadsDir `
+                "EOR_${sid}_$($from.ToString('yyyyMMdd'))_$($to.ToString('yyyyMMdd')).csv"
+
+            if (Test-Path $eorFile) {
+                $ans = [System.Windows.Forms.MessageBox]::Show(
+                    "Overwrite existing file?`r`n$eorFile", "File exists", 'YesNo', 'Question')
+                if ($ans -ne [System.Windows.Forms.DialogResult]::Yes) {
+                    $btnGo.Enabled = $true
+                    $btnCancel.Enabled = $true
+                    return
+                }
+            }
+
+            $f = Save-EorCsv -Session $script:WebEorSession -SiteId $sid `
+                -From $from -To $to -OutFile $eorFile
+
+            if ($chkMapping.Checked) {
+                $mapFile = Join-Path $script:WebEorDownloadsDir "MachineMapping_${sid}.csv"
+                try {
+                    Write-Host "Fetch EOR: downloading machine mapping..." -ForegroundColor Cyan
+                    $null = Save-MachineMappingCsv -Session $script:WebEorSession -SiteId $sid -OutFile $mapFile
+                    Write-Host "Fetch EOR: mapping saved to $mapFile" -ForegroundColor Green
+                } catch {
+                    Write-Host "Fetch EOR: mapping download failed (continuing): $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+
+            $lblStatus.Text = "Processing downloaded data..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            $dlg.Close()
+
+            Process-EorCsvFile -CsvPath $f.FullName -OutputDir $script:WebEorDownloadsDir
+        } catch {
+            Write-Host "Fetch EOR failed: $($_.Exception.Message)" -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show(
+                "Download failed:`r`n`r`n$_",
+                "Fetch EOR failed", 'OK', 'Error') | Out-Null
+            $lblStatus.Text = "Failed. Check the console log."
+            $lblStatus.ForeColor = [System.Drawing.Color]::Red
+            $btnGo.Enabled = $true
+            $btnCancel.Enabled = $true
+        }
+    })
+
+    $btnCancel.Add_Click({
+        $dlg.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+        $dlg.Close()
+    })
+
+    [void]$dlg.ShowDialog()
+    return $dlg.DialogResult
+}
+
+# Fetch EOR Button Logic - download + process the EOR CSV directly from WebEOR
+$btnFetchEor.Add_Click({
+    Write-DebugLog "Fetch EOR button clicked" -Category "Import"
+    $null = Show-WebEorFetchDialog
 })
 
 # Import Button Logic - Modified to handle directory of CSV files
@@ -6516,7 +7544,7 @@ $form.Controls.AddRange(@(
     $listView,
     $lblAcronym, $cmbAcronym,
     $lblNumber, $txtNumber,
-    $btnSave, $btnImport, $btnConfigure, $btnViewDetails, $btnExport, $btnGenerateReport, $btnRestoreSession
+    $btnSave, $btnImport, $btnFetchEor, $btnConfigure, $btnViewDetails, $btnExport, $btnGenerateReport, $btnRestoreSession
 ))
 
 $form.ShowDialog() | Out-Null
