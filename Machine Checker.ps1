@@ -918,6 +918,660 @@ function Process-EorCsvFile {
 
 
 ################################################################################
+#                      WEBEOR REPORTING FUNCTIONS                              #
+#  Generates (a) the Grievance-importable WebEOR analysis HTML and (b) an      #
+#  ASCII report string that is shown in an on-screen dialog and can be wrapped #
+#  in a card-style HTML page for browser preview / printing.                   #
+################################################################################
+
+# ---------------------------------------------------------------------
+# Get-EorMachineStats
+#   Reads an EOR CSV and computes per-machine operational stats using
+#   the SAME formulas as WebEOR Data Visualizer.html, so the Grievance
+#   Form's parser and its "<50% efficiency" threshold behave identically.
+#   Optionally restrict to a run-start-date range.
+# ---------------------------------------------------------------------
+function Get-EorMachineStats {
+    param(
+        [Parameter(Mandatory)][string]$CsvPath,
+        [datetime]$FromDate = [datetime]::MinValue,
+        [datetime]$ToDate   = [datetime]::MaxValue
+    )
+
+    $rows = @(Import-Csv -Path $CsvPath)
+    $machineStats = @{}
+
+    foreach ($row in $rows) {
+        $start = $null
+        $end   = $null
+        try { $start = [DateTime]::Parse([string]$row.Start) } catch { $start = $null }
+        try { $end   = [DateTime]::Parse([string]$row.End)   } catch { $end   = $null }
+        if (-not $start -or -not $end) { continue }
+
+        if ($start.Date -lt $FromDate.Date -or $start.Date -gt $ToDate.Date) { continue }
+
+        $duration = ($end - $start).TotalHours
+        if ($duration -lt 0) { $duration = 0 }
+
+        $fed = 0
+        try { $fed = [int](([string]$row.Fed) -replace ',', '') } catch { $fed = 0 }
+
+        $machine = "$($row.MType) $($row.MNo)"
+        if (-not $machineStats.ContainsKey($machine)) {
+            $machineStats[$machine] = @{ Runs = 0; TotalFed = 0; TotalHours = 0.0; Rates = @() }
+        }
+        $machineStats[$machine].Runs++
+        $machineStats[$machine].TotalFed += $fed
+        $machineStats[$machine].TotalHours += $duration
+        $rate = if ($duration -gt 0) { $fed / $duration } else { 0 }
+        $machineStats[$machine].Rates += $rate
+    }
+
+    if ($machineStats.Count -eq 0) { return @() }
+
+    $maxFed  = 0
+    $maxRuns = 0
+    foreach ($s in $machineStats.Values) {
+        if ($s.TotalFed -gt $maxFed)  { $maxFed  = $s.TotalFed }
+        if ($s.Runs    -gt $maxRuns)  { $maxRuns = $s.Runs }
+    }
+
+    $results = foreach ($key in $machineStats.Keys) {
+        $s = $machineStats[$key]
+        $avgFed  = if ($s.Runs -gt 0) { [math]::Round($s.TotalFed / $s.Runs) } else { 0 }
+        $avgRate = if ($s.Rates.Count -gt 0) { [math]::Round(($s.Rates | Measure-Object -Average).Average) } else { 0 }
+        $fedScore  = if ($maxFed  -gt 0) { ($s.TotalFed / $maxFed)  * 50 } else { 0 }
+        $utilScore = if ($maxRuns -gt 0) { ($s.Runs    / $maxRuns) * 50 } else { 0 }
+
+        [pscustomobject]@{
+            Machine    = $key
+            TotalRuns  = [int]$s.Runs
+            TotalFed   = [int]$s.TotalFed
+            AvgFed     = [int]$avgFed
+            TotalHours = [math]::Round($s.TotalHours, 2)
+            AvgRate    = [int]$avgRate
+            Efficiency = [math]::Round($fedScore + $utilScore, 1)
+        }
+    }
+
+    return @($results | Sort-Object TotalFed -Descending)
+}
+
+
+# ---------------------------------------------------------------------
+# Format-EorAsciiReport
+#   Returns the per-machine operational analysis as an aligned ASCII
+#   string (monochrome — it will be styled by the HTML wrapper / dialog).
+# ---------------------------------------------------------------------
+function Format-EorAsciiReport {
+    param(
+        [Parameter(Mandatory)] $Stats,
+        [Parameter(Mandatory)][string]$SiteName
+    )
+
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine(("=" * 82))
+    [void]$sb.AppendLine("  WEBEOR OPERATIONAL ANALYSIS  —  $SiteName")
+    [void]$sb.AppendLine(("=" * 82))
+    [void]$sb.AppendLine("")
+
+    $hdr = "{0,-22} {1,7} {2,12} {3,9} {4,9} {5,8} {6,10}" -f "MACHINE","RUNS","TOTAL FED","AVG FED","HOURS","RATE/HR","EFFIC."
+    [void]$sb.AppendLine($hdr)
+    [void]$sb.AppendLine(("-" * 82))
+
+    foreach ($s in $Stats) {
+        $line = "{0,-22} {1,7} {2,12} {3,9} {4,9} {5,8} {6,10}" -f `
+            $s.Machine, `
+            $s.TotalRuns, `
+            ("{0:N0}" -f $s.TotalFed), `
+            ("{0:N0}" -f $s.AvgFed), `
+            ("{0:N1}" -f $s.TotalHours), `
+            ("{0:N0}" -f $s.AvgRate), `
+            ("{0:N1}" -f $s.Efficiency)
+        [void]$sb.AppendLine($line)
+    }
+
+    [void]$sb.AppendLine(("-" * 82))
+    $tr = ($Stats | Measure-Object -Property TotalRuns -Sum).Sum
+    $tf = ($Stats | Measure-Object -Property TotalFed -Sum).Sum
+    $th = ($Stats | Measure-Object -Property TotalHours -Sum).Sum
+    $tot = "{0,-22} {1,7} {2,12} {3,9} {4,9} {5,8} {6,10}" -f "TOTAL", $tr, ("{0:N0}" -f $tf), "", ("{0:N1}" -f $th), "", ""
+    [void]$sb.AppendLine($tot)
+    [void]$sb.AppendLine(("=" * 82))
+
+    $avgRuns = if ($Stats.Count -gt 0) { $tr / $Stats.Count } else { 0 }
+    $lowEff  = @($Stats | Where-Object { $_.Efficiency -lt 50 })
+    $lowUtil = @($Stats | Where-Object { $_.TotalRuns -lt ($avgRuns * 0.5) })
+
+    if ($lowEff.Count -gt 0) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("  LOW EFFICIENCY (<50%):")
+        foreach ($m in $lowEff) {
+            [void]$sb.AppendLine(("    - {0}  ({1:N1}%)" -f $m.Machine, $m.Efficiency))
+        }
+    }
+    if ($lowUtil.Count -gt 0) {
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("  LOW UTILIZATION (runs < 50% of average):")
+        foreach ($m in $lowUtil) {
+            [void]$sb.AppendLine(("    - {0}  ({1} runs vs avg {2:N0})" -f $m.Machine, $m.TotalRuns, $avgRuns))
+        }
+    }
+    [void]$sb.AppendLine("")
+
+    return $sb.ToString()
+}
+
+
+# ---------------------------------------------------------------------
+# Format-StaffingAsciiReport
+#   Returns the populated machine list as an aligned ASCII string.
+# ---------------------------------------------------------------------
+function Format-StaffingAsciiReport {
+
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine(("=" * 70))
+    [void]$sb.AppendLine("  MACHINE LIST / STAFFING SUMMARY")
+    [void]$sb.AppendLine(("=" * 70))
+    [void]$sb.AppendLine("")
+
+    if ($listView.Items.Count -eq 0) {
+        [void]$sb.AppendLine("  (no machines in list yet)")
+        [void]$sb.AppendLine("")
+        return $sb.ToString()
+    }
+
+    $hdr = "{0,-14} {1,8} {2,10} {3,12} {4,9} {5,10}" -f "ACRONYM","NUMBER","CLASS","MMO","DAYS/WK","TOURS/DAY"
+    [void]$sb.AppendLine($hdr)
+    [void]$sb.AppendLine(("-" * 70))
+
+    foreach ($item in $listView.Items) {
+        $line = "{0,-14} {1,8} {2,10} {3,12} {4,9} {5,10}" -f `
+            $item.SubItems[0].Text, `
+            $item.SubItems[1].Text, `
+            $item.SubItems[2].Text, `
+            $item.SubItems[3].Text, `
+            $item.SubItems[4].Text, `
+            $item.SubItems[5].Text
+        [void]$sb.AppendLine($line)
+    }
+
+    [void]$sb.AppendLine(("-" * 70))
+    [void]$sb.AppendLine("  Total machines: $($listView.Items.Count)")
+    [void]$sb.AppendLine("")
+
+    return $sb.ToString()
+}
+
+
+# ---------------------------------------------------------------------
+# New-EorAnalysisHtmlReport
+#   Writes a WebEOR analysis report as HTML in the exact shape the
+#   Grievance Form's parseWebEORReport() expects:
+#     * "Generated on M/D/YYYY"
+#     * a <table> whose <th> contains "machine" and "total runs"
+#     * rows: machine, totalRuns, totalFed, avgFed, totalHours, avgRate, efficiency
+# ---------------------------------------------------------------------
+function New-EorAnalysisHtmlReport {
+    param(
+        [Parameter(Mandatory)] $Stats,
+        [Parameter(Mandatory)][string]$SiteName,
+        [Parameter(Mandatory)][string]$OutFile
+    )
+
+    $genDate = (Get-Date).ToString("M/d/yyyy")
+    $sb = New-Object System.Text.StringBuilder
+
+    [void]$sb.AppendLine("<!DOCTYPE html>")
+    [void]$sb.AppendLine("<html><head><meta charset='utf-8'><title>WebEOR Analysis Report</title>")
+    [void]$sb.AppendLine("<style>body{font-family:Consolas,monospace;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px;text-align:right}th{background:#f0f0f0}th:first-child,td:first-child{text-align:left}</style>")
+    [void]$sb.AppendLine("</head><body>")
+    [void]$sb.AppendLine("<h1>WEBEOR OPERATIONAL ANALYSIS REPORT</h1>")
+    [void]$sb.AppendLine("<p>Facility: $SiteName</p>")
+    [void]$sb.AppendLine("<p>Generated on $genDate</p>")
+    [void]$sb.AppendLine("<table>")
+    [void]$sb.AppendLine("<tr><th>Machine</th><th>Total Runs</th><th>Total Fed</th><th>Avg Fed</th><th>Total Hours</th><th>Avg Rate</th><th>Efficiency</th></tr>")
+
+    foreach ($s in $Stats) {
+        [void]$sb.AppendLine("<tr><td>$($s.Machine)</td><td>$($s.TotalRuns)</td><td>$($s.TotalFed)</td><td>$($s.AvgFed)</td><td>$($s.TotalHours)</td><td>$($s.AvgRate)</td><td>$($s.Efficiency)</td></tr>")
+    }
+
+    [void]$sb.AppendLine("</table>")
+    [void]$sb.AppendLine("</body></html>")
+
+    [System.IO.File]::WriteAllText($OutFile, $sb.ToString(), [System.Text.Encoding]::UTF8)
+    return (Get-Item $OutFile)
+}
+
+
+# ---------------------------------------------------------------------
+# ConvertTo-ReportHtml
+#   Wraps an ASCII report string in a minimal card-style HTML page. The
+#   <pre> tag preserves column alignment; monospace font + letter print
+#   rules are applied on top.
+# ---------------------------------------------------------------------
+function ConvertTo-ReportHtml {
+    param(
+        [string]$Text,
+        [string]$Title = 'Machine Staffing & WebEOR Report'
+    )
+
+    if ($null -eq $Text) { $Text = '' }
+
+    $encoded = $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;')
+    $safeTitle = [System.Net.WebUtility]::HtmlEncode($Title)
+
+    $css = @'
+* { box-sizing: border-box; }
+
+html {
+  background: #4a5568;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-size: 13px;
+}
+
+.page {
+  width: 8.5in;
+  min-height: 11in;
+  padding: 0.5in 0.4in;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+pre {
+  margin: 0;
+  padding: 0;
+  font-family: Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 8.5pt;
+  line-height: 1.35;
+  white-space: pre;
+  color: #1a2332;
+  text-align: left;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+@media print {
+  @page { size: letter portrait; margin: 0.5in; }
+
+  html, body {
+    background: #ffffff;
+    padding: 0;
+    margin: 0;
+    display: block;
+    text-align: center;
+    min-height: auto;
+  }
+
+  .page {
+    display: inline-block;
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    margin: 0 auto;
+    box-shadow: none;
+    border-radius: 0;
+    text-align: left;
+    overflow: visible;
+  }
+
+  pre {
+    font-size: 8.5pt;
+    line-height: 1.3;
+    overflow: visible;
+    max-width: none;
+    margin: 0;
+  }
+}
+'@
+
+    return @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>$safeTitle</title>
+<style>
+$css
+</style>
+</head>
+<body>
+<div class="page">
+<pre>$encoded</pre>
+</div>
+</body>
+</html>
+"@
+}
+
+
+# ---------------------------------------------------------------------
+# Show-EorReportDialog
+#   Interactive report viewer: date range + section toggles up top, a
+#   monospace preview pane, and Preview/Copy/Save buttons down the
+#   bottom. Modeled on the same dialog pattern used elsewhere.
+# ---------------------------------------------------------------------
+function Show-EorReportDialog {
+    param(
+        [Parameter(Mandatory)][string]$CsvPath,
+        [Parameter(Mandatory)][string]$SiteName
+    )
+
+    # Derive the data's actual date span for sensible picker defaults.
+    $minDate = (Get-Date).Date
+    $maxDate = (Get-Date).Date
+    try {
+        $tmp = @(Import-Csv -Path $CsvPath)
+        $dates = @($tmp | ForEach-Object {
+            try { ([DateTime]::Parse([string]$_.Start)).Date } catch { $null }
+        } | Where-Object { $_ -ne $null })
+        if ($dates.Count -gt 0) {
+            $minDate = ($dates | Measure-Object -Minimum).Minimum
+            $maxDate = ($dates | Measure-Object -Maximum).Maximum
+        }
+    } catch { }
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "WebEOR / Staffing Report — $SiteName"
+    $form.Size = New-Object System.Drawing.Size(1000, 760)
+    $form.MinimumSize = New-Object System.Drawing.Size(700, 500)
+    $form.StartPosition = 'CenterParent'
+    $form.FormBorderStyle = 'Sizable'
+    $form.MaximizeBox = $true
+    $form.MinimizeBox = $false
+    $form.BackColor = [System.Drawing.Color]::FromArgb(245,247,250)
+    $form.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
+    # ---------- bottom bar ----------
+    $btnBar = New-Object System.Windows.Forms.Panel
+    $btnBar.Dock = 'Bottom'
+    $btnBar.Height = 52
+    $form.Controls.Add($btnBar)
+
+    $closeBtn = New-Object System.Windows.Forms.Button
+    $closeBtn.Text = "Close"
+    $closeBtn.Size = New-Object System.Drawing.Size(90, 32)
+    $closeBtn.Location = New-Object System.Drawing.Point(880, 10)
+    $closeBtn.Anchor = 'Top,Right'
+    $closeBtn.FlatStyle = 'Flat'
+    $closeBtn.FlatAppearance.BorderSize = 0
+    $closeBtn.BackColor = [System.Drawing.Color]::FromArgb(189,195,199)
+    $closeBtn.ForeColor = [System.Drawing.Color]::FromArgb(44,62,80)
+    $closeBtn.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $closeBtn.Cursor = 'Hand'
+    $closeBtn.Add_Click({ $form.Close() })
+    $btnBar.Controls.Add($closeBtn)
+
+    $previewBtn = New-Object System.Windows.Forms.Button
+    $previewBtn.Text = "Preview in Browser"
+    $previewBtn.Size = New-Object System.Drawing.Size(150, 32)
+    $previewBtn.Location = New-Object System.Drawing.Point(400, 10)
+    $previewBtn.Anchor = 'Top,Right'
+    $previewBtn.FlatStyle = 'Flat'
+    $previewBtn.FlatAppearance.BorderSize = 0
+    $previewBtn.BackColor = [System.Drawing.Color]::FromArgb(52,152,219)
+    $previewBtn.ForeColor = [System.Drawing.Color]::White
+    $previewBtn.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $previewBtn.Cursor = 'Hand'
+    $btnBar.Controls.Add($previewBtn)
+
+    $copyBtn = New-Object System.Windows.Forms.Button
+    $copyBtn.Text = "Copy to Clipboard"
+    $copyBtn.Size = New-Object System.Drawing.Size(150, 32)
+    $copyBtn.Location = New-Object System.Drawing.Point(710, 10)
+    $copyBtn.Anchor = 'Top,Right'
+    $copyBtn.FlatStyle = 'Flat'
+    $copyBtn.FlatAppearance.BorderSize = 0
+    $copyBtn.BackColor = [System.Drawing.Color]::FromArgb(52,152,219)
+    $copyBtn.ForeColor = [System.Drawing.Color]::White
+    $copyBtn.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $copyBtn.Cursor = 'Hand'
+    $btnBar.Controls.Add($copyBtn)
+
+    $saveBtn = New-Object System.Windows.Forms.Button
+    $saveBtn.Text = "Save to File"
+    $saveBtn.Size = New-Object System.Drawing.Size(140, 32)
+    $saveBtn.Location = New-Object System.Drawing.Point(560, 10)
+    $saveBtn.Anchor = 'Top,Right'
+    $saveBtn.FlatStyle = 'Flat'
+    $saveBtn.FlatAppearance.BorderSize = 0
+    $saveBtn.BackColor = [System.Drawing.Color]::FromArgb(39,174,96)
+    $saveBtn.ForeColor = [System.Drawing.Color]::White
+    $saveBtn.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $saveBtn.Cursor = 'Hand'
+    $btnBar.Controls.Add($saveBtn)
+
+    # ---------- top options ----------
+    $top = New-Object System.Windows.Forms.Panel
+    $top.Dock = 'Top'
+    $top.Height = 90
+    $top.BackColor = [System.Drawing.Color]::White
+    $top.Padding = New-Object System.Windows.Forms.Padding(12)
+    $form.Controls.Add($top)
+
+    $lblFrom = New-Object System.Windows.Forms.Label
+    $lblFrom.Text = "From:"
+    $lblFrom.Location = New-Object System.Drawing.Point(12, 22)
+    $lblFrom.Size = New-Object System.Drawing.Size(46, 22)
+    $lblFrom.TextAlign = 'MiddleRight'
+    $lblFrom.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $top.Controls.Add($lblFrom)
+
+    $dtpFrom = New-Object System.Windows.Forms.DateTimePicker
+    $dtpFrom.Format = 'Short'
+    $dtpFrom.Location = New-Object System.Drawing.Point(64, 20)
+    $dtpFrom.Size = New-Object System.Drawing.Size(120, 24)
+    $dtpFrom.Value = $minDate
+    $top.Controls.Add($dtpFrom)
+
+    $lblTo = New-Object System.Windows.Forms.Label
+    $lblTo.Text = "To:"
+    $lblTo.Location = New-Object System.Drawing.Point(200, 22)
+    $lblTo.Size = New-Object System.Drawing.Size(30, 22)
+    $lblTo.TextAlign = 'MiddleRight'
+    $lblTo.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $top.Controls.Add($lblTo)
+
+    $dtpTo = New-Object System.Windows.Forms.DateTimePicker
+    $dtpTo.Format = 'Short'
+    $dtpTo.Location = New-Object System.Drawing.Point(236, 20)
+    $dtpTo.Size = New-Object System.Drawing.Size(120, 24)
+    $dtpTo.Value = $maxDate
+    $top.Controls.Add($dtpTo)
+
+    $lblSections = New-Object System.Windows.Forms.Label
+    $lblSections.Text = "Sections:"
+    $lblSections.Location = New-Object System.Drawing.Point(380, 22)
+    $lblSections.Size = New-Object System.Drawing.Size(70, 22)
+    $lblSections.TextAlign = 'MiddleRight'
+    $lblSections.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $top.Controls.Add($lblSections)
+
+    $cbWebEor = New-Object System.Windows.Forms.CheckBox
+    $cbWebEor.Text = "WebEOR Analysis"; $cbWebEor.Checked = $true
+    $cbWebEor.Location = New-Object System.Drawing.Point(456, 20)
+    $cbWebEor.Size = New-Object System.Drawing.Size(130, 24)
+    $top.Controls.Add($cbWebEor)
+
+    $cbStaffing = New-Object System.Windows.Forms.CheckBox
+    $cbStaffing.Text = "Machine List"; $cbStaffing.Checked = $true
+    $cbStaffing.Location = New-Object System.Drawing.Point(590, 20)
+    $cbStaffing.Size = New-Object System.Drawing.Size(110, 24)
+    $top.Controls.Add($cbStaffing)
+
+    $generateBtn = New-Object System.Windows.Forms.Button
+    $generateBtn.Text = "Generate"
+    $generateBtn.Location = New-Object System.Drawing.Point(64, 52)
+    $generateBtn.Size = New-Object System.Drawing.Size(120, 28)
+    $generateBtn.FlatStyle = 'Flat'
+    $generateBtn.FlatAppearance.BorderSize = 0
+    $generateBtn.BackColor = [System.Drawing.Color]::FromArgb(52,152,219)
+    $generateBtn.ForeColor = [System.Drawing.Color]::White
+    $generateBtn.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $generateBtn.Cursor = 'Hand'
+    $top.Controls.Add($generateBtn)
+
+    # ---------- preview ----------
+    $txtPreview = New-Object System.Windows.Forms.TextBox
+    $txtPreview.Multiline = $true
+    $txtPreview.ReadOnly = $true
+    $txtPreview.ScrollBars = 'Both'
+    $txtPreview.WordWrap = $false
+    $txtPreview.MaxLength = 0
+    $txtPreview.Dock = 'Fill'
+    $txtPreview.Font = New-Object System.Drawing.Font("Consolas", 9)
+    $txtPreview.BackColor = [System.Drawing.Color]::White
+    $txtPreview.ForeColor = [System.Drawing.Color]::FromArgb(44,62,80)
+    $txtPreview.Text = "(Click Generate)"
+    $form.Controls.Add($txtPreview)
+    $txtPreview.BringToFront()
+
+    # ---------- state ----------
+    $script:__eor_lastText = ''
+
+    $doGenerate = {
+        $from = $dtpFrom.Value.Date
+        $to   = $dtpTo.Value.Date
+        if ($to -lt $from) {
+            [System.Windows.Forms.MessageBox]::Show("'To' must be on or after 'From'.", "Generate", "OK", "Warning")
+            return
+        }
+
+        $stats = Get-EorMachineStats -CsvPath $CsvPath -FromDate $from -ToDate $to
+
+        $sb = New-Object System.Text.StringBuilder
+        if ($cbWebEor.Checked) {
+            [void]$sb.Append((Format-EorAsciiReport -Stats $stats -SiteName $SiteName))
+        }
+        if ($cbStaffing.Checked) {
+            [void]$sb.Append((Format-StaffingAsciiReport))
+        }
+        if ($sb.Length -eq 0) {
+            $txtPreview.Text = "(No sections selected)"
+        } else {
+            $txtPreview.Text = $sb.ToString()
+        }
+        $script:__eor_lastText = $txtPreview.Text
+    }
+
+    $generateBtn.Add_Click($doGenerate)
+
+    $previewBtn.Add_Click({
+        if ([string]::IsNullOrWhiteSpace($script:__eor_lastText)) {
+            [System.Windows.Forms.MessageBox]::Show("Generate a report first.", "Preview", "OK", "Warning")
+            return
+        }
+        try {
+            $tempHtml = Join-Path ([System.IO.Path]::GetTempPath()) 'MachineChecker_ReportPreview.html'
+            $html = ConvertTo-ReportHtml -Text $script:__eor_lastText -Title $form.Text
+            [System.IO.File]::WriteAllText($tempHtml, $html, (New-Object System.Text.UTF8Encoding($false)))
+            Start-Process $tempHtml
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("Preview failed: $($_.Exception.Message)", "Preview", "OK", "Error")
+        }
+    })
+
+    $copyBtn.Add_Click({
+        if ([string]::IsNullOrWhiteSpace($script:__eor_lastText)) {
+            [System.Windows.Forms.MessageBox]::Show("Generate a report first.", "Copy", "OK", "Warning")
+            return
+        }
+        try {
+            [System.Windows.Forms.Clipboard]::SetText($script:__eor_lastText)
+            [System.Windows.Forms.MessageBox]::Show("Report copied to clipboard.", "Copy", "OK", "Information")
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("Copy failed: $($_.Exception.Message)", "Copy", "OK", "Error")
+        }
+    })
+
+    $saveBtn.Add_Click({
+        if ([string]::IsNullOrWhiteSpace($script:__eor_lastText)) {
+            [System.Windows.Forms.MessageBox]::Show("Generate a report first.", "Save", "OK", "Warning")
+            return
+        }
+        $defaultName = "WebEOR_Staffing_Report_$(Get-Date -Format 'yyyy-MM-dd_HHmmss').html"
+        $dlg = New-Object System.Windows.Forms.SaveFileDialog
+        $dlg.Filter = "HTML Report (*.html)|*.html|Text file (*.txt)|*.txt"
+        $dlg.InitialDirectory = $script:WebEorDownloadsDir
+        $dlg.FileName = $defaultName
+        $dlg.Title = "Save Report"
+        if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
+
+        try {
+            $ext = [System.IO.Path]::GetExtension($dlg.FileName).ToLowerInvariant()
+            if ($ext -eq '.html' -or $ext -eq '.htm') {
+                $html = ConvertTo-ReportHtml -Text $script:__eor_lastText -Title $form.Text
+                [System.IO.File]::WriteAllText($dlg.FileName, $html, (New-Object System.Text.UTF8Encoding($false)))
+            } else {
+                $script:__eor_lastText | Set-Content -Path $dlg.FileName -Encoding UTF8
+            }
+
+            $open = [System.Windows.Forms.MessageBox]::Show(
+                "Saved to:`r`n$($dlg.FileName)`r`n`r`nOpen it now?",
+                "Save", [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Information)
+            if ($open -eq [System.Windows.Forms.DialogResult]::Yes) {
+                Start-Process $dlg.FileName
+            }
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("Save failed: $($_.Exception.Message)", "Save", "OK", "Error")
+        }
+    })
+
+    $form.CancelButton = $closeBtn
+    $form.Add_Shown({ & $doGenerate })
+    [void]$form.ShowDialog()
+}
+
+
+# ---------------------------------------------------------------------
+# New-EorPipelineReports
+#   Orchestrator run after a fetch/import: writes the Grievance-
+#   importable WebEOR analysis HTML, then opens the interactive report
+#   dialog (ASCII preview + browser/copy/save).
+# ---------------------------------------------------------------------
+function New-EorPipelineReports {
+    param(
+        [Parameter(Mandatory)][string]$CsvPath,
+        [Parameter(Mandatory)][int]$SiteId,
+        [Parameter(Mandatory)][string]$SiteName
+    )
+
+    Write-Host ""
+    Write-Host "=== Generating reports ===" -ForegroundColor Magenta
+
+    $stats = Get-EorMachineStats -CsvPath $CsvPath
+    if ($stats.Count -gt 0) {
+        $htmlPath = Join-Path $script:WebEorDownloadsDir "WebEOR_Analysis_Report_${SiteId}.html"
+        try {
+            $f = New-EorAnalysisHtmlReport -Stats $stats -SiteName $SiteName -OutFile $htmlPath
+            Write-Host "  WebEOR analysis report (for Grievance Form import): $($f.FullName)" -ForegroundColor Green
+        } catch {
+            Write-Host "  WebEOR analysis report failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  No EOR rows to analyze in $CsvPath" -ForegroundColor Yellow
+    }
+
+    Show-EorReportDialog -CsvPath $CsvPath -SiteName $SiteName
+}
+
+
+################################################################################
 #                MACHINE CONFIGURATION DIALOG FUNCTIONS                        #
 ################################################################################
 
@@ -3127,6 +3781,12 @@ function Show-WebEorFetchDialog {
             $dlg.Close()
 
             Process-EorCsvFile -CsvPath $f.FullName -OutputDir $script:WebEorDownloadsDir
+
+            try {
+                New-EorPipelineReports -CsvPath $f.FullName -SiteId $sid -SiteName $siteName
+            } catch {
+                Write-Host "Report generation failed (continuing): $($_.Exception.Message)" -ForegroundColor Yellow
+            }
         } catch {
             Write-Host "Fetch EOR failed: $($_.Exception.Message)" -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show(
