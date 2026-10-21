@@ -1,21 +1,25 @@
-
-==================== WEBEOR GUI START ====================
-                                                                                                                         Reading web response                                                                                                       Reading response stream... (Number of bytes read: 395627)                                                                                                                                                                                     351 sites loaded
-
-=== Download clicked ===
-  site: 19010  PITTSBURGH PA P&DC
-  range: 2026-09-19..2026-10-18  (30 days)
-  output: C:\Users\YYQTP0\Downloads\EOR_19010_20260919_20261018.csv
-Connect-WebEor: site=19010
-  GET /GUI_Login_View.asp
-  POST /GUI_Login_Validate.asp
-    status=200  bytes=44435
-  Login OK
-
-==========================================================
- Save-EorCsv  site=19010  from=2026-09-19  to=2026-10-18  (30 days)
-==========================================================
-  [viewer POST] 2026-09-19..2026-10-18
-    status=200  bytes=11030017
-    [csv POST] 1866 chars of SQL...
-=== FAILED: Unable to read data from the transport connection: An established connection was aborted by the software in your host machine. ===
+[08:31:59.213] Ready. Choose a site and date range, then click Download.
+[08:31:59.358] Loading site list from WebEOR...
+[08:32:00.986] 351 sites loaded (alphabetical)                                                                                                                                                                                                   Writing web request                                                                                                        Writing request stream... (Number of bytes written: 443931)                                                                                                                                                                                 [08:32:40.586] Chunk 1/27: 2025-10-20..2025-11-02
+[08:32:40.597]   viewer POST 2025-10-20..2025-11-02
+[08:32:48.819]   csv POST (1866 chars of SQL)
+[08:33:17.452]   OK 1157373 bytes -> EOR_19010_20251020_20261020.csv.chunk0.csv
+[08:33:17.673]   10310 rows, 1130.2 KB
+[08:33:17.717] Chunk 2/27: 2025-11-03..2025-11-16
+[08:33:17.732]   viewer POST 2025-11-03..2025-11-16
+[08:33:25.669]   csv POST (1866 chars of SQL)
+[08:33:53.758]   OK 1166499 bytes -> EOR_19010_20251020_20261020.csv.chunk1.csv
+[08:33:53.950]   10391 rows, 1139.2 KB
+[08:33:53.982] Chunk 3/27: 2025-11-17..2025-11-30
+[08:33:54.005]   viewer POST 2025-11-17..2025-11-30
+[08:34:01.307]   csv POST (1866 chars of SQL)
+[08:34:28.214]   OK 1166401 bytes -> EOR_19010_20251020_20261020.csv.chunk2.csv
+[08:34:28.457]   10394 rows, 1139.1 KB
+[08:34:28.515] Chunk 4/27: 2025-12-01..2025-12-14
+[08:34:28.541]   viewer POST 2025-12-01..2025-12-14
+[08:34:35.893]   csv POST (1866 chars of SQL)
+[08:35:02.159]   OK 1237051 bytes -> EOR_19010_20251020_20261020.csv.chunk3.csv
+[08:35:02.354]   10988 rows, 1208.1 KB
+[08:35:02.385] Chunk 5/27: 2025-12-15..2025-12-28
+[08:35:02.409]   viewer POST 2025-12-15..2025-12-28
+[08:35:09.806]   csv POST (1866 chars of SQL)
