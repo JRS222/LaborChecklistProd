@@ -1,63 +1,39 @@
 What went wrong
 
-Your dumps pinpoint the exact bug. Reading them in order:
+Site 19101's viewer page uses a different serialization of gstrTableSQL than site 19010 did. Both are valid JavaScript that evaluate to the same SQL string, but only one shape works with the extractor I gave you.
 
-1. gstrTableSQL_raw is truncated mid-expression
+Site 19010 (previous run) — one string literal, escapes inline:
 
-```
-...'\x3Ca href=\"javascript:goToIDS(''' || machine.Ids_Name ||   ''',' || '''GENMP'',' || machine.ndss_mach_id || ',' ||  machine.site_id || ',' || machine.machine_id || ')
-```
-
-Notice it ends on a ) — no closing quote, no closing paren, no FROM, no WHERE, no ORDER BY. The regex was 'gstrTableSQL\s*=\s*([\s\S]*?);' — non-greedy, stopping at the first ;. But the SQL contains );\">source\x3C/a>') inside string literals. The regex matched the first ; it saw, inside the SQL, and stopped there.
-
-That truncated SQL is what got POSTed to GUI_Report_CSV.asp, which is why you got Invalid Data Source! — the SQL was not a complete statement.
-
-2. The CSV endpoint needs all five gstrTable* variables
-
-The debug HTML includes the exact JavaScript the browser runs:
-
-```javascript
-function generateTableCSV() {
-    document.getElementById("tabCsvGroup").value   = gstrTableHeaderGroup;
-    document.getElementById("tabCsvHeader").value  = gstrTableHeader;
-    document.getElementById("tabCsvColumns").value = gstrTableColumns;
-    document.getElementById("tabCsvSource").value  = gstrTableSource;
-    document.getElementById("tabCsvSQL").value     = gstrTableSQL;
-    document.getElementById("frmTableCSV").submit();
-}
+```js
+var gstrTableSQL = "SELECT ... '\x3Ca href=\"javascript:...\">source\x3C/a>' ...";
 ```
 
-The browser sends all five. Our original code sent tabCsvGroup = " " (single space — wrong; the browser sends the full quoted header list) and hardcoded tabCsvColumns / tabCsvHeader. We should just extract and relay all five.
+Site 19101 (this run) — concatenation with String.fromCharCode:
 
-3. Status=Active was wrong
-
-The HTML form options are:
-
-```html
-<OPTION VALUE="Y">Active</OPTION>
-<OPTION VALUE="N">Inactive</OPTION>
-<OPTION VALUE="ALL">ALL</OPTION>
+```js
+var gstrTableSQL = "SELECT ... source" + String.fromCharCode(60) + "/a>')), ... site_id " + String.fromCharCode(60) + "> 19101 ) ...";
 ```
 
-Sending Status=Active made the server produce AND machine.active_ind = 'Active', which matches nothing (values are 'Y'/'N'). Should be Status=Y.
+My Extract-JsVar requires the RHS to be a single string literal immediately followed by ;. Site 19101's RHS is "…" + String.fromCharCode(60) + "…" + String.fromCharCode(60) + "…" — the regex can't match because after the first "…" there's +, not ;. It correctly bailed, wrote the viewer_no_sql dump, and threw — no truncation this time, which is good. It just didn't evaluate the expression.
 
-4. The -replace '<a\s+[^>]*>source</a>', '' line was unnecessary
-
-Column indices 19,11,1,9,2,15,3,8,12,24,13,25,17,18,5,6,10,16,20 don't include 21 (the source_link column). The anchors never make it into the CSV, so stripping is a no-op at best and could corrupt real data at worst. Removed.
+The debug HTML also confirms two other things I got right last time: Status="Y" is selected in the form, and tabCsvGroup/tabCsvHeader/tabCsvColumns are all real quoted-CSV header strings, not a single space. Both facts are already reflected in the fix below.
 
 ---
 
-Replacement Save-MachineMappingCsv function
+Fix — tokenize the RHS instead of regex-matching it whole
 
-Paste this over the old one in Get-WebEorCsv.ps1. Everything else is unchanged.
+Walk the assignment character by character to find the terminating ; (respecting string literals), then tokenize the RHS in order: "…" literal → decode escapes; String.fromCharCode(N) → [char]N. Concatenate. Handles both shapes, plus hex-form String.fromCharCode(0x3C) as a safety.
+
+Replace your entire Save-MachineMappingCsv function with:
 
 ```powershell
 # ---------------------------------------------------------------------------
 # WebEOR — machine mapping CSV
-#   Relays the browser's exact request: extract the five gstrTable* JS
-#   variables from the viewer page and POST them verbatim to the CSV endpoint.
-#   Proper JS string-literal parsing keeps the full SQL when it contains
-#   embedded ';' inside DECODE string fragments.
+#   Relays the browser's exact request. WebEOR emits gstrTableSQL in two
+#   shapes depending on backend build:
+#       (A) single string literal:  var gstrTableSQL = "…\x3C…";
+#       (B) concatenation:          var gstrTableSQL = "…" + String.fromCharCode(60) + "…";
+#   The tokenizer below handles both.
 # ---------------------------------------------------------------------------
 function Save-MachineMappingCsv {
     param(
@@ -101,105 +77,133 @@ function Save-MachineMappingCsv {
     Write-DlLog "  [mapping] viewer returned $($viewer.RawContentLength) bytes" -Level Info
     Write-MappingDebugDump -Name 'viewer' -Content $viewer.Content -Extension 'html'
 
-    # -------------------------------------------------------------------
-    # Extract a `var NAME = "…";` JS string literal in full.
+    # ================================================================
+    # Extract and evaluate a JS string-valued variable assignment.
     #
-    # The character class `(?:[^"\\]|\\.)` matches either a char that is
-    # NOT a bare quote or backslash, OR a backslash-escaped char. That
-    # correctly consumes `\x3C`, `\"`, `\\`, and — critically — a raw
-    # `;` inside the SQL (like `');">`), instead of truncating at it.
-    # -------------------------------------------------------------------
-    function Extract-JsVar {
-        param([string]$Html, [string]$Name)
-        $pattern = 'var\s+' + [regex]::Escape($Name) + '\s*=\s*"((?:[^"\\]|\\.)*)"\s*;'
-        $m = [regex]::Match($Html, $pattern)
-        if (-not $m.Success) { return $null }
-        return $m.Groups[1].Value
-    }
-
-    # Decode JS string-literal escapes to the actual string value the browser
-    # would compute. Handles \xHH, \uHHHH, \", \', \n, \r, \t, \\.
+    # Handles both observed serializations:
+    #   var NAME = "…";
+    #   var NAME = "…" + String.fromCharCode(60) + "…";
+    #   var NAME = "…\x3C…";
+    # by walking the RHS tokens in order: string literals (decoded) and
+    # String.fromCharCode(N) calls (converted to chars).
+    # ================================================================
     function Decode-JsString {
         param([string]$Raw)
         if ($null -eq $Raw) { return $null }
         $sentinel = [string][char]0x0001
         $s = $Raw
-        # 1) Protect \\ so \xHH decodes don't misfire on escaped backslashes
         $s = $s -replace '\\\\', $sentinel
-        # 2) \xHH → char
         $s = [regex]::Replace($s, '\\x([0-9A-Fa-f]{2})', {
             param($m) [string][char][Convert]::ToInt32($m.Groups[1].Value, 16)
         })
-        # 3) \uHHHH → char
         $s = [regex]::Replace($s, '\\u([0-9A-Fa-f]{4})', {
             param($m) [string][char][Convert]::ToInt32($m.Groups[1].Value, 16)
         })
-        # 4) Simple escapes
         $s = $s -replace '\\"',  '"'
         $s = $s -replace "\\'",  "'"
         $s = $s -replace '\\n',  "`n"
         $s = $s -replace '\\r',  "`r"
         $s = $s -replace '\\t',  "`t"
-        # 5) Restore \\
         $s = $s.Replace($sentinel, '\')
         return $s
     }
 
-    $rawSql    = Extract-JsVar -Html $viewer.Content -Name 'gstrTableSQL'
-    $rawHeader = Extract-JsVar -Html $viewer.Content -Name 'gstrTableHeader'
-    $rawGroup  = Extract-JsVar -Html $viewer.Content -Name 'gstrTableHeaderGroup'
-    $rawCols   = Extract-JsVar -Html $viewer.Content -Name 'gstrTableColumns'
-    $rawSource = Extract-JsVar -Html $viewer.Content -Name 'gstrTableSource'
+    function Get-JsVarValue {
+        param(
+            [Parameter(Mandatory)][string]$Html,
+            [Parameter(Mandatory)][string]$VarName
+        )
 
-    if ($null -eq $rawSql) {
-        Write-MappingDebugDump -Name 'viewer_no_sql' -Content $viewer.Content -Extension 'html'
-        throw "Mapping viewer missing gstrTableSQL (bytes=$($viewer.RawContentLength))"
+        # Find start of the assignment
+        $m = [regex]::Match($Html,
+            '\bvar\s+' + [regex]::Escape($VarName) + '\s*=\s*',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if (-not $m.Success) { return $null }
+
+        $start = $m.Index + $m.Length
+
+        # Walk to the terminating ';' that is OUTSIDE any string literal.
+        $inStr = $false
+        $end   = -1
+        $i     = $start
+        while ($i -lt $Html.Length) {
+            $c = $Html[$i]
+            if ($inStr) {
+                if ($c -eq '\') { $i += 2; continue }
+                if ($c -eq '"') { $inStr = $false }
+            } else {
+                if     ($c -eq '"') { $inStr = $true }
+                elseif ($c -eq ';') { $end = $i; break }
+            }
+            $i++
+        }
+        if ($end -lt 0) { return $null }
+
+        $rhs = $Html.Substring($start, $end - $start)
+
+        # Tokenize: string literals and String.fromCharCode(N) in source order.
+        $sb = New-Object System.Text.StringBuilder
+        $tokenPattern = '(?:"((?:[^"\\]|\\.)*)")|(?:\bString\s*\.\s*fromCharCode\s*\(\s*(0x[0-9A-Fa-f]+|\d+)\s*\))'
+        foreach ($tok in [regex]::Matches($rhs, $tokenPattern)) {
+            if ($tok.Groups[1].Success) {
+                [void]$sb.Append((Decode-JsString $tok.Groups[1].Value))
+            } elseif ($tok.Groups[2].Success) {
+                $codeStr = $tok.Groups[2].Value
+                $code = if ($codeStr -match '^0x') {
+                    [Convert]::ToInt32($codeStr, 16)
+                } else {
+                    [int]$codeStr
+                }
+                [void]$sb.Append([char]$code)
+            }
+        }
+        return $sb.ToString()
     }
 
-    Write-DlLog "  [mapping] raw gstrTableSQL: $($rawSql.Length) chars" -Level Info
-    Write-MappingDebugDump -Name 'gstrTableSQL_raw' -Content $rawSql
+    $sql    = Get-JsVarValue -Html $viewer.Content -VarName 'gstrTableSQL'
+    $header = Get-JsVarValue -Html $viewer.Content -VarName 'gstrTableHeader'
+    $group  = Get-JsVarValue -Html $viewer.Content -VarName 'gstrTableHeaderGroup'
+    $cols   = Get-JsVarValue -Html $viewer.Content -VarName 'gstrTableColumns'
+    $src    = Get-JsVarValue -Html $viewer.Content -VarName 'gstrTableSource'
 
-    $decSql     = Decode-JsString $rawSql
-    $decHeader  = Decode-JsString $rawHeader
-    $decGroup   = Decode-JsString $rawGroup
-    $decCols    = Decode-JsString $rawCols
-    $decSource  = Decode-JsString $rawSource
+    if ([string]::IsNullOrWhiteSpace($sql)) {
+        throw "Mapping viewer missing gstrTableSQL (bytes=$($viewer.RawContentLength))"
+    }
+    if ([string]::IsNullOrWhiteSpace($header)) {
+        throw "Mapping viewer missing gstrTableHeader (bytes=$($viewer.RawContentLength))"
+    }
+    if ([string]::IsNullOrWhiteSpace($cols)) {
+        throw "Mapping viewer missing gstrTableColumns (bytes=$($viewer.RawContentLength))"
+    }
 
-    if ($null -eq $decHeader) { throw "Missing gstrTableHeader in mapping viewer" }
-    if ($null -eq $decCols)   { throw "Missing gstrTableColumns in mapping viewer" }
-    if ($null -eq $decSource) { $decSource = "CLIENT" }
-    if ($null -eq $decGroup)  { $decGroup  = $decHeader }   # fall back to header
-
-    Write-DlLog "  [mapping] decoded SQL: $($decSql.Length) chars" -Level Info
-    Write-MappingDebugDump -Name 'mappingSql_decoded' -Content $decSql
+    Write-DlLog "  [mapping] decoded SQL: $($sql.Length) chars" -Level Info
+    Write-MappingDebugDump -Name 'mappingSql_decoded' -Content $sql
 
     # Sanity — a well-formed SQL must have SELECT and FROM, and must contain
     # the site id we filtered by. Any failure here means the extractor missed.
-    if ($decSql -notmatch '\bSELECT\b' -or $decSql -notmatch '\bFROM\b' -or $decSql -notmatch '\bORDER BY\b') {
-        Write-MappingDebugDump -Name 'mappingSql_suspicious' -Content $decSql
-        throw "Decoded SQL is not a complete SELECT (missing SELECT/FROM/ORDER BY) — extractor may have truncated"
+    if ($sql -notmatch '\bSELECT\b' -or $sql -notmatch '\bFROM\b' -or $sql -notmatch '\bORDER BY\b') {
+        Write-MappingDebugDump -Name 'mappingSql_suspicious' -Content $sql
+        throw "Decoded SQL is not a complete SELECT (missing SELECT/FROM/ORDER BY)"
     }
-    if ($decSql -notmatch [regex]::Escape("$SiteId")) {
+    if ($sql -notmatch [regex]::Escape("$SiteId")) {
         Write-DlLog "  WARN decoded SQL missing site id $SiteId" -Level Warn
     }
 
     Write-DlLog "  [mapping] SQL sanity check passed" -Level Success
 
-    # -------------------------------------------------------------------
     # Relay exactly what the browser relays.
-    # -------------------------------------------------------------------
     $body = @{
-        tabCsvGroup   = $decGroup
-        tabCsvHeader  = $decHeader
-        tabCsvColumns = $decCols
-        tabCsvSource  = $decSource
-        tabCsvSQL     = $decSql
+        tabCsvGroup   = $group
+        tabCsvHeader  = $header
+        tabCsvColumns = $cols
+        tabCsvSource  = if ([string]::IsNullOrWhiteSpace($src)) { "CLIENT" } else { $src }
+        tabCsvSQL     = $sql
     }
 
     $tmp = "$OutFile.tmp"
     Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 
-    Write-DlLog "  [mapping] csv POST (cols=$decCols)" -Level Info
+    Write-DlLog "  [mapping] csv POST (cols=$cols)" -Level Info
     try {
         $null = Invoke-WebRequest -Uri "$($script:Base)/ReportPage/GUI_Report_CSV.asp" `
             -Method POST -Body $body -WebSession $Session `
@@ -255,28 +259,43 @@ function Save-MachineMappingCsv {
 
 ---
 
-Expected result on the next run
+Why this handles both sites now
 
-With WEBEOR_DEBUG_MAPPING=1 still set:
+Trace through site 19101's actual RHS with the new parser:
 
 ```
-[HH:MM:SS.fff]   [mapping] GET viewer (site 19010)...
-[HH:MM:SS.fff]   [mapping] viewer returned 48213 bytes
-[HH:MM:SS.fff]   [mapping] raw gstrTableSQL: 4XXX chars         ← NOT truncated anymore
-[HH:MM:SS.fff]   [mapping] decoded SQL: 3XXX chars
-[HH:MM:SS.fff]   [mapping] SQL sanity check passed
-[HH:MM:SS.fff]   [mapping] csv POST (cols=19,11,1,9,2,15,3,8,12,24,13,25,17,18,5,6,10,16,20)
-[HH:MM:SS.fff]   [mapping] OK 45231 bytes -> MachineMapping_19010.csv
+"SELECT ... source"  +  String.fromCharCode(60)  +  "/a>')), ... site_id "  +  String.fromCharCode(60)  +  "> 19101 ) ... ASC"
+        │                        │                              │                            │                         │
+   string literal           fromCharCode(60)             string literal               fromCharCode(60)         string literal
+        │                        │                              │                            │                         │
+        ▼                        ▼                              ▼                            ▼                         ▼
+    "SELECT ... source"         "<"                     "/a>')), ... site_id "             "<"                "> 19101 ) ... ASC"
+                                                                                                               │
+                                              all concatenated in source order → final SQL ✓
 ```
 
-And mapping_debug_csv_response_*.csv will now contain actual CSV data, not the Invalid Data Source! error page.
+For site 19010's RHS (single literal with \x3C escapes), there's exactly one string-literal token — Decode-JsString turns every \x3C into <, \x3E into >, \" into ", and the result is the fully decoded SQL. Same output, same input to the CSV endpoint.
 
 ---
 
-What to check when you get the first working CSV
+What to check next run
 
-Send back (or just eyeball):
+Set WEBEOR_DEBUG_MAPPING=1, run again with the mapping checkbox on (site 19101 is fine — it's the shape that failed). Expected log:
 
-1. mapping_debug_gstrTableSQL_raw_*.txt — should now end with ORDER BY SITE_NAME ASC, MACHINE ASC, MNO ASC"; or similar, not mid-string.
-2. mapping_debug_csv_response_*.csv — first two lines should be the header row and one or more data rows. If you see the columns in the header, we're done. If the values look shifted (e.g., dates under "Global ID"), the server-side tabCsvColumns mapping is broken — but that's the browser's exact same request, so it'd be broken in the browser too, meaning the server team owns that bug, not us.
-3. Row count — should roughly match the number of active machines at that site.
+```
+[HH:MM:SS.mmm]   [mapping] viewer returned 46532 bytes
+[HH:MM:SS.mmm]   [debug] wrote ...\mapping_debug_viewer_...html (46532 bytes)
+[HH:MM:SS.mmm]   [mapping] decoded SQL: ~4200 chars
+[HH:MM:SS.mmm]   [debug] wrote ...\mappingSql_decoded_...txt (~4200 bytes)
+[HH:MM:SS.mmm]   [mapping] SQL sanity check passed
+[HH:MM:SS.mmm]   [mapping] csv POST (cols=19,11,1,9,2,15,3,8,12,24,13,25,17,18,5,6,10,16,20)
+[HH:MM:SS.mmm]   [debug] wrote ...\csv_response_...csv (NNNN bytes)
+[HH:MM:SS.mmm]   [mapping] OK NNNN bytes -> MachineMapping_19101.csv
+```
+
+Send back:
+
+1. mappingSql_decoded_*.txt — should end with ...ORDER BY SITE_NAME ASC, MACHINE ASC, MNO ASC and contain AND machine.active_ind = 'Y' (confirms the Status fix landed).
+2. csv_response_*.csv — should have header "Global ID","Site Name","Machine Type",... on line 1, then 19 data rows (site 19101 reported Records: 19 in the viewer). If you get Invalid Data Source! again, then the SQL is incomplete — the decoded dump will tell us where.
+
+The 20, 24, 25 I flagged last time turned out to be fine after re-counting — the SELECT has 27 columns, not 19 (I miscounted by looking only at the visible FieldNames). Indices 0–26 are all valid, and 20 (source_link), 24 (mpe_id), 25 (LIFT_UNIT_NBR) map to Source, MPE ID, Lift Unit respectively, which matches the header order exactly.
