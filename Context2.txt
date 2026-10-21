@@ -1,24 +1,148 @@
-[08:31:59.213] Ready. Choose a site and date range, then click Download.
-[08:31:59.358] Loading site list from WebEOR...
-[08:32:00.986] 351 sites loaded (alphabetical)                                                                          [08:32:37.475] Connecting to WebEOR (site 19010)...                                                                     [08:32:40.521] Login OK                                                                                                 [08:32:40.541] Fetching 366 day(s): 2025-10-20 → 2026-10-20                                                             [08:32:40.573] 366 days → 27 chunks of <=14 days                                                                        [08:32:40.586] Chunk 1/27: 2025-10-20..2025-11-02                                                                       [08:32:40.597]   viewer POST 2025-10-20..2025-11-02                                                                     [08:32:48.819]   csv POST (1866 chars of SQL)                                                                           [08:33:17.452]   OK 1157373 bytes -> EOR_19010_20251020_20261020.csv.chunk0.csv                                         [08:33:17.673]   10310 rows, 1130.2 KB                                                                                  [08:33:17.717] Chunk 2/27: 2025-11-03..2025-11-16                                                                       [08:33:17.732]   viewer POST 2025-11-03..2025-11-16                                                                     [08:33:25.669]   csv POST (1866 chars of SQL)                                                                           [08:33:53.758]   OK 1166499 bytes -> EOR_19010_20251020_20261020.csv.chunk1.csv                                         [08:33:53.950]   10391 rows, 1139.2 KB                                                                                  [08:33:53.982] Chunk 3/27: 2025-11-17..2025-11-30                                                                       [08:33:54.005]   viewer POST 2025-11-17..2025-11-30                                                                     [08:34:01.307]   csv POST (1866 chars of SQL)                                                                           [08:34:28.214]   OK 1166401 bytes -> EOR_19010_20251020_20261020.csv.chunk2.csv                                         [08:34:28.457]   10394 rows, 1139.1 KB                                                                                  [08:34:28.515] Chunk 4/27: 2025-12-01..2025-12-14                                                                       [08:34:28.541]   viewer POST 2025-12-01..2025-12-14                                                                     [08:34:35.893]   csv POST (1866 chars of SQL)                                                                           [08:35:02.159]   OK 1237051 bytes -> EOR_19010_20251020_20261020.csv.chunk3.csv                                         [08:35:02.354]   10988 rows, 1208.1 KB                                                                                  [08:35:02.385] Chunk 5/27: 2025-12-15..2025-12-28                                                                       [08:35:02.409]   viewer POST 2025-12-15..2025-12-28                                                                     [08:35:09.806]   csv POST (1866 chars of SQL)                                                                           [08:40:33.639]   attempt 1 failed: CSV POST failed after 443931 bytes: The operation has timed out.                     [08:40:33.688]   retrying in 2s...                                                                                      [08:40:35.751]   viewer POST 2025-12-15..2025-12-28                                                                     [08:40:43.432]   csv POST (1866 chars of SQL)                                                                           [08:41:12.515]   OK 1188194 bytes -> EOR_19010_20251020_20261020.csv.chunk4.csv                                         [08:41:12.625]   10551 rows, 1160.3 KB                                                                                  [08:41:12.665] Chunk 6/27: 2025-12-29..2026-01-11                                                                       [08:41:12.691]   viewer POST 2025-12-29..2026-01-11                                                                     [08:41:20.167]   csv POST (1866 chars of SQL)                                                                           [08:41:45.860]   OK 1118662 bytes -> EOR_19010_20251020_20261020.csv.chunk5.csv                                         [08:41:45.999]   9970 rows, 1092.4 KB                                                                                   [08:41:46.039] Chunk 7/27: 2026-01-12..2026-01-25                                                                       [08:41:46.068]   viewer POST 2026-01-12..2026-01-25                                                                     [08:41:52.422]   csv POST (1866 chars of SQL)                                                                           [08:42:19.284]   OK 1110018 bytes -> EOR_19010_20251020_20261020.csv.chunk6.csv                                         [08:42:19.393]   9882 rows, 1084 KB                                                                                     [08:42:19.425] Chunk 8/27: 2026-01-26..2026-02-08                                                                       [08:42:19.456]   viewer POST 2026-01-26..2026-02-08                                                                     [08:42:29.163]   csv POST (1866 chars of SQL)                                                                           [08:42:56.108]   OK 1150390 bytes -> EOR_19010_20251020_20261020.csv.chunk7.csv                                         [08:42:56.345]   10241 rows, 1123.4 KB                                                                                  [08:42:56.369] Chunk 9/27: 2026-02-09..2026-02-22                                                                       [08:42:56.396]   viewer POST 2026-02-09..2026-02-22                                                                     [08:43:03.268]   csv POST (1866 chars of SQL)                                                                           [08:43:28.815]   OK 1143837 bytes -> EOR_19010_20251020_20261020.csv.chunk8.csv                                         [08:43:29.070]   10188 rows, 1117 KB                                                                                    [08:43:29.109] Chunk 10/27: 2026-02-23..2026-03-08                                                                      [08:43:29.132]   viewer POST 2026-02-23..2026-03-08                                                                     [08:43:37.683]   csv POST (1866 chars of SQL)                                                                           [08:44:25.317]   OK 1171966 bytes -> EOR_19010_20251020_20261020.csv.chunk9.csv                                         [08:44:25.527]   10429 rows, 1144.5 KB                                                                                  [08:44:25.582] Chunk 11/27: 2026-03-09..2026-03-22                                                                      [08:44:25.621]   viewer POST 2026-03-09..2026-03-22                                                                     [08:44:32.960]   csv POST (1866 chars of SQL)                                                                           [08:45:19.072]   OK 1182993 bytes -> EOR_19010_20251020_20261020.csv.chunk10.csv                                        [08:45:19.197]   10527 rows, 1155.3 KB                                                                                  [08:45:19.250] Chunk 12/27: 2026-03-23..2026-04-05                                                                      [08:45:19.278]   viewer POST 2026-03-23..2026-04-05                                                                     [08:45:26.778]   csv POST (1866 chars of SQL)                                                                           [08:45:52.948]   OK 1190183 bytes -> EOR_19010_20251020_20261020.csv.chunk11.csv                                        [08:45:53.098]   10588 rows, 1162.3 KB                                                                                  [08:45:53.117] Chunk 13/27: 2026-04-06..2026-04-19                                                                      [08:45:53.137]   viewer POST 2026-04-06..2026-04-19                                                                     [08:46:00.523]   csv POST (1866 chars of SQL)                                                                           [08:46:26.345]   OK 1160829 bytes -> EOR_19010_20251020_20261020.csv.chunk12.csv                                        [08:46:26.531]   10336 rows, 1133.6 KB                                                                                  [08:46:26.553] Chunk 14/27: 2026-04-20..2026-05-03                                                                      [08:46:26.569]   viewer POST 2026-04-20..2026-05-03                                                                     [08:46:33.826]   csv POST (1866 chars of SQL)                                                                           [08:46:58.462]   OK 1134497 bytes -> EOR_19010_20251020_20261020.csv.chunk13.csv                                        [08:46:58.624]   10106 rows, 1107.9 KB                                                                                  [08:46:58.642] Chunk 15/27: 2026-05-04..2026-05-17                                                                      [08:46:58.659]   viewer POST 2026-05-04..2026-05-17                                                                     [08:47:05.446]   csv POST (1866 chars of SQL)                                                                           [08:47:32.312]   OK 1146135 bytes -> EOR_19010_20251020_20261020.csv.chunk14.csv                                        [08:47:32.409]   10210 rows, 1119.3 KB                                                                                  [08:47:32.465] Chunk 16/27: 2026-05-18..2026-05-31                                                                      [08:47:32.489]   viewer POST 2026-05-18..2026-05-31                                                                     [08:47:40.178]   csv POST (1866 chars of SQL)                                                                           [08:48:07.814]   OK 1123944 bytes -> EOR_19010_20251020_20261020.csv.chunk15.csv                                        [08:48:07.955]   10024 rows, 1097.6 KB                                                                                  [08:48:07.976] Chunk 17/27: 2026-06-01..2026-06-14                                                                      [08:48:07.992]   viewer POST 2026-06-01..2026-06-14                                                                     [08:48:15.601]   csv POST (1866 chars of SQL)                                                                           [08:48:38.884]   OK 1140570 bytes -> EOR_19010_20251020_20261020.csv.chunk16.csv                                        [08:48:38.994]   10157 rows, 1113.8 KB                                                                                  [08:48:39.020] Chunk 18/27: 2026-06-15..2026-06-28                                                                      [08:48:39.027]   viewer POST 2026-06-15..2026-06-28                                                                     [08:48:45.070]   csv POST (1866 chars of SQL)                                                                           [08:49:11.103]   OK 1121363 bytes -> EOR_19010_20251020_20261020.csv.chunk17.csv                                        [08:49:11.262]   9993 rows, 1095.1 KB                                                                                   [08:49:11.325] Chunk 19/27: 2026-06-29..2026-07-12                                                                      [08:49:11.336]   viewer POST 2026-06-29..2026-07-12                                                                     [08:49:18.910]   csv POST (1866 chars of SQL)                                                                           [08:49:52.773]   OK 1105599 bytes -> EOR_19010_20251020_20261020.csv.chunk18.csv                                        [08:49:52.852]   9850 rows, 1079.7 KB                                                                                   [08:49:52.877] Chunk 20/27: 2026-07-13..2026-07-26                                                                      [08:49:52.887]   viewer POST 2026-07-13..2026-07-26                                                                     [08:50:00.088]   csv POST (1866 chars of SQL)                                                                           [08:50:25.730]   OK 1132867 bytes -> EOR_19010_20251020_20261020.csv.chunk19.csv                                        [08:50:25.901]   10100 rows, 1106.3 KB                                                                                  [08:50:25.931] Chunk 21/27: 2026-07-27..2026-08-09                                                                      [08:50:25.954]   viewer POST 2026-07-27..2026-08-09                                                                     [08:50:32.532]   csv POST (1866 chars of SQL)                                                                           [08:50:57.594]   OK 1139472 bytes -> EOR_19010_20251020_20261020.csv.chunk20.csv                                        [08:50:57.820]   10158 rows, 1112.8 KB                                                                                  [08:50:57.843] Chunk 22/27: 2026-08-10..2026-08-23                                                                      [08:50:57.864]   viewer POST 2026-08-10..2026-08-23                                                                     [08:51:05.633]   csv POST (1866 chars of SQL)                                                                           [08:51:37.711]   OK 1148691 bytes -> EOR_19010_20251020_20261020.csv.chunk21.csv                                        [08:51:37.875]   10234 rows, 1121.8 KB                                                                                  [08:51:37.926] Chunk 23/27: 2026-08-24..2026-09-06                                                                      [08:51:37.949]   viewer POST 2026-08-24..2026-09-06                                                                                                                                                                                              Writing web request                                                                                                        Writing request stream... (Number of bytes written: 443931)                                                                                                                                                                                 [08:52:17.590]   viewer POST 2026-09-07..2026-09-20
-[08:52:25.762]   csv POST (1866 chars of SQL)
-[08:52:51.428]   OK 1138922 bytes -> EOR_19010_20251020_20261020.csv.chunk23.csv
-[08:52:51.633]   10142 rows, 1112.2 KB
-[08:52:51.674] Chunk 25/27: 2026-09-21..2026-10-04
-[08:52:51.692]   viewer POST 2026-09-21..2026-10-04
-[08:52:59.149]   csv POST (1866 chars of SQL)
-[08:53:27.213]   OK 1166703 bytes -> EOR_19010_20251020_20261020.csv.chunk24.csv
-[08:53:27.340]   10390 rows, 1139.4 KB
-[08:53:27.374] Chunk 26/27: 2026-10-05..2026-10-18
-[08:53:27.389]   viewer POST 2026-10-05..2026-10-18
-[08:53:34.164]   csv POST (1866 chars of SQL)
-[08:54:00.852]   OK 1139282 bytes -> EOR_19010_20251020_20261020.csv.chunk25.csv
-[08:54:01.045]   10152 rows, 1112.6 KB
-[08:54:01.089] Chunk 27/27: 2026-10-19..2026-10-20
-[08:54:01.127]   viewer POST 2026-10-19..2026-10-20
-[08:54:03.144]   csv POST (1866 chars of SQL)
-[08:54:16.400]   OK 182305 bytes -> EOR_19010_20251020_20261020.csv.chunk26.csv
-[08:54:16.443]   1620 rows, 178 KB
+Diagnosis
+
+The download fully succeeded. Only the final "Download Complete" MessageBox threw.
+
+Look at the tail of your log:
+
+```
 [08:54:16.487] Merging 27 chunk file(s)...
 [08:54:23.197] SAVED 29635.7 KB (~267876 rows)
 [08:54:23.257] Download failed: Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..
+```
+
+· Merging 27 chunk file(s) — all 27 downloaded (no WARNING line about failed chunks)
+· SAVED 29635.7 KB (~267876 rows) — merged file written, correct size
+· Then the next statement throws → lands in catch → logged as "Download failed"
+
+Your CSV on disk is complete and correct. The scary red message is a lie produced by a string-formatting bug.
+
+---
+
+The bug
+
+The success MessageBox:
+
+```powershell
+$ans = [System.Windows.Forms.MessageBox]::Show(
+    ("Downloaded:`r`n{0}`r`n`r`nSize: {1:N1} KB`r`n`r`n" +
+     "Yes — open the file`r`nNo — open the containing folder`r`nCancel — do nothing") -f `
+        $f.FullName, ($f.Length/1KB),
+    "Download Complete", 'YesNoCancel', 'Information')
+```
+
+The -f operator binds to only $f.FullName — not to ($f.Length/1KB) — because the comma after ($f.Length/1KB) is being parsed as a MessageBox::Show argument separator, not as part of -f's right-hand operand list. So PowerShell evaluates:
+
+· Show arg 1: ("..." + "...") -f $f.FullName  ← -f with one value
+· Show arg 2: ($f.Length/1KB)
+· Show arg 3: "Download Complete"
+· Show arg 4: 'YesNoCancel'
+· Show arg 5: 'Information'
+
+The format string contains {1:N1}. String.Format receives only $f.FullName (one value, at index 0), so {1} has no matching argument → the exact exception you saw. MessageBox::Show was never even called — the exception fired while building arg 1.
+
+Precedence inside a method argument list is not intuitive here: -f is a binary operator, but , inside Method(...) is the argument-list delimiter. The parser treats the first comma as ending -f's right operand.
+
+---
+
+Fix
+
+Precompute the string. One line either way, but precomputing removes all doubt:
+
+```powershell
+$successMsg = (
+    "Downloaded:`r`n{0}`r`n`r`nSize: {1:N1} KB`r`n`r`n" +
+    "Yes — open the file`r`nNo — open the containing folder`r`nCancel — do nothing"
+) -f $f.FullName, ($f.Length/1KB)
+
+$ans = [System.Windows.Forms.MessageBox]::Show(
+    $successMsg,
+    "Download Complete",
+    [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
+    [System.Windows.Forms.MessageBoxIcon]::Information)
+```
+
+If you want to keep it inline, extra parens around the whole -f expression also work:
+
+```powershell
+$ans = [System.Windows.Forms.MessageBox]::Show(
+    (("Downloaded:`r`n{0}`r`n`r`nSize: {1:N1} KB`r`n`r`n" +
+      "Yes — open the file`r`nNo — open the containing folder`r`nCancel — do nothing") -f
+      $f.FullName, ($f.Length/1KB)),
+    "Download Complete", 'YesNoCancel', 'Information')
+```
+
+Precomputing is clearer — that's the form to keep.
+
+---
+
+One more thing in your log
+
+Look at the gap around chunk 23:
+
+```
+[08:51:37.926] Chunk 23/27: 2026-08-24..2026-09-06
+[08:51:37.949]   viewer POST 2026-08-24..2026-09-06
+<blank lines + "Writing web request" + "Number of bytes written: 443931">
+[08:52:17.590]   viewer POST 2026-09-07..2026-09-20      ← chunk 24's viewer
+[08:52:25.762]   csv POST (1866 chars of SQL)              ← chunk 24's csv
+[08:52:51.428]   OK 1138922 bytes -> ...chunk23.csv       ← chunk 24's OK
+[08:52:51.674] Chunk 25/27: 2026-09-21..2026-10-04       ← chunk 25 header
+```
+
+Chunk 23's (0-indexed chunk22.csv) csv POST line, OK line, and the Chunk 24/27: header are all missing from the paste. Same 443931-byte partial count as chunk 5's stall, so chunk 23's CSV POST likely also timed out and silently retried successfully — but every Write-DlLog line in that window got overwritten by PowerShell's built-in Write-Progress output from inside Invoke-WebRequest (Writing web request, Writing request stream...). Those are not your log lines — they have no timestamp prefix — they're PS 5.1's progress stream clobbering the console.
+
+The merge confirms 27 chunks were consumed, so nothing was actually lost. But this is exactly why the $ProgressPreference = 'SilentlyContinue' fix I mentioned earlier is worth applying: it stops Invoke-WebRequest from emitting those progress writes at all, so your log stays readable and you can actually tell whether a chunk succeeded, retried, or failed.
+
+---
+
+Full set of edits
+
+Three changes; all cosmetic in effect, but they turn a "download failed" scare into a clean run:
+
+```powershell
+# 1. Top of script — kill Invoke-WebRequest progress chatter
+$ErrorActionPreference = 'Stop'
+$ProgressPreference    = 'SilentlyContinue'   # NEW
+
+# 2. Success MessageBox — precompute the formatted string
+$successMsg = (
+    "Downloaded:`r`n{0}`r`n`r`nSize: {1:N1} KB`r`n`r`n" +
+    "Yes — open the file`r`nNo — open the containing folder`r`nCancel — do nothing"
+) -f $f.FullName, ($f.Length/1KB)
+$ans = [System.Windows.Forms.MessageBox]::Show(
+    $successMsg, "Download Complete", 'YesNoCancel', 'Information')
+
+# 3. Catch block — distinguish "success with a follow-up problem" from a real failure
+#    Optional, but nice: if the file exists and is non-empty, don't label it a failure.
+```
+
+For #3, if you want the belt-and-suspenders version:
+
+```powershell
+} catch {
+    if ($script:CancelRequested) {
+        ...
+    } elseif ((Test-Path $eorFile) -and (Get-Item $eorFile).Length -gt 100) {
+        # Something went wrong AFTER the file was written (formatting, etc.)
+        $lblStatus.Text = "Saved (UI warning — see log)"
+        $lblStatus.ForeColor = [System.Drawing.Color]::DarkGoldenrod
+        Write-DlLog "File is on disk, but the completion dialog failed: $($_.Exception.Message)" -Level Warn
+    } else {
+        # real failure path as before
+    }
+}
+```
+
+Not required — the formatting fix alone is enough. But it means any future "file saved, then this threw" situation won't panic the user.
+
+---
+
+Net effect after the fix
+
+Same run, same 27 chunks, same 29 MB merged file. The only difference: you get
+
+```
+[08:54:23.197] SAVED 29635.7 KB (~267876 rows)
+```
+
+followed by the expected Download Complete dialog with Yes (open file) / No (reveal in folder) / Cancel — no "Download failed" line, no misleading error box, and no Writing web request noise in the middle of the chunk log.
