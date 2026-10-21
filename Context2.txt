@@ -1,21 +1,6 @@
 [08:31:59.213] Ready. Choose a site and date range, then click Download.
 [08:31:59.358] Loading site list from WebEOR...
-[08:32:00.986] 351 sites loaded (alphabetical)                                                                                                                                                                                                   Writing web request                                                                                                        Writing request stream... (Number of bytes written: 443931)                                                                                                                                                                                 [08:32:40.586] Chunk 1/27: 2025-10-20..2025-11-02
-[08:32:40.597]   viewer POST 2025-10-20..2025-11-02
-[08:32:48.819]   csv POST (1866 chars of SQL)
-[08:33:17.452]   OK 1157373 bytes -> EOR_19010_20251020_20261020.csv.chunk0.csv
-[08:33:17.673]   10310 rows, 1130.2 KB
-[08:33:17.717] Chunk 2/27: 2025-11-03..2025-11-16
-[08:33:17.732]   viewer POST 2025-11-03..2025-11-16
-[08:33:25.669]   csv POST (1866 chars of SQL)
-[08:33:53.758]   OK 1166499 bytes -> EOR_19010_20251020_20261020.csv.chunk1.csv
-[08:33:53.950]   10391 rows, 1139.2 KB
-[08:33:53.982] Chunk 3/27: 2025-11-17..2025-11-30
-[08:33:54.005]   viewer POST 2025-11-17..2025-11-30
-[08:34:01.307]   csv POST (1866 chars of SQL)
-[08:34:28.214]   OK 1166401 bytes -> EOR_19010_20251020_20261020.csv.chunk2.csv
-[08:34:28.457]   10394 rows, 1139.1 KB
-[08:34:28.515] Chunk 4/27: 2025-12-01..2025-12-14
+[08:32:00.986] 351 sites loaded (alphabetical)                                                                          [08:32:37.475] Connecting to WebEOR (site 19010)...                                                                     [08:32:40.521] Login OK                                                                                                 [08:32:40.541] Fetching 366 day(s): 2025-10-20 → 2026-10-20                                                             [08:32:40.573] 366 days → 27 chunks of <=14 days                                                                        [08:32:40.586] Chunk 1/27: 2025-10-20..2025-11-02                                                                       [08:32:40.597]   viewer POST 2025-10-20..2025-11-02                                                                     [08:32:48.819]   csv POST (1866 chars of SQL)                                                                           [08:33:17.452]   OK 1157373 bytes -> EOR_19010_20251020_20261020.csv.chunk0.csv                                         [08:33:17.673]   10310 rows, 1130.2 KB                                                                                  [08:33:17.717] Chunk 2/27: 2025-11-03..2025-11-16                                                                       [08:33:17.732]   viewer POST 2025-11-03..2025-11-16                                                                     [08:33:25.669]   csv POST (1866 chars of SQL)                                                                           [08:33:53.758]   OK 1166499 bytes -> EOR_19010_20251020_20261020.csv.chunk1.csv                                                                                                                                                                  Writing web request                                                                                                        Writing request stream... (Number of bytes written: 443931)                                                          Reading web response                                                                                                       Reading response stream... (Number of bytes read: 524011)                                                                                                                                                                                   [08:34:28.515] Chunk 4/27: 2025-12-01..2025-12-14
 [08:34:28.541]   viewer POST 2025-12-01..2025-12-14
 [08:34:35.893]   csv POST (1866 chars of SQL)
 [08:35:02.159]   OK 1237051 bytes -> EOR_19010_20251020_20261020.csv.chunk3.csv
@@ -23,3 +8,12 @@
 [08:35:02.385] Chunk 5/27: 2025-12-15..2025-12-28
 [08:35:02.409]   viewer POST 2025-12-15..2025-12-28
 [08:35:09.806]   csv POST (1866 chars of SQL)
+[08:40:33.639]   attempt 1 failed: CSV POST failed after 443931 bytes: The operation has timed out.
+[08:40:33.688]   retrying in 2s...
+[08:40:35.751]   viewer POST 2025-12-15..2025-12-28
+[08:40:43.432]   csv POST (1866 chars of SQL)
+[08:41:12.515]   OK 1188194 bytes -> EOR_19010_20251020_20261020.csv.chunk4.csv
+[08:41:12.625]   10551 rows, 1160.3 KB
+[08:41:12.665] Chunk 6/27: 2025-12-29..2026-01-11
+[08:41:12.691]   viewer POST 2025-12-29..2026-01-11
+[08:41:20.167]   csv POST (1866 chars of SQL)
