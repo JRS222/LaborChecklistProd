@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Coverage Studio — people clocked in vs machines running</title>
+<style>
+  :root{
+    --navy:#1F3864; --navy2:#2E4E8C; --red:#C8102E; --ink:#21252B; --gray:#5A606A;
+    --light:#EDF1F8; --good:#1E7A46; --warn:#B26A00; --bad:#C8102E; --line:#C9D2E4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:"Segoe UI",Calibri,Arial,sans-serif;color:var(--ink);background:#E9EDF4}
+  #app{padding:12px 16px 60px}
+  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);
+       border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(15,30,60,.08)}
+  .bar h1{font-size:16px;margin:0;color:var(--navy)}
+  .bar small{display:block;font-weight:normal;color:var(--gray)}
+  .bar label{font-size:12px;color:var(--gray);font-weight:600}
+  select,input[type=number]{padding:4px 6px;border:1px solid var(--line);border-radius:4px}
+  button{cursor:pointer;border:0;border-radius:5px;padding:7px 12px;font-weight:600;font-size:13px;background:var(--navy);color:#fff}
+  button.ghost{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+  .spacer{flex:1}
+  #panel{display:flex;gap:14px;margin-top:12px}
+  #drop{width:360px;flex:0 0 360px;background:#fff;border:2px dashed var(--line);border-radius:8px;
+        padding:18px;text-align:center;color:var(--gray);font-size:13px}
+  #drop.hot{border-color:var(--red);background:#FDF0F2}
+  #drop b{color:var(--navy)}
+  #files{flex:1;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:150px}
+  #files table{width:100%;border-collapse:collapse;font-size:12px}
+  #files th{background:var(--navy);color:#fff;text-align:left;padding:5px 8px;position:sticky;top:0}
+  #files td{padding:4px 8px;border-bottom:1px solid #EDF0F6}
+  .tag{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700}
+  .tag.ok{background:#E4F3EA;color:var(--good)}
+  .tag.warn{background:#FBF0E2;color:var(--warn)}
+  .tag.err{background:#FBE4E7;color:var(--bad)}
+  #controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line);
+            border-radius:8px;padding:10px 14px;margin-top:12px}
+  #controls label{font-size:12px;color:var(--gray);font-weight:600}
+  .kpirow{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .kpi{flex:1;min-width:150px;background:#fff;border-radius:8px;padding:10px 12px;border-top:4px solid var(--navy);box-shadow:0 1px 3px rgba(15,30,60,.08)}
+  .kpi .v{font-size:22px;font-weight:800;color:var(--navy)}
+  .kpi .l{font-size:11.5px;color:var(--gray);font-weight:600}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px}
+  .card h3{margin:0 0 8px;font-size:14px;color:var(--navy)}
+  .card p.note{font-size:11.5px;color:var(--gray);font-style:italic;margin:6px 0 0}
+  canvas{width:100%;height:auto}
+  table.data{width:100%;border-collapse:collapse;font-size:11.5px}
+  table.data th{background:var(--navy);color:#fff;padding:4px 6px;text-align:left}
+  table.data td{padding:3px 6px;border-bottom:1px solid #EDF0F6}
+  table.data tr:nth-child(even) td{background:#F7F9FD}
+  .neg{color:var(--bad);font-weight:700}
+  .pos{color:var(--good);font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bar">
+    <h1>Coverage Studio
+      <small>who was clocked in &rarr; vs which machines were running &rarr; the coverage gaps</small>
+    </h1>
+    <div class="spacer"></div>
+    <label>Required coverage model:</label>
+    <label id="ratioLbl">0.25</label>
+    <input type="range" id="ratio" min="0" max="1" step="0.05" value="0.25" style="width:140px">
+    <button id="btnBuild">&#9650; Build chart</button>
+  </div>
+  <div id="panel">
+    <div id="drop">
+      <b>Drop files here</b><br><br>
+      <b>TACS</b> &nbsp;*.Transactions.csv (clock rings — required)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *.Base.csv (schedules + LDC/craft — optional)<br>
+      <b>EOR</b> &nbsp;&nbsp;EOR run CSVs (machines + pieces)<br><br>
+      TACS files come from <code>Split-TacsReport.ps1</code>.
+    </div>
+    <div id="filesWrap">
+      <div id="files"><table><thead><tr><th>File</th><th>Type</th><th>Rows</th></tr></thead>
+      <tbody id="filesBody"><tr><td colspan="3" style="color:var(--gray)">No files yet.</td></tr></tbody></table></div>
+    </div>
+  </div>
+  <div id="controls">
+    <label>View:</label>
+    <select id="mode"><option value="avg">Average day (all data)</option><option value="day">Single day</option></select>
+    <select id="daySel" style="display:none;max-width:150px"></select>
+    <label>Group people:</label>
+    <select id="group">
+      <option value="ALL">Everyone</option>
+      <option value="MAINT">Maintenance only (LDC 35xx-39xx)</option>
+      <option value="CRAFT">By craft (level: MM7/MPE9/ET10/other)</option>
+    </select>
+    <label><input type="checkbox" id="chkMaintRuns" checked> show maintenance runs (separate)</label>
+    <label><input type="checkbox" id="chkBaseFallback"> base-schedule fallback when no punches</label>
+    <div class="spacer"></div>
+    <span id="status" style="font-size:12px;color:var(--gray)"></span>
+  </div>
+
+  <div class="kpirow" id="kpis"></div>
+
+  <div class="card">
+    <h3 id="chartTitle">People clocked in vs machines running (15-min buckets, MODS-day attribution for runs)</h3>
+    <canvas id="main" width="1240" height="430"></canvas>
+    <p class="note">Step lines: left axis = employees clocked in · right axis = machines running.
+      Light bars = pieces per 15-min bucket (scaled to fit). Vertical red marks = coverage deficit buckets.</p>
+  </div>
+
+  <div class="card">
+    <h3>Coverage model — required vs staffed (maintenance scope)</h3>
+    <canvas id="gap" width="1240" height="220"></canvas>
+    <p class="note">Required = ⌈machines running × ratio⌉ people of the selected group. Tune the ratio slider —
+      this is the prototype of "how many people of which type, and when".</p>
+  </div>
+
+  <div class="card">
+    <h3>Hourly table</h3>
+    <table class="data" id="hourTable"></table>
+  </div>
+</div>
+
+<input type="file" id="inpFolder" webkitdirectory multiple hidden>
+<input type="file" id="inpFiles" multiple hidden>
+
+<script>
+/* ================= CORE (pure logic; no DOM) ================= */
+"use strict";
+var CORE = (function(){
+  function csvParse(text){
+    var rows=[], row=[], cur="", inQ=false;
+    text = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    for (var i=0;i<text.length;i++){
+      var c=text[i];
+      if(inQ){
+        if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+        else cur+=c;
+      } else {
+        if(c==='"') inQ=true;
+        else if(c===','){row.push(cur);cur="";}
+        else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+        else cur+=c;
+      }
+    }
+    if(cur!=="" || row.length){row.push(cur);rows.push(row);}
+    while(rows.length && rows[rows.length-1].length===1 && rows[rows.length-1][0].trim()==="") rows.pop();
+    if(rows.length && rows[0].length && rows[0][0].charCodeAt(0)===0xFEFF){ rows[0][0]=rows[0][0].slice(1); }
+    rows.forEach(function(r){ while(r.length && String(r[r.length-1]).trim()==="") r.pop(); });
+    return rows;
+  }
+  function headerMap(rows){
+    var m={};
+    if(!rows.length) return m;
+    rows[0].forEach(function(h,i){ m[String(h).trim().toLowerCase()]=i; });
+    return m;
+  }
+  function hhmmToMin(v){
+    if(!v) return null;
+    var s=String(v).trim();
+    var m=s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if(!m) return null;
+    return (+m[1])*60 + (+m[2]);
+  }
+  function ergotToMin(v){
+    if(v===null||v===undefined||String(v).trim()==="") return null;
+    var d=parseFloat(String(v).trim());
+    if(isNaN(d)) return null;
+    if(d===0) return null;
+    return Math.round(d*60);
+  }
+  function num(v){
+    if(v===null||v===undefined) return null;
+    var s=String(v).replace(/[$,%\s]/g,"");
+    if(s===""||s==="-") return null;
+    var n=parseFloat(s.replace(/,/g,""));
+    return isFinite(n)?n:null;
+  }
+  function isoDateOf(v){
+    if(!v) return null;
+    var s=String(v).trim();
+    var m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(m) return m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2);
+    return null;
+  }
+
+  /* ---- TACS transactions -> punch lists ---- */
+  function parseTacsTxns(rows){
+    var h=headerMap(rows);
+    var need=["employee_id","txn_date_iso","txn_time_hhmmss","punch_type"];
+    for(var i=0;i<need.length;i++){ if(!(need[i] in h)) throw new Error("Transactions missing column: "+need[i]); }
+    var byKey={}, dates={}, emps={};
+    rows.slice(1).forEach(function(r){
+      var emp=String(r[h.employee_id]||"").trim();
+      var date=isoDateOf(r[h.txn_date_iso]);
+      var t=hhmmToMin(r[h.txn_time_hhmmss]);
+      var pt=String(r[h.punch_type]||"").trim().toUpperCase();
+      if(!emp||!date||t===null) return;
+      if(["BT","ET","OL","IL","MV"].indexOf(pt)<0) return;
+      var key=emp+"|"+date;
+      byKey[key]=byKey[key]||{emp:emp,date:date,punches:[]};
+      byKey[key].punches.push({t:t,type:pt});
+      dates[date]=1; emps[emp]=1;
+    });
+    Object.keys(byKey).forEach(function(k){
+      byKey[k].punches.sort(function(a,b){return a.t-b.t;});
+    });
+    return {byKey:byKey, dates:Object.keys(dates).sort(), employees:Object.keys(emps).length};
+  }
+
+  /* ---- TACS Base rows: schedules + LDC/lvl per employee-week ---- */
+  function parseTacsBase(rows){
+    var h=headerMap(rows);
+    var need=["employee_id","yrppwk"];
+    for(var i=0;i<need.length;i++){ if(!(need[i] in h)) throw new Error("Base missing column: "+need[i]); }
+    var meta={}, sched={};
+    rows.slice(1).forEach(function(r){
+      var emp=String(r[h.employee_id]||"").trim();
+      var wk=String(r[h.yrppwk]||"").trim();
+      if(!emp||!wk) return;
+      var ldc = "ldc_function" in h ? String(r[h.ldc_function]||"").trim() : "";
+      var lvl = "lvl" in h ? String(r[h.lvl]||"").trim() : "";
+      var bt  = "begin_tour" in h ? ergotToMin(r[h.begin_tour]) : null;
+      var et  = "end_tour" in h ? ergotToMin(r[h.end_tour]) : null;
+      var key=emp+"|"+wk;
+      if(!(key in meta)){ meta[key]={ldc:ldc, lvl:lvl}; }
+      if(bt!==null && et!==null){ sched[key]={bt:bt, et:et}; }
+    });
+    return {meta:meta, sched:sched};
+  }
+
+  function subtractIntervals(work, lunch){
+    var out=[];
+    work.forEach(function(w){
+      var segs=[{s:w.s,e:w.e,day:w.day}];
+      lunch.forEach(function(l){
+        var next=[];
+        segs.forEach(function(g){
+          if(l.e<=g.s || l.s>=g.e){ next.push(g); return; }
+          if(l.s>g.s) next.push({s:g.s,e:Math.min(l.s,g.e),day:g.day});
+          if(l.e<g.e) next.push({s:Math.max(l.e,g.s),e:g.e,day:g.day});
+        });
+        segs=next;
+      });
+      segs.forEach(function(g){ if(g.e>g.s) out.push(g); });
+    });
+    return out;
+  }
+
+  function coverageIntervals(txns, base, date, baseFallback){
+    // Build per-employee intervals across the whole punch stream, attributing
+    // each piece to the day of its BEGIN-TOUR punch (overnight tours split at
+    // midnight: [s,1440) on day1 + [0,e) on day2).
+    var empPunches={};
+    Object.keys(txns.byKey||{}).forEach(function(k){
+      var rec=txns.byKey[k];
+      var arr=empPunches[rec.emp]=empPunches[rec.emp]||[];
+      rec.punches.forEach(function(p){ arr.push({t:p.t,type:p.type,date:rec.date}); });
+    });
+    var out={};
+    Object.keys(empPunches).forEach(function(emp){
+      var ps=empPunches[emp].sort(function(a,b){
+        return a.date<b.date?-1:(a.date>b.date?1:(a.t-b.t));
+      });
+      var work=[], lunch=[], open=null, lopen=null;
+      ps.forEach(function(p){
+        if(p.type==="BT"){
+          if(open!==null){ work.push({s:open.t,e:1440,day:open.date}); }
+          open={t:p.t,date:p.date};
+        } else if(p.type==="ET"){
+          if(open!==null){
+            if(p.t>=open.t){ work.push({s:open.t,e:p.t,day:open.date}); }
+            else {
+              work.push({s:open.t,e:1440,day:open.date});
+              work.push({s:0,e:p.t,day:p.date});
+            }
+            open=null;
+          }
+        } else if(p.type==="OL"){
+          lopen={t:p.t,date:p.date};
+        } else if(p.type==="IL"){
+          if(lopen!==null){
+            if(p.t>=lopen.t){ lunch.push({s:lopen.t,e:p.t,day:lopen.date}); }
+            else { lunch.push({s:lopen.t,e:1440,day:lopen.date}); lunch.push({s:0,e:p.t,day:p.date}); }
+            lopen=null;
+          }
+        }
+      });
+      if(open!==null){ work.push({s:open.t,e:1440,day:open.date}); }
+      if(lopen!==null){ lunch.push({s:lopen.t,e:1440,day:lopen.date}); }
+      var iv=subtractIntervals(work,lunch);
+      out[emp]=(iv||[]).filter(function(g){ return g.day===date; });
+    });
+    // base fallback: employees with a schedule but no coverage today
+    if(baseFallback && base){
+      Object.keys(base.sched).forEach(function(k){
+        var parts=k.split("|");
+        var emp=parts[0];
+        if(out[emp] && out[emp].length) return;
+        var s=base.sched[k];
+        var segs=[];
+        if(s.bt<=s.et){ segs.push({s:s.bt,e:s.et,day:date}); }
+        else { segs.push({s:s.bt,e:1440,day:date}); segs.push({s:0,e:s.et,day:date}); }
+        out[emp]=segs;
+      });
+    }
+    return out;
+  }
+
+  function empMeta(base, emp){
+    // any base row for this employee (first wins)
+    for(var k in (base?base.meta:{})){
+      if(k.split("|")[0]===emp) return base.meta[k];
+    }
+    return {ldc:"", lvl:""};
+  }
+
+  function groupOf(meta, groupMode){
+    if(groupMode==="ALL") return "all";
+    if(groupMode==="MAINT"){
+      var l=meta.ldc||"";
+      return (l>="3500" && l<"4000") ? "maint" : null;
+    }
+    if(groupMode==="CRAFT"){
+      var lv=meta.lvl||"";
+      if(lv==="7") return "MM7";
+      if(lv==="9") return "MPE9";
+      if(lv==="10") return "ET10";
+      return "other";
+    }
+    return "all";
+  }
+
+  /* ---- EOR runs ---- */
+  function parseEorRuns(rows){
+    var h=headerMap(rows);
+    var need=["start","end"];
+    for(var i=0;i<need.length;i++){ if(!(need[i] in h)) throw new Error("EOR missing column: "+need[i]); }
+    var fedI="fed" in h ? h.fed : -1;
+    var modsI="mods" in h ? h.mods : -1;
+    var mtI="mtype" in h ? h.mtype : -1;
+    var mnI="mno" in h ? h.mno : -1;
+    var out=[];
+    rows.slice(1).forEach(function(r){
+      var s=String(r[h.start]||"").trim();
+      var e=String(r[h.end]||"").trim();
+      var m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      var m2=e.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if(!m||!m2) return;
+      var yr=+m[3]; if(m[3].length===2) yr+= (yr<70?2000:1900);
+      var dt=new Date(yr,+m[1]-1,+m[2]);
+      var sMin= (+m[4])*60+(+m[5]);
+      var eMin= (+m2[4])*60+(+m2[5]);
+      var fed = fedI>=0 ? (num(r[fedI])||0) : 0;
+      var isMaint = modsI>=0 && String(r[modsI]||"").trim().toUpperCase()==="M";
+      var mid = (mtI>=0?String(r[mtI]||"?")+" ":"")+(mnI>=0?String(r[mnI]||"?"):"");
+      // MODS day attribution: date of start+1h
+      var modsD=new Date(dt.getTime()+3600000);
+      var day=modsD.getFullYear()+"-"+("0"+(modsD.getMonth()+1)).slice(-2)+"-"+("0"+modsD.getDate()).slice(-2);
+      out.push({day:day, s:sMin, e:eMin, fed:fed, span:Math.max(1,(eMin>=sMin?eMin-sMin:(1440-sMin)+eMin)), maint:isMaint, mid:mid});
+    });
+    return out;
+  }
+
+  /* ---- day computation ---- */
+  var BUCKETS=96; // 15-min
+  function emptyArr(){ var a=new Array(BUCKETS); for(var i=0;i<BUCKETS;i++)a[i]=0; return a; }
+
+  function computeDay(txns, base, runs, date, groupMode, baseFallback){
+    var iv=coverageIntervals(txns, base, date, baseFallback);
+    var staffedAll=emptyArr();
+    var byGroup={};
+    var empIds=Object.keys(iv);
+    empIds.forEach(function(emp){
+      var g=groupOf(empMeta(base,emp),groupMode);
+      if(g===null) return;
+      var segs=iv[emp];
+      var any=false;
+      segs.forEach(function(seg){
+        if(seg.e<=seg.s) return;
+        var b1=Math.floor(seg.s/15), b2=Math.min(BUCKETS-1, Math.floor((seg.e-1)/15));
+        for(var b=b1;b<=b2;b++){ staffedAll[b]++; any=true; }
+      });
+      if(!any) return;
+      byGroup[g]=byGroup[g]||emptyArr();
+      segs.forEach(function(seg){
+        if(seg.e<=seg.s) return;
+        var b1=Math.floor(seg.s/15), b2=Math.min(BUCKETS-1, Math.floor((seg.e-1)/15));
+        for(var b=b1;b<=b2;b++){ byGroup[g][b]++; }
+      });
+    });
+    var machines=emptyArr(), pieces=emptyArr(), maintMachines=emptyArr();
+    var mset={}; var mmset={};
+    for(var b=0;b<BUCKETS;b++){ mset[b]={}; mmset[b]={}; }
+    runs.forEach(function(rn){
+      if(rn.day!==date) return;
+      var segs=[];
+      if(rn.e>=rn.s){ segs=[{s:rn.s,e:rn.e}]; }
+      else { segs=[{s:rn.s,e:1440},{s:0,e:rn.e}]; }
+      segs.forEach(function(seg){
+        var b1=Math.floor(seg.s/15), b2=Math.min(BUCKETS-1, Math.floor((seg.e-1)/15));
+        var tot=Math.max(1,b2-b1+1);
+        for(var b=b1;b<=b2;b++){
+          if(rn.maint){ mmset[b][rn.mid]=1; }
+          else {
+            mset[b][rn.mid]=1;
+            pieces[b]+= (rn.fed>0? rn.fed/tot : 0);
+          }
+        }
+      });
+    });
+    for(var b2=0;b2<BUCKETS;b2++){ machines[b2]=Object.keys(mset[b2]).length; maintMachines[b2]=Object.keys(mmset[b2]).length; }
+    return {date:date, staffedAll:staffedAll, byGroup:byGroup, machines:machines,
+            pieces:pieces, maintMachines:maintMachines};
+  }
+
+  function averageDays(dayResults){
+    var n=dayResults.length;
+    if(!n) return null;
+    var out={staffedAll:emptyArr(), byGroup:{}, machines:emptyArr(), pieces:emptyArr(), maintMachines:emptyArr()};
+    var groups={};
+    dayResults.forEach(function(d){
+      Object.keys(d.byGroup).forEach(function(g){ groups[g]=1; });
+    });
+    Object.keys(groups).forEach(function(g){ out.byGroup[g]=emptyArr(); });
+    dayResults.forEach(function(d){
+      for(var b=0;b<BUCKETS;b++){
+        out.staffedAll[b]+=d.staffedAll[b];
+        out.machines[b]+=d.machines[b];
+        out.pieces[b]+=d.pieces[b];
+        out.maintMachines[b]+=d.maintMachines[b];
+      }
+      Object.keys(out.byGroup).forEach(function(g){
+        if(d.byGroup[g]) for(var b2=0;b2<BUCKETS;b2++) out.byGroup[g][b2]+=d.byGroup[g][b2];
+      });
+    });
+    for(var b3=0;b3<BUCKETS;b3++){
+      out.staffedAll[b3]/=n; out.machines[b3]/=n; out.pieces[b3]/=n; out.maintMachines[b3]/=n;
+    }
+    Object.keys(out.byGroup).forEach(function(g){
+      for(var b4=0;b4<BUCKETS;b4++) out.byGroup[g][b4]/=n;
+    });
+    return out;
+  }
+
+  function coverageModel(staffedMaint, machines, ratio){
+    var req=new Array(BUCKETS), gap=new Array(BUCKETS);
+    var deficit=0, deficitBuckets=0;
+    for(var b=0;b<BUCKETS;b++){
+      req[b]=Math.ceil(machines[b]*ratio);
+      gap[b]=staffedMaint[b]-req[b];
+      if(gap[b]<0){ deficit+=(-gap[b]); deficitBuckets++; }
+    }
+    return {required:req, gap:gap, deficitHours:deficit/4, deficitBuckets:deficitBuckets};
+  }
+
+  function bucketLabel(b){
+    var hh=Math.floor(b/4), mm=(b%4)*15;
+    return ("0"+hh).slice(-2)+":"+("0"+mm).slice(-2);
+  }
+
+  return { csvParse:csvParse, headerMap:headerMap, parseTacsTxns:parseTacsTxns,
+           parseTacsBase:parseTacsBase, parseEorRuns:parseEorRuns,
+           coverageIntervals:coverageIntervals, computeDay:computeDay,
+           averageDays:averageDays, coverageModel:coverageModel,
+           bucketLabel:bucketLabel, BUCKETS:BUCKETS, hhmmToMin:hhmmToMin, ergotToMin:ergotToMin };
+})();
+/* ================ END CORE ================ */
+</script>
+
+<script>
+/* ================= APP ================= */
+"use strict";
+var S={txns:null, base:null, runs:[], files:[], meta:[]};
+function $(id){ return document.getElementById(id); }
+
+function classify(name){
+  name=(name||"").toLowerCase();
+  if(/\.transactions\.csv$/.test(name)) return "TACS_TXN";
+  if(/\.base\.csv$/.test(name)) return "TACS_BASE";
+  if(name.endsWith(".csv") && /eor|rpg|mapping/i.test(name)) return "EOR";
+  if(name.endsWith(".csv")) return "CSV_MAYBE";
+  return null;
+}
+
+function handleFile(file){
+  var reader=new FileReader();
+  reader.onload=function(){
+    var text=reader.result;
+    var type=classify(file.name);
+    var rows=CORE.csvParse(text);
+    var h=CORE.headerMap(rows);
+    var keys=Object.keys(h).join(",");
+    if(type==="CSV_MAYBE"){
+      if(/start/.test(keys) && /end/.test(keys)) type="EOR";
+      else if(/punch_type|txn_date_iso/.test(keys)) type="TACS_TXN";
+      else if(/ldc_function|begin_tour/.test(keys)) type="TACS_BASE";
+      else type="UNKNOWN";
+    }
+    if(type==="EOR" && !(/start/.test(keys) && /end/.test(keys))) type="UNKNOWN";
+    S.files.push({name:file.name, type:type, rows:rows});
+    if(type==="TACS_TXN"){
+      try{ S.txns=CORE.parseTacsTxns(rows); }catch(e){ type="BROKEN"; S.txns=null; S.files[S.files.length-1].err=e.message; }
+    } else if(type==="TACS_BASE"){
+      try{ S.base=CORE.parseTacsBase(rows); }catch(e){ type="BROKEN"; S.base=null; S.files[S.files.length-1].err=e.message; }
+    } else if(type==="EOR"){
+      try{ var runs=CORE.parseEorRuns(rows); S.runs=S.runs.concat(runs); }catch(e){ type="BROKEN"; S.files[S.files.length-1].err=e.message; }
+    }
+    S.files[S.files.length-1].type=type;
+    renderFiles();
+  };
+  reader.readAsText(file);
+}
+
+function renderFiles(){
+  var tb=$("filesBody"); tb.innerHTML="";
+  S.files.forEach(function(f){
+    var tr=document.createElement("tr");
+    var tag = f.type==="UNKNOWN" ? '<span class="tag err">unrecognized</span>'
+            : f.type==="BROKEN" ? '<span class="tag err">parse error: '+f.err+'</span>'
+            : '<span class="tag ok">'+f.type+'</span>';
+    tr.innerHTML="<td>"+f.name+"</td><td>"+tag+"</td><td>"+(f.rows?f.rows.length-1:0)+"</td>";
+    tb.appendChild(tr);
+  });
+  $("status").textContent = (S.files.length? S.files.length+" file(s) loaded. ":"")+
+    (S.txns? "TACS: "+Object.keys(S.txns.byKey).length+" employee-days. ":"")+
+    (S.base? "Base: loaded. ":"")+
+    (S.runs.length? "EOR: "+S.runs.length+" runs. ":"");
+}
+
+$("inpFolder").addEventListener("change",function(e){
+  Array.prototype.forEach.call(e.target.files,handleFile); e.target.value="";
+});
+$("inpFiles").addEventListener("change",function(e){
+  Array.prototype.forEach.call(e.target.files,handleFile); e.target.value="";
+});
+var drop=$("drop");
+["dragenter","dragover"].forEach(function(ev){
+  drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add("hot"); });
+});
+["dragleave","drop"].forEach(function(ev){
+  drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove("hot"); });
+});
+drop.addEventListener("drop",function(e){
+  var items=e.dataTransfer.items;
+  if(items && items[0] && items[0].webkitGetAsEntry){
+    function walk(entry){
+      if(entry.isFile){ entry.file(handleFile); }
+      else if(entry.isDirectory){ var r=entry.createReader(); r.readEntries(function(ents){ ents.forEach(walk); }); }
+    }
+    for(var i=0;i<items.length;i++){ var it=items[i].webkitGetAsEntry(); if(it) walk(it); }
+  } else {
+    Array.prototype.forEach.call(e.dataTransfer.files,handleFile);
+  }
+});
+
+$("ratio").addEventListener("input",function(){ $("ratioLbl").textContent=$("ratio").value; });
+
+/* ---- chart drawing ---- */
+function drawCoverage(canvas, data, maintOn){
+  var W=canvas.width,H=canvas.height,L=46,R=52,T=14,B=26;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  var n=CORE.BUCKETS;
+  var staffMax=1; for(var i=0;i<n;i++) staffMax=Math.max(staffMax, data.staffedAll[i]);
+  var machMax=1; for(var j=0;j<n;j++) machMax=Math.max(machMax, data.machines[j]);
+  var piecesMax=1; for(var k=0;k<n;k++) piecesMax=Math.max(piecesMax, data.pieces[k]);
+  var plotW=W-L-R, plotH=H-T-B;
+  function X(i){ return L+plotW*(i+0.5)/n; }
+  function Ys(v){ return T+plotH*(1-v/staffMax); }
+  function Ym(v){ return T+plotH*(1-v/machMax); }
+  // grid + hour labels
+  ctx.font="10px Segoe UI"; ctx.textAlign="center"; ctx.textBaseline="top";
+  for(var hx=0;hx<=24;hx+=3){
+    var i=hx*4; if(i>n) i=n;
+    ctx.strokeStyle="#EDF0F6"; ctx.beginPath(); ctx.moveTo(X(i),T); ctx.lineTo(X(i),T+plotH); ctx.stroke();
+    ctx.fillStyle="#7A8494"; ctx.fillText(("0"+hx).slice(-2)+":00",X(i),T+plotH+5);
+  }
+  ctx.strokeStyle="#DDE3EF"; ctx.lineWidth=1;
+  for(var gy=0;gy<=4;gy++){
+    var y=T+plotH*gy/4;
+    ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke();
+  }
+  // pieces bars (behind)
+  ctx.fillStyle="rgba(31,56,100,0.14)";
+  for(var p=0;p<n;p++){
+    if(piecesMax>0 && data.pieces[p]>0){
+      var h=(data.pieces[p]/piecesMax)*(plotH*0.9);
+      ctx.fillRect(X(p)-plotW/n*0.42, T+plotH-h, plotW/n*0.84, h);
+    }
+  }
+  // machines step (right axis)
+  stepLine(ctx, data.machines, X, Ym, "#B26A00", 2);
+  // maintenance machines (dashed)
+  if(maintOn){
+    stepLine(ctx, data.maintMachines, X, Ym, "#C8102E", 1.5, true);
+  }
+  // staffed step (left axis, navy)
+  stepLine(ctx, data.staffedAll, X, Ys, "#1F3864", 2.5);
+  // group lines
+  var pal=["#1E7A46","#7A3FA0","#0E7C86","#5A606A"];
+  var gi=0;
+  Object.keys(data.byGroup||{}).forEach(function(g){
+    if(g==="all") return;
+    stepLine(ctx, data.byGroup[g], X, Ys, pal[gi%pal.length], 1.6);
+    gi++;
+  });
+  // axes captions
+  ctx.textAlign="left"; ctx.textBaseline="bottom";
+  ctx.fillStyle="#1F3864"; ctx.fillText("people clocked in (left)", L+4, T+12);
+  ctx.fillStyle="#B26A00"; ctx.fillText("machines running (right)", W-R-120, T+12);
+  ctx.fillStyle="#C8102E"; ctx.fillText("maint runs", W-R-70, T+24);
+}
+function stepLine(ctx, vals, X, Y, color, lw, dash){
+  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.setLineDash(dash?[4,3]:[]);
+  ctx.beginPath();
+  var started=false;
+  for(var i=0;i<vals.length;i++){
+    var x=X(i), y=Y(vals[i]||0);
+    if(!started){ ctx.moveTo(x,y); started=true; }
+    else { ctx.lineTo(x,y); }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawGap(canvas, model){
+  var W=canvas.width,H=canvas.height,L=46,R=12,T=10,B=24;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  var n=CORE.BUCKETS;
+  var maxA=1; for(var i=0;i<n;i++){ maxA=Math.max(maxA, model.required[i], Math.abs(model.gap[i])); }
+  var plotW=W-L-R, plotH=H-T-B;
+  function X(i){ return L+plotW*(i+0.5)/n; }
+  for(var hx=0;hx<=24;hx+=3){
+    var i=Math.min(n,hx*4);
+    ctx.strokeStyle="#EDF0F6"; ctx.beginPath(); ctx.moveTo(X(i),T); ctx.lineTo(X(i),T+plotH); ctx.stroke();
+    ctx.font="10px Segoe UI"; ctx.fillStyle="#7A8494"; ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillText(("0"+hx).slice(-2)+":00",X(i),T+plotH+5);
+  }
+  ctx.textAlign="right"; ctx.textBaseline="middle"; ctx.font="10px Segoe UI";
+  ctx.fillStyle="#7A8494"; ctx.fillText("required",L-4,T+8);
+  var bw=plotW/n*0.9;
+  for(var b=0;b<n;b++){
+    var x=X(b)-bw/2;
+    var hr=(model.required[b]/maxA)*(plotH*0.9);
+    ctx.fillStyle="#9FB2D8";
+    ctx.fillRect(x, T+plotH-hr, bw, hr);
+    if(model.gap[b]<0){
+      var hg=(-model.gap[b]/maxA)*(plotH*0.9);
+      ctx.fillStyle="#C8102E";
+      ctx.fillRect(x, T+plotH, bw, hg);
+    }
+  }
+  ctx.textAlign="left"; ctx.textBaseline="bottom";
+  ctx.fillStyle="#9FB2D8"; ctx.fillText("required people (light)", L+4, T+plotH-4);
+  ctx.fillStyle="#C8102E"; ctx.fillText("deficit (red)", L+150, T+plotH-4);
+}
+
+function build(){
+  if(!S.txns){ $("status").textContent="Load a TACS .Transactions.csv first (from Split-TacsReport.ps1)."; return; }
+  var mode=$("mode").value;
+  var group=$("group").value;
+  var ratio=parseFloat($("ratio").value);
+  var maintOn=$("chkMaintRuns").checked;
+  var baseFallback=$("chkBaseFallback").checked;
+
+  var dates=S.txns.dates;
+  S.runs.forEach(function(r){ dates.push(r.day); });
+  dates=dates.filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
+  var daySel=$("daySel");
+  daySel.innerHTML="";
+  dates.forEach(function(d){ var o=document.createElement("option"); o.value=d; o.textContent=d; daySel.appendChild(o); });
+  daySel.style.display = mode==="day" ? "" : "none";
+  if(!daySel.value && dates.length) daySel.value=dates[Math.floor(dates.length/2)];
+
+  var data;
+  if(mode==="day"){
+    var d=daySel.value||dates[0];
+    data=CORE.computeDay(S.txns,S.base,S.runs,d,group,baseFallback);
+    data.spanLabel=d;
+  } else {
+    var days=[];
+    dates.forEach(function(dt){ days.push(CORE.computeDay(S.txns,S.base,S.runs,dt,group,baseFallback)); });
+    data=CORE.averageDays(days);
+    data.spanLabel=days.length+" day(s) averaged ("+dates[0]+" .. "+dates[dates.length-1]+")";
+  }
+  S.data=data;
+  S.group=group;
+  $("chartTitle").textContent="People clocked in vs machines running — "+data.spanLabel+" · group: "+group;
+
+  // KPIs
+  var staffMin=0, machMin=0, pieceTot=0, peakStaff=0, peakMach=0, maintMin=0;
+  for(var b=0;b<CORE.BUCKETS;b++){
+    staffMin+=data.staffedAll[b]*15; machMin+=data.machines[b]*15;
+    pieceTot+=data.pieces[b]; maintMin+=data.maintMachines[b]*15;
+    peakStaff=Math.max(peakStaff,data.staffedAll[b]);
+    peakMach=Math.max(peakMach,data.machines[b]);
+  }
+  var staffMaint = data.byGroup[group==="MAINT"?"maint":null] || data.byGroup["maint"] || data.staffedAll;
+  var model=CORE.coverageModel(staffMaint, data.machines, ratio);
+  S.model=model;
+  var gSeries = group==="CRAFT" ? (data.byGroup||{}) : null;
+  var kpis=[
+    ["person-hours clocked / day", (staffMin/60).toFixed(1)],
+    ["machine-hours running / day", (machMin/60).toFixed(1)],
+    ["pieces / day", Math.round(pieceTot).toLocaleString()],
+    ["peak people", peakStaff],
+    ["peak machines", peakMach],
+    ["coverage deficit (hrs/day @ "+ratio+")", model.deficitHours.toFixed(1)]
+  ];
+  $("kpis").innerHTML="";
+  kpis.forEach(function(k){
+    var d=document.createElement("div"); d.className="kpi";
+    d.innerHTML='<div class="v">'+k[1]+'</div><div class="l">'+k[0]+'</div>';
+    $("kpis").appendChild(d);
+  });
+
+  drawCoverage($("main"), data, maintOn);
+  drawGap($("gap"), model);
+
+  // hourly table
+  var tbl='<tr><th>Hour</th><th>People</th><th>Machines</th><th>Pieces</th><th>Maint runs</th><th>Required ('+ratio+')</th><th>Gap</th></tr>';
+  for(var h=0;h<24;h++){
+    var ps=0, ms=0, pc=0, mt=0;
+    for(var q=0;q<4;q++){ var i=h*4+q; ps+=data.staffedAll[i]; ms+=data.machines[i]; pc+=data.pieces[i]; mt+=data.maintMachines[i]; }
+    var gap=Math.round(ps/4*10)/10 - Math.max.apply(null,model.required.slice(h*4,h*4+4));
+    var gtxt = gap<0 ? '<span class="neg">'+gap.toFixed(1)+'</span>' : '<span class="pos">+'+gap.toFixed(1)+'</span>';
+    tbl+='<tr><td>'+("0"+h).slice(-2)+':00</td><td>'+Math.round(ps/4*10)/10+'</td><td>'+Math.round(ms/4*10)/10+
+         '</td><td>'+Math.round(pc).toLocaleString()+'</td><td>'+Math.round(mt/4*10)/10+'</td><td>'+
+         Math.max.apply(null,model.required.slice(h*4,h*4+4))+'</td><td>'+gtxt+'</td></tr>';
+  }
+  $("hourTable").innerHTML=tbl;
+  $("status").textContent="Built: "+data.spanLabel+" · "+Object.keys(S.txns.byKey).length+" employee-days · "+
+    S.runs.length+" EOR runs · group="+group+" · ratio="+ratio;
+}
+
+$("btnBuild").addEventListener("click",build);
+$("mode").addEventListener("change",build);
+$("group").addEventListener("change",build);
+$("daySel").addEventListener("change",build);
+$("chkMaintRuns").addEventListener("change",build);
+$("chkBaseFallback").addEventListener("change",build);
+</script>
+</body>
+</html>

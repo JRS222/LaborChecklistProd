@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4x10 Data Studio — NMARS + WebEOR presentation builder</title>
+<style>
+  :root{
+    --navy:#1F3864; --navy2:#2E4E8C; --red:#C8102E; --ink:#21252B; --gray:#5A606A;
+    --light:#EDF1F8; --good:#1E7A46; --warn:#B26A00; --bad:#C8102E; --line:#C9D2E4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:"Segoe UI",Calibri,Arial,sans-serif;color:var(--ink);background:#E9EDF4}
+  /* ---------- app chrome ---------- */
+  #app{padding:12px 16px 80px}
+  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);
+       border-radius:8px;padding:10px 14px;box-shadow:0 1px 3px rgba(15,30,60,.08)}
+  .bar h1{font-size:17px;margin:0;color:var(--navy)}
+  .bar .brand small{display:block;font-weight:normal;color:var(--gray)}
+  .bar label{font-size:12px;color:var(--gray);font-weight:600}
+  .bar input[type=text]{width:110px;padding:4px 6px;border:1px solid var(--line);border-radius:4px}
+  button{cursor:pointer;border:0;border-radius:5px;padding:7px 12px;font-weight:600;font-size:13px;background:var(--navy);color:#fff}
+  button.ghost{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+  button:hover{filter:brightness(1.12)}
+  .spacer{flex:1}
+  #status{font-size:12px;color:var(--gray)}
+  /* ---------- file panel ---------- */
+  #panel{display:flex;gap:14px;margin-top:12px}
+  #drop{width:330px;flex:0 0 330px;background:#fff;border:2px dashed var(--line);border-radius:8px;
+        padding:18px;text-align:center;color:var(--gray);font-size:13px}
+  #drop.hot{border-color:var(--red);background:#FDF0F2}
+  #drop b{color:var(--navy)}
+  #files{flex:1;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:220px}
+  #files table{width:100%;border-collapse:collapse;font-size:12px}
+  #files th{background:var(--navy);color:#fff;text-align:left;padding:5px 8px;position:sticky;top:0}
+  #files td{padding:4px 8px;border-bottom:1px solid #EDF0F6}
+  .tag{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700}
+  .tag.ok{background:#E4F3EA;color:var(--good)}
+  .tag.warn{background:#FBF0E2;color:var(--warn)}
+  .tag.err{background:#FBE4E7;color:var(--bad)}
+  /* ---------- deck ---------- */
+  #deckWrap{margin-top:14px}
+  #deckBar{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  #deckBar .t{font-weight:700;color:var(--navy)}
+  #slideNo{font-size:12px;color:var(--gray);min-width:70px}
+  .deck{background:#B9C2D4;border-radius:8px;padding:18px;overflow:auto;margin-top:8px}
+  .slide{width:1280px;height:720px;background:#fff;margin:0 auto 14px;position:relative;overflow:hidden;
+         box-shadow:0 2px 10px rgba(10,25,50,.35);font-family:"Segoe UI",Calibri,Arial,sans-serif}
+  .slide .head{position:absolute;left:0;top:0;right:0;height:64px;background:var(--navy);color:#fff}
+  .slide .head .k{position:absolute;left:28px;top:10px;font-size:12px;letter-spacing:1px;color:#F2B8C3;font-weight:700}
+  .slide .head .t{position:absolute;left:28px;top:26px;font-size:25px;font-weight:700}
+  .slide .head .rule{position:absolute;left:0;right:0;top:64px;height:4px;background:var(--red)}
+  .slide .foot{position:absolute;left:28px;bottom:12px;right:28px;font-size:10.5px;color:var(--gray)}
+  .slide .body{position:absolute;left:28px;right:28px;top:92px;bottom:30px}
+  .kpirow{display:flex;gap:14px;margin-bottom:14px}
+  .kpi{flex:1;background:var(--light);border-radius:8px;padding:12px 14px;border-top:4px solid var(--navy)}
+  .kpi .v{font-size:30px;font-weight:800;color:var(--navy)}
+  .kpi .l{font-size:12.5px;color:var(--gray);font-weight:600;margin-top:2px}
+  .kpi .s{font-size:11px;font-weight:700;margin-top:3px}
+  .s.good{color:var(--good)} .s.warn{color:var(--warn)} .s.bad{color:var(--bad)} .s.na{color:var(--gray)}
+  .cols{display:flex;gap:14px}
+  .col{flex:1}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+  .card h3{margin:0 0 8px;font-size:14px;color:var(--navy)}
+  canvas{width:100%;height:auto}
+  table.data{width:100%;border-collapse:collapse;font-size:11.5px}
+  table.data th{background:var(--navy);color:#fff;padding:4px 6px;text-align:left}
+  table.data td{padding:3px 6px;border-bottom:1px solid #EDF0F6}
+  table.data tr:nth-child(even) td{background:#F7F9FD}
+  .bullets{font-size:15px;line-height:1.55}
+  .bullets li{margin-bottom:8px}
+  .bullets b.lead{color:var(--red)}
+  .note{font-size:11.5px;color:var(--gray);font-style:italic}
+  .titleSlide{background:var(--navy);color:#fff}
+  .titleSlide .t1{position:absolute;left:60px;top:120px;font-size:52px;font-weight:800}
+  .titleSlide .t2{position:absolute;left:60px;top:205px;font-size:22px;color:#DCE4F5}
+  .titleSlide .t3{position:absolute;left:60px;top:300px;width:1150px;font-size:16px;line-height:1.7;color:#E8EDF8}
+  .titleSlide .redbar{position:absolute;left:0;bottom:0;width:100%;height:34px;background:var(--red)}
+  .titleSlide .lr{position:absolute;left:60px;top:76px;width:5px;height:300px;background:var(--red)}
+  /* ---------- print ---------- */
+  @media print{
+    body{background:#fff}
+    #app,#deckBar{display:none}
+    #deckWrap{margin:0}
+    .deck{padding:0;background:#fff;border-radius:0}
+    .slide{box-shadow:none;margin:0;page-break-after:always;width:1280px;height:720px}
+  }
+  @page{size:1280px 720px;margin:0}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="bar">
+    <h1>4&#215;10 Data Studio
+      <small>ingest NMARS + WebEOR report runs &rarr; build the Modified Work Week presentation</small>
+    </h1>
+    <div class="spacer"></div>
+    <label>Site ID</label><input type="text" id="siteId" placeholder="19101">
+    <label>FY</label><input type="text" id="fy" placeholder="2026" style="width:64px">
+    <label>APs</label><input type="text" id="aps" placeholder="1-13" style="width:64px">
+    <button id="btnFolder">&#128194; Load report folder</button>
+    <button id="btnFiles" class="ghost">Load files</button>
+    <button id="btnBuild">&#9654; Build deck</button>
+  </div>
+
+  <div id="panel">
+    <div id="drop">
+      <b>Drop the NMARS-WebEOR_&#8230; folder here</b><br>
+      (or use the buttons above)<br><br>
+      Reports recognized: eCBM completion, bypassed tasks, PM trends, contract cost,
+      equipment inventory, parts issues, stock room, acronym listing,
+      WebEOR production / maintenance / run-vs-plan CSVs, machine mapping, manifest.
+    </div>
+    <div id="filesWrap">
+      <div id="files"><table><thead><tr><th>File</th><th>Type</th><th>Rows</th><th>Status</th></tr></thead>
+      <tbody id="filesBody"><tr><td colspan="4" style="color:var(--gray)">No files loaded yet.</td></tr></tbody></table></div>
+    </div>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div id="deckWrap" hidden>
+  <div id="deckBar">
+    <span class="t">Presentation</span>
+    <button id="btnPrev">&#9664; Prev</button>
+    <button id="btnNext">Next &#9654;</button>
+    <span id="slideNo">1 / 1</span>
+    <div class="spacer"></div>
+    <button id="btnCopy" class="ghost">Copy scorecard</button>
+    <button id="btnJson" class="ghost">Export data (JSON)</button>
+    <button id="btnPrint">&#128424; Print / save PDF</button>
+    <button id="btnBack" class="ghost">&#8592; Back to files</button>
+  </div>
+  <div class="deck" id="deck"></div>
+</div>
+
+<input type="file" id="inpFolder" webkitdirectory multiple hidden>
+<input type="file" id="inpFiles" multiple hidden>
+
+<script>
+/* ================= CORE (pure: parsing + metrics; no DOM) ================= */
+"use strict";
+var CORE = (function(){
+  function csvParse(text){
+    var rows=[], row=[], cur="", inQ=false;
+    text = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    for (var i=0;i<text.length;i++){
+      var c=text[i];
+      if(inQ){
+        if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+        else cur+=c;
+      } else {
+        if(c==='"') inQ=true;
+        else if(c===','){row.push(cur);cur="";}
+        else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+        else cur+=c;
+      }
+    }
+    if(cur!=="" || row.length){row.push(cur);rows.push(row);}
+    while(rows.length && rows[rows.length-1].length===1 && rows[rows.length-1][0].trim()==="") rows.pop();
+    // strip BOM and trailing empty cells (real WebEOR exports have both)
+    if(rows.length && rows[0].length && rows[0][0].charCodeAt(0)===0xFEFF){ rows[0][0]=rows[0][0].slice(1); }
+    rows.forEach(function(r){ while(r.length && String(r[r.length-1]).trim()==="") r.pop(); });
+    return rows;
+  }
+  function cellText(el){ return (el.innerText||el.textContent||"").replace(/\s+/g," ").trim(); }
+  function regexTables(html){
+    // fallback table extractor for NMARS-style tables (no DOMParser available)
+    var out=[];
+    var re=/\<table[\s\S]*?\<\/table\>/gi, m;
+    while((m=re.exec(html))){
+      var t=m[0], headers=[], rows=[];
+      var trs=t.match(/<tr[\s\S]*?<\/tr>/gi)||[];
+      trs.forEach(function(tr){
+        var cells=[];
+        var cre=/<t[hd][\s\S]*?<\/t[hd]>/gi, c;
+        while((c=cre.exec(tr))){ cells.push(c[0].replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()); }
+        if(!cells.length) return;
+        var hasTh=/<th/i.test(tr);
+        if(hasTh && !headers.length){ headers=cells; } else { rows.push(cells); }
+      });
+      // NMARS tables often put <TH> header cells directly in <TABLE> (no <TR>)
+      if(!headers.length){
+        var ths=t.match(/<th[\s\S]*?<\/th>/gi)||[];
+        if(ths.length){
+          headers=ths.map(function(h){ return h.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim(); });
+          // drop any TH that also appeared inside a TR to avoid duplicates
+          if(rows.length && rows[0].length===headers.length){
+            var same=true;
+            for(var d=0;d<headers.length;d++){ if(rows[0][d]!==headers[d]){same=false;break;} }
+            if(same) rows=rows.slice(1);
+          }
+        }
+      }
+      if(!headers.length && rows.length){
+        var first=rows[0], headerish = first.every(function(cell){ return cell!=="" && !/^\$?[\d,.\-]+%?$/.test(cell); });
+        if(headerish){ headers=first; rows=rows.slice(1); }
+      }
+      out.push({headers:headers, rows:rows});
+    }
+    return out;
+  }
+  function htmlTables(html){
+    if(typeof DOMParser!=="undefined"){
+      var doc = new DOMParser().parseFromString(html,"text/html");
+      var out=[];
+      var tables = doc.querySelectorAll("table");
+      tables.forEach(function(tbl){
+        var headers=[], rows=[];
+        var trs = tbl.querySelectorAll("tr");
+        for(var i=0;i<trs.length;i++){
+          var tr=trs[i], cells=[];
+          var cs = tr.querySelectorAll("th,td");
+          cs.forEach(function(td){ cells.push(cellText(td)); });
+          if(!cells.length) continue;
+          var hasTh = tr.querySelector("th");
+          if(hasTh && !headers.length){ headers=cells; }
+          else { rows.push(cells); }
+        }
+        // NMARS tables often put <TH> header cells directly in <TABLE> (no <TR>)
+        if(!headers.length){
+          var bare=[];
+          for(var k=0;k<tbl.children.length;k++){
+            var el=tbl.children[k];
+            if(el.tagName==="TH") bare.push(cellText(el));
+          }
+          if(bare.length) headers=bare;
+        }
+        if(!headers.length && rows.length){
+          var first=rows[0], headerish = first.every(function(c){ return c!=="" && !/^\$?[\d,.\-]+%?$/.test(c); });
+          if(headerish){ headers=first; rows=rows.slice(1); }
+        }
+        out.push({headers:headers, rows:rows});
+      });
+      return out;
+    }
+    return regexTables(html);
+  }
+  function classify(name){
+    name=(name||"").toLowerCase();
+    if(name.endsWith(".csv")===false && !name.endsWith(".html") && !name.endsWith(".htm")) return null;
+    if(/manifest/.test(name)) return "MANIFEST";
+    if(name.endsWith(".csv")){
+      if(/eor_runs/.test(name)) return "EOR_RUNS";
+      if(/eor_maint/.test(name)) return "EOR_MAINT";
+      if(/^eor/i.test(name)) return "EOR_ALL";
+      if(/rpg/.test(name) && /runv/.test(name)) return "RPG_RUNVSPLAN";
+      if(/mapping/.test(name)) return "MAPPING";
+      if(/staffing.*table|calculated.*staffing|cstaff/i.test(name)) return "STAFF_CSV";
+      if(/actuals|emars|labor/i.test(name)) return "EMARS_ACTUALS";
+      return "CSV_OTHER";
+    }
+    if(/staffing/i.test(name)) return "STAFF_REPORT";
+    if(/pm4wks_site/.test(name)) return "PM4WKS_SITE";
+    if(/pm4wks_nat/.test(name))  return "PM4WKS_NAT";
+    if(/pm4wks_area/.test(name)) return "PM4WKS_AREA";
+    if(/pm4wks_dist/.test(name)) return "PM4WKS_DIST";
+    if(/pmarea_site/.test(name)) return "PMAREA_SITE";
+    if(/pmarea_area/.test(name)) return "PMAREA_AREA";
+    if(/bypassed/.test(name))    return "BYPASSED";
+    if(/trends_site/.test(name)) return "TRENDS_SITE";
+    if(/trends_nat/.test(name))  return "TRENDS_NAT";
+    if(/trends_area/.test(name)) return "TRENDS_AREA";
+    if(/contract_site/.test(name)) return "CONTRACT_SITE";
+    if(/contract_nat/.test(name))  return "CONTRACT_NAT";
+    if(/contract_area/.test(name)) return "CONTRACT_AREA";
+    if(/equip_site/.test(name)) return "EQUIP_SITE";
+    if(/equip_nat/.test(name))  return "EQUIP_NAT";
+    if(/issues_site/.test(name)) return "ISSUES_SITE";
+    if(/issues_nat/.test(name))  return "ISSUES_NAT";
+    if(/stock/.test(name))      return "STOCK";
+    if(/acronym/.test(name))    return "ACRONYMS";
+    return "HTML_OTHER";
+  }
+  function num(v){
+    if(v===null||v===undefined) return null;
+    var s=String(v).replace(/[$,%\s]/g,"").replace(/\((\d[\d,.]*)\)/,"-$1");
+    if(s===""||s==="-") return null;
+    var n=parseFloat(s.replace(/,/g,""));
+    return isFinite(n)?n:null;
+  }
+  function pctOf(v){ // percent cell: "98.4%" or "98.4"
+    if(v===null||v===undefined) return null;
+    var s=String(v).trim();
+    if(!s) return null;
+    var hasPct=/%/.test(s);
+    var n=num(s);
+    if(n===null) return null;
+    if(!hasPct && (n<0||n>100)) return null;
+    return n;
+  }
+  function headerIdx(headers, re){
+    for(var i=0;i<headers.length;i++){ if(re.test(headers[i])) return i; }
+    return -1;
+  }
+  function dateParse(v){
+    if(!v) return null;
+    var s=String(v).trim();
+    if(!s) return null;
+    var m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    var t=s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    var d=null;
+    if(m){ var yr=+m[3]; if(m[3].length===2){ yr += (yr<70?2000:1900); } d=new Date(yr, +m[1]-1, +m[2]); }
+    if(t && d){ var h=+t[1]; if(t[4]&&t[4].toUpperCase()==="PM"&&h<12)h+=12; if(t[4]&&t[4].toUpperCase()==="AM"&&h===12)h=0;
+      d.setHours(h, +t[2], t[3]?+t[3]:0); }
+    return (d && !isNaN(d.getTime())) ? d : null;
+  }
+  function minutesBetween(a,b){ if(!a||!b) return null; return Math.round((b.getTime()-a.getTime())/60000); }
+
+  /* ---- metric extraction ---- */
+  function extract(reports){
+    var M = { files:0, rows:0, types:{} };
+    Object.keys(reports).forEach(function(t){
+      M.types[t]=reports[t].length;
+      reports[t].forEach(function(r){ M.files++; M.rows += r.rows ? r.rows.length : 0; });
+    });
+
+    // PM completion (site/area/district/national scope files)
+    var comp = {vals:[], below100:0, avg:null, min:null, max:null, chart:{labels:[], values:[]}, bench:null};
+    ["PM4WKS_SITE","PM4WKS_NAT","PM4WKS_AREA","PM4WKS_DIST","PMAREA_SITE","PMAREA_AREA"].forEach(function(t){
+      (reports[t]||[]).forEach(function(r){
+        (r.tables||[]).forEach(function(tbl){
+          var pctCol=-1; var labelCol=0;
+          for(var i=0;i<tbl.headers.length;i++){
+            if(pctCol<0 && /%|percent|completion|comp/i.test(tbl.headers[i])) pctCol=i;
+          }
+          if(pctCol<0){ // first numeric-looking column with values 0-100
+            for(var j=0;j<tbl.headers.length;j++){
+              var ok=true, cnt=0;
+              for(var k=0;k<Math.min(tbl.rows.length,6);k++){ var v=pctOf(tbl.rows[k][j]); if(v===null){ok=false;break;} cnt++; }
+              if(ok&&cnt>0){ pctCol=j; break; }
+            }
+          }
+          if(pctCol>=0){
+            tbl.rows.forEach(function(row){
+              var v=pctOf(row[pctCol]); if(v===null) return;
+              comp.vals.push(v);
+              if(v<100) comp.below100++;
+              var lab=row[labelCol]||("row "+comp.vals.length);
+              comp.chart.labels.push(String(lab).slice(0,18));
+              comp.chart.values.push(v);
+            });
+          }
+          // benchmark column (national/division/area values)
+          var bidx=headerIdx(tbl.headers, /national|division|area|region/i);
+          if(bidx>=0){
+            for(var r2=0;r2<tbl.rows.length;r2++){
+              var bv=pctOf(tbl.rows[r2][bidx]);
+              if(bv!==null){ comp.bench=bv; break; }
+            }
+          }
+        });
+      });
+    });
+    if(comp.vals.length){
+      var sum=0; comp.min=999; comp.max=-1;
+      comp.vals.forEach(function(v){ sum+=v; if(v<comp.min)comp.min=v; if(v>comp.max)comp.max=v; });
+      comp.avg=sum/comp.vals.length;
+    }
+    var ch=[];
+    for(var ci=0;ci<comp.chart.values.length;ci++){ ch.push({label:comp.chart.labels[ci], value:comp.chart.values[ci]}); }
+    ch.sort(function(a,b){return b.value-a.value;});
+    comp.chart.labels = ch.slice(0,10).map(function(x){return x.label;});
+    comp.chart.values = ch.slice(0,10).map(function(x){return x.value;});
+    M.completion=comp;
+
+    // Bypassed tasks
+    var by={total:0, perAcronym:{}, monthly:{}, chart:{labels:[],values:[]}};
+    (reports.BYPASSED||[]).forEach(function(r){
+      var acr=(r.acronym||r.name||"").replace(/^.*_([A-Z0-9%\-]+)\.html$/i,"$1").toUpperCase();
+      var n=(r.tables||[]).reduce(function(a,t){return a+t.rows.length;},0);
+      by.total+=n; by.perAcronym[acr]=(by.perAcronym[acr]||0)+n;
+      (r.tables||[]).forEach(function(tbl){
+        tbl.rows.forEach(function(row){
+          row.forEach(function(cell){
+            var d=dateParse(cell);
+            if(d){ var k=(d.getMonth()+1)+"/"+d.getFullYear(); by.monthly[k]=(by.monthly[k]||0)+1; }
+          });
+        });
+      });
+    });
+    var mk=Object.keys(by.monthly).sort(function(a,b){ var aa=a.split("/"),bb=b.split("/"); return (+aa[1]-+bb[1])||(+aa[0]-+bb[0]); });
+    by.chart.labels=mk; by.chart.values=mk.map(function(k){return by.monthly[k];});
+    M.bypassed=by;
+
+    // Trends
+    var tr={chart:null};
+    (["TRENDS_SITE","TRENDS_NAT","TRENDS_AREA"]).forEach(function(t){
+      (reports[t]||[]).forEach(function(r){
+        (r.tables||[]).forEach(function(tbl){
+          if(tr.chart) return;
+          if(tbl.headers.length>=2 && tbl.rows.length>=2){
+            var numeric=[];
+            for(var i=1;i<tbl.headers.length;i++){
+              var ok=true;
+              for(var k=0;k<Math.min(tbl.rows.length,4);k++){ if(num(tbl.rows[k][i])===null){ok=false;break;} }
+              if(ok) numeric.push(i);
+            }
+            if(numeric.length){
+              var labels=tbl.rows.map(function(row){return String(row[0]).slice(0,14);});
+              var series=numeric.slice(0,3).map(function(ci){
+                return {name:String(tbl.headers[ci]).slice(0,16), data:tbl.rows.map(function(row){return num(row[ci]);})};
+              });
+              tr.chart={labels:labels, series:series};
+            }
+          }
+        });
+      });
+    });
+    M.trends=tr;
+
+    // Contract cost
+    var cc={total:0, scopes:{}};
+    (["CONTRACT_SITE","CONTRACT_NAT","CONTRACT_AREA"]).forEach(function(t){
+      (reports[t]||[]).forEach(function(r){
+        var sum=0;
+        (r.tables||[]).forEach(function(tbl){
+          tbl.rows.forEach(function(row){
+            row.forEach(function(cell){
+              if(/^\s*\$/.test(cell)||/^\s*\(?\$?[\d,]+\.\d{2}\s*\)?$/.test(cell)){
+                var n=num(cell); if(n!==null) sum+=n;
+              }
+            });
+          });
+        });
+        cc.scopes[t]=(cc.scopes[t]||0)+sum;
+        cc.total+=sum;
+      });
+    });
+    M.contract=cc;
+
+    // Equipment inventory
+    var eq={total:0, byCondition:{}};
+    (["EQUIP_SITE","EQUIP_NAT"]).forEach(function(t){
+      (reports[t]||[]).forEach(function(r){
+        (r.tables||[]).forEach(function(tbl){
+          var cidx=headerIdx(tbl.headers,/cond/i);
+          tbl.rows.forEach(function(row){
+            eq.total++;
+            if(cidx>=0){ var c=String(row[cidx]||"?").trim()||"?"; eq.byCondition[c]=(eq.byCondition[c]||0)+1; }
+            else { eq.byCondition["(all)"]=(eq.byCondition["(all)"]||0)+1; }
+          });
+        });
+      });
+    });
+    M.equip=eq;
+
+    // Issues stocked
+    var isu={total:0, qty:null, usage:null};
+    (["ISSUES_SITE","ISSUES_NAT"]).forEach(function(t){
+      (reports[t]||[]).forEach(function(r){
+        (r.tables||[]).forEach(function(tbl){
+          var qidx=headerIdx(tbl.headers,/qty|quantity|issued/i);
+          var uidx=headerIdx(tbl.headers,/usage/i);
+          tbl.rows.forEach(function(row){
+            isu.total++;
+            if(qidx>=0){ var q=num(row[qidx]); if(q!==null) isu.qty=(isu.qty||0)+q; }
+            if(uidx>=0){ var u=num(row[uidx]); if(u!==null) isu.usage=(isu.usage||0)+u; }
+          });
+        });
+      });
+    });
+    M.issues=isu;
+
+    // Stock room
+    var st={parts:0, qty:null, usage:null};
+    (reports.STOCK||[]).forEach(function(r){
+      (r.tables||[]).forEach(function(tbl){
+        var qidx=headerIdx(tbl.headers,/^qty|qty\b|on hand|boh/i);
+        var uidx=headerIdx(tbl.headers,/13 period|usage/i);
+        tbl.rows.forEach(function(row){
+          st.parts++;
+          if(qidx>=0){ var q=num(row[qidx]); if(q!==null) st.qty=(st.qty||0)+q; }
+          if(uidx>=0){ var u=num(row[uidx]); if(u!==null) st.usage=(st.usage||0)+u; }
+        });
+      });
+    });
+    M.stock=st;
+
+    // Acronyms
+    var ac={total:0, active:0};
+    (reports.ACRONYMS||[]).forEach(function(r){
+      (r.tables||[]).forEach(function(tbl){
+        var sidx=headerIdx(tbl.headers,/^status|status/i);
+        tbl.rows.forEach(function(row){
+          ac.total++;
+          if(sidx>=0 && /^A/i.test(String(row[sidx]||"").trim())) ac.active++;
+        });
+      });
+    });
+    M.acronyms=ac;
+
+    // ---- WebEOR ----
+    function csvRows(list){
+      var out=[]; var hdr=null;
+      (list||[]).forEach(function(r){
+        if(!r.rows) return;
+        r.rows.forEach(function(row,i){
+          var k=row.join("\u0001");
+          if(hdr===null && i===0){ hdr=k; out.push(row); }
+          else if(k!==hdr){ out.push(row); }
+        });
+      });
+      return out;
+    }
+    function csvIdx(headers, re){ return headerIdx(headers,re); }
+    function sumCol(rows, i){ var s=0,n=0; rows.forEach(function(r){ var v=num(r[i]); if(v!==null){s+=v;n++;} }); return {sum:s,n:n}; }
+
+    function eorAnalyze(list, isMaint, mode){
+      // per-file analysis: each file keeps its own header/columns, results merge
+      var agg = {runs:0, fed:0, minutes:0, down:0, idle:0, jam:0, maint:0,
+                 byTour:{}, byAp:{}, perM:{}, perMach:{}};
+      (list||[]).forEach(function(r){
+        var rows=r.rows;
+        if(!rows || rows.length<2) return;
+        var h=rows[0]; // this file's header
+        var idx={tour:csvIdx(h,/^tour/i), start:csvIdx(h,/^start/i), end:csvIdx(h,/^end/i),
+                 fed:csvIdx(h,/^fed|pieces/i), down:csvIdx(h,/^down/i), idle:csvIdx(h,/^idle/i),
+                 jam:csvIdx(h,/^jam/i), maint:csvIdx(h,/maint/i), ap:csvIdx(h,/^ap$/i),
+                 mtype:csvIdx(h,/^mtype|machine type/i)};
+        var data=rows.slice(1);
+        // real WebEOR exports mark maintenance runs with MODS="M" — split when asked
+        if(mode){
+          var mIdx=csvIdx(h,/^mods/i);
+          if(mIdx>=0){
+            data = data.filter(function(row){
+              var isM = String(row[mIdx]||"").trim().toUpperCase()==="M";
+              return mode==="maint" ? isM : !isM;
+            });
+          }
+        }
+        data.forEach(function(row){
+          var st=dateParse(row[idx.start]), en=dateParse(row[idx.end]);
+          var mins=minutesBetween(st,en);
+          var fed = idx.fed>=0 ? (num(row[idx.fed])||0) : 0;
+          agg.fed+=fed;
+          if(mins!==null) agg.minutes+=Math.max(0,mins);
+          if(idx.down>=0)  agg.down += (num(row[idx.down])||0);
+          if(idx.idle>=0)  agg.idle += (num(row[idx.idle])||0);
+          if(idx.jam>=0)   agg.jam  += (num(row[idx.jam])||0);
+          if(idx.maint>=0) agg.maint+= (num(row[idx.maint])||0);
+          var tour = idx.tour>=0 ? String(row[idx.tour]||"?").trim() : "?";
+          var ap   = idx.ap>=0   ? String(row[idx.ap]||"?").trim()   : "?";
+          agg.byTour[tour]=agg.byTour[tour]||{runs:0,fed:0,minutes:0,down:0,idle:0,jam:0,maint:0};
+          var bt=agg.byTour[tour];
+          bt.runs++; bt.fed+=fed;
+          if(mins!==null) bt.minutes+=Math.max(0,mins);
+          if(idx.down>=0) bt.down+=(num(row[idx.down])||0);
+          if(idx.idle>=0) bt.idle+=(num(row[idx.idle])||0);
+          if(idx.jam>=0)  bt.jam +=(num(row[idx.jam])||0);
+          if(idx.maint>=0)bt.maint+=(num(row[idx.maint])||0);
+          agg.byAp[ap]=agg.byAp[ap]||{runs:0,minutes:0,fed:0,down:0};
+          agg.byAp[ap].runs++; agg.byAp[ap].fed+=fed;
+          if(mins!==null) agg.byAp[ap].minutes+=Math.max(0,mins);
+          if(idx.down>=0) agg.byAp[ap].down+=(num(row[idx.down])||0);
+          var mkey=idx.mtype>=0?String(row[idx.mtype]||"?")+" "+(row[2]||""):"";
+          if(idx.down>=0){ var dv=num(row[idx.down])||0; agg.perM[mkey]=(agg.perM[mkey]||0)+dv; }
+          // MODS-day coverage per machine (tours/day, days/week)
+          if(st){
+            var modsD=new Date(st.getTime()+3600000);
+            var dkey=modsD.getFullYear()+"-"+(modsD.getMonth()+1)+"-"+modsD.getDate();
+            var wd=new Date(modsD); wd.setDate(wd.getDate()-wd.getDay());
+            var wkey=wd.getFullYear()+"-"+(wd.getMonth()+1)+"-"+wd.getDate();
+            agg.perMach[mkey]=agg.perMach[mkey]||{days:{},tours:{},weeks:{}};
+            agg.perMach[mkey].days[dkey]=1;
+            agg.perMach[mkey].tours[dkey+"|"+tour]=1;
+            agg.perMach[mkey].weeks[wkey]=1;
+          }
+        });
+        agg.runs+=data.length;
+      });
+      if(agg.runs===0) return {runs:0};
+      var tpd=[], dpw=[];
+      Object.keys(agg.perMach).forEach(function(k){
+        var pm=agg.perMach[k];
+        var dn=Object.keys(pm.days).length, wn=Object.keys(pm.weeks).length;
+        if(dn>0) tpd.push(Object.keys(pm.tours).length/dn);
+        if(wn>0) dpw.push(dn/wn);
+      });
+      var out=agg;
+      out.avgToursPerDay = tpd.length? tpd.reduce(function(a,b){return a+b;},0)/tpd.length : null;
+      out.avgDaysPerWeek = dpw.length? dpw.reduce(function(a,b){return a+b;},0)/dpw.length : null;
+      out.avgWindow = out.minutes/Math.max(1,out.runs);
+      var tm=Object.keys(agg.perM).map(function(k){return {label:k,value:agg.perM[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,8);
+      out.topDown={labels:tm.map(function(x){return x.label.slice(0,14);}), values:tm.map(function(x){return x.value;})};
+      out.pctOfRun = function(v){ return out.minutes? (v/out.minutes*100):0; };
+      out.label = isMaint?"maintenance":"production";
+      return out;
+    }
+
+    function mergeEor(a, b){
+      if(a.runs>0) return a;           // explicit maintenance-runs file wins
+      if(b.runs>0) return b;           // else rows split out of a combined export
+      return {runs:0};
+    }
+    var allEor = (reports.EOR_RUNS||[]).concat(reports.EOR_ALL||[]);
+    var prodFromAll  = eorAnalyze(allEor, false, "prod");
+    var maintFromAll = eorAnalyze(allEor, true,  "maint");
+    var maintFromFile= eorAnalyze(reports.EOR_MAINT||[], true, null);
+    M.eorRuns  = prodFromAll;
+    M.eorMaint = mergeEor(maintFromFile, maintFromAll);
+
+    // Run vs RPG plan
+    var rv={plan:null, actual:null, note:""};
+    var rpgRows=csvRows(reports.RPG_RUNVSPLAN);
+    if(rpgRows.length){
+      var hh=rpgRows[0];
+      var pidx=csvIdx(hh,/plan|projected/i), aidx=csvIdx(hh,/actual|run/i);
+      if(pidx<0||aidx<0||pidx===aidx){
+        // fallback: first numeric col = actual
+        for(var z=0;z<hh.length;z++){ var ok2=true; for(var q=1;q<Math.min(6,rpgRows.length);q++){ if(num(rpgRows[q][z])===null){ok2=false;break;} } if(ok2){aidx=z;break;} }
+        rv.note="Plan column not auto-detected — showing first numeric column as actual. Check the CSV headers.";
+      }
+      var data=rpgRows.slice(1);
+      var p=pidx>=0?sumCol(data,pidx):null, a=aidx>=0?sumCol(data,aidx):null;
+      rv.plan=(p&&p.sum)||null; rv.actual=(a&&a.sum)||null;
+      rv.rows=data.length;
+      rv.headers=hh;
+      rv.preview=data.slice(0,12);
+    }
+    M.rpg=rv;
+
+    // Mapping
+    var mp={total:0, byType:{}, status:{}};
+    var mapRows=csvRows(reports.MAPPING);
+    if(mapRows.length){
+      var mh=mapRows[0];
+      var tIdx=csvIdx(mh,/machine type|mtype/i), sIdx=csvIdx(mh,/status/i);
+      mapRows.slice(1).forEach(function(row){
+        mp.total++;
+        if(tIdx>=0){ var t=String(row[tIdx]||"?"); mp.byType[t]=(mp.byType[t]||0)+1; }
+        if(sIdx>=0){ var s=String(row[sIdx]||"?"); mp.status[s]=(mp.status[s]||0)+1; }
+      });
+    }
+    M.mapping=mp;
+
+    // ---- Staffing & labor (Machine Checker + Staffing Calculator + eMARS actuals) ----
+    var stf = { report:null, csv:null, actuals:null, session:null };
+    function craftIdxs(headers){
+      var o={};
+      headers.forEach(function(h,i){
+        if(/MM\s*7/i.test(h) && o.mm7===undefined) o.mm7=i;
+        if(/MPE\s*9/i.test(h) && o.mpe9===undefined) o.mpe9=i;
+        if(/ET\s*10/i.test(h) && o.et10===undefined) o.et10=i;
+      });
+      return o;
+    }
+    // Machine Staffing Report (HTML summary: per-machine staffing vs calculated by craft)
+    var repTabs=[];
+    (reports.STAFF_REPORT||[]).forEach(function(r){ (r.tables||[]).forEach(function(t){ repTabs.push(t); }); });
+    if(repTabs.length){
+      var tot={machines:0, mm7:{staff:0,calc:0}, mpe9:{staff:0,calc:0}, et10:{staff:0,calc:0}};
+      repTabs.forEach(function(tbl){
+        var i1=[],i2=[],i3=[];
+        tbl.headers.forEach(function(h,i){
+          if(/MM\s*7/i.test(h)) i1.push(i);
+          if(/MPE\s*9/i.test(h)) i2.push(i);
+          if(/ET\s*10/i.test(h)) i3.push(i);
+        });
+        if(!i1.length || !i2.length || !i3.length) return;
+        function vi(row,arr,second){ var i= second?(arr[1]!==undefined?arr[1]:null):arr[0]; return (i===null||i===undefined||i>=row.length)?null:num(row[i]); }
+        tbl.rows.forEach(function(row){
+          var s=[vi(row,i1,false),vi(row,i2,false),vi(row,i3,false)];
+          var c=[vi(row,i1,true),vi(row,i2,true),vi(row,i3,true)];
+          if(s.every(function(x){return x===null;}) && c.every(function(x){return x===null;})) return;
+          tot.machines++;
+          tot.mm7.staff+=(s[0]||0); tot.mm7.calc+=(c[0]||0);
+          tot.mpe9.staff+=(s[1]||0); tot.mpe9.calc+=(c[1]||0);
+          tot.et10.staff+=(s[2]||0); tot.et10.calc+=(c[2]||0);
+        });
+      });
+      if(tot.machines) stf.report=tot;
+    }
+    // Staffing-table CSVs (MMO-*-Staffing-Table.csv / Calculated-Staffing-Table.csv)
+    (reports.STAFF_CSV||[]).forEach(function(r){
+      if(stf.csv) return;
+      var rows=r.rows||[]; if(rows.length<2) return;
+      var h=rows[0];
+      var idx={mm7:headerIdx(h,/MM\s*7/i), mpe9:headerIdx(h,/MPE\s*9/i), et10:headerIdx(h,/ET\s*10/i),
+               total:headerIdx(h,/total/i), maint:headerIdx(h,/operational maintenance/i),
+               tpd:headerIdx(h,/tours\/day|tours per day/i)};
+      var c={machines:0, mm7:0, mpe9:0, et10:0, total:0, maint:0, toursDaySum:0, toursDayN:0};
+      rows.slice(1).forEach(function(row){
+        c.machines++;
+        if(idx.mm7>=0)  c.mm7  += (num(row[idx.mm7])||0);
+        if(idx.mpe9>=0) c.mpe9 += (num(row[idx.mpe9])||0);
+        if(idx.et10>=0) c.et10 += (num(row[idx.et10])||0);
+        if(idx.total>=0)c.total+= (num(row[idx.total])||0);
+        if(idx.maint>=0)c.maint+= (num(row[idx.maint])||0);
+        if(idx.tpd>=0){ var t=num(row[idx.tpd]); if(t!==null){ c.toursDaySum+=t; c.toursDayN++; } }
+      });
+      if(c.machines){ c.avgToursDay = c.toursDayN? c.toursDaySum/c.toursDayN : null; stf.csv=c; }
+    });
+    // Staffing Calculator session JSON (staffing-calculator-session-v1)
+    var sess=(reports.STAFF_SESSION||[])[0];
+    if(sess && sess.json){
+      var s=sess.json, o2={machines:0, mgmt:{mm7:0,mpe9:0,et10:0}, calc:{total:0,maint:0,mm7:0,mpe9:0,et10:0}, tpdSum:0,tpdN:0,dpwSum:0,dpwN:0};
+      (s.machines||[]).forEach(function(m){
+        o2.machines++;
+        var mg=m.management||{}, cl=m.calculated||{};
+        o2.mgmt.mm7+=(num(mg.MM7)||0); o2.mgmt.mpe9+=(num(mg.MPE9)||0); o2.mgmt.et10+=(num(mg.ET10)||0);
+        o2.calc.total+=(num(cl["Total (hrs/yr)"])||0);
+        o2.calc.maint+=(num(cl["Operational Maintenance (hrs/yr)"])||0);
+        o2.calc.mm7+=(num(cl.MM7)||0); o2.calc.mpe9+=(num(cl.MPE9)||0); o2.calc.et10+=(num(cl.ET10)||0);
+        if(typeof m.avgToursPerDay==="number"){o2.tpdSum+=m.avgToursPerDay;o2.tpdN++;}
+        if(typeof m.avgDaysPerWeek==="number"){o2.dpwSum+=m.avgDaysPerWeek;o2.dpwN++;}
+      });
+      o2.avgToursDay = o2.tpdN? o2.tpdSum/o2.tpdN : null;
+      o2.avgDaysWeek = o2.dpwN? o2.dpwSum/o2.dpwN : null;
+      if(o2.machines) stf.session=o2;
+    }
+    // eMARS labor-transaction export (columns by header name)
+    var act=(reports.EMARS_ACTUALS||[])[0];
+    if(act && act.rows && act.rows.length>1){
+      var h=act.rows[0];
+      var idx2={hours:headerIdx(h,/hours/i), acr:headerIdx(h,/acronym/i), mno:headerIdx(h,/machine no|machine/i),
+                lvl:headerIdx(h,/level/i), tour:headerIdx(h,/tour/i), date:headerIdx(h,/date/i), wo:headerIdx(h,/work order/i)};
+      var a={hours:0, rows:0, wos:{}, days:{}, byAcr:{}, byLvl:{}, byTour:{}};
+      act.rows.slice(1).forEach(function(row){
+        var hrs = idx2.hours>=0 ? (num(row[idx2.hours])||0) : 0;
+        a.hours+=hrs; a.rows++;
+        if(idx2.wo>=0 && row[idx2.wo] && String(row[idx2.wo]).trim()) a.wos[String(row[idx2.wo]).trim()]=1;
+        if(idx2.date>=0){ var dd=dateParse(row[idx2.date]); if(dd) a.days[dd.toDateString()]=1; }
+        if(idx2.acr>=0){ var k=String(row[idx2.acr]||"?").trim(); a.byAcr[k]=(a.byAcr[k]||0)+hrs; }
+        if(idx2.lvl>=0){ var lv=String(row[idx2.lvl]||"?").trim(); a.byLvl[lv]=(a.byLvl[lv]||0)+hrs; }
+        if(idx2.tour>=0){ var tt=String(row[idx2.tour]||"?").trim(); a.byTour[tt]=(a.byTour[tt]||0)+hrs; }
+      });
+      a.woCount=Object.keys(a.wos).length;
+      a.activeDays=Object.keys(a.days).length;
+      if(a.rows) stf.actuals=a;
+    }
+    M.staffing=stf;
+
+    return M;
+  }
+
+  return { csvParse:csvParse, htmlTables:htmlTables, classify:classify,
+           extract:extract, num:num, pctOf:pctOf, dateParse:dateParse };
+})();
+/* ================ END CORE ================ */
+</script>
+
+<script>
+/* ================= APP (DOM, deck building, charts) ================= */
+"use strict";
+var S = { reports:{}, filesMeta:[], metrics:null };
+
+function $(id){ return document.getElementById(id); }
+
+/* ---- file loading ---- */
+function handleFile(file){
+  var type=CORE.classify(file.name);
+  var status = type ? "ok" : "err";
+  var reader=new FileReader();
+  reader.onload=function(){
+    var text=reader.result;
+    var entry={name:file.name, type:type, rows:0, tables:[], acronym:null, json:null};
+    // content sniffing for JSON sessions and unnamed staffing reports
+    if(file.name.toLowerCase().endsWith(".json")){
+      try{
+        var j=JSON.parse(text);
+        if(j && (j.format==="staffing-calculator-session-v1" || (j.machines && j.machines.length))){
+          type="STAFF_SESSION"; entry.json=j;
+        }
+      }catch(e){}
+    } else if(type==="HTML_OTHER" && /staffing/i.test(text.slice(0,4000)) &&
+              /MM7|MPE9|ET10/i.test(text.slice(0,30000))){
+      type="STAFF_REPORT";
+    }
+    entry.type=type;
+    if(type==="STAFF_SESSION"){
+      entry.rows=0;
+    } else if(type==="ACRONYMS" || type==="BYPASSED" || type && type.indexOf("PM")===0 || type && type.indexOf("TRENDS")===0 ||
+       type && type.indexOf("CONTRACT")===0 || type && type.indexOf("EQUIP")===0 || type && type.indexOf("ISSUES")===0 ||
+       type==="STOCK" || type==="STAFF_REPORT" || type==="HTML_OTHER"){
+      try{ entry.tables=CORE.htmlTables(text); }catch(e){ entry.tables=[]; }
+      entry.rows=entry.tables.reduce(function(a,t){return a+t.rows.length;},0);
+    } else if(type && (type.indexOf("EOR")===0 || type==="RPG_RUNVSPLAN" || type==="MAPPING" || type==="MANIFEST" ||
+              type==="STAFF_CSV" || type==="EMARS_ACTUALS")){
+      entry.rows=CORE.csvParse(text);
+      entry.tables=entry.rows.length?[{headers:entry.rows[0], rows:entry.rows.slice(1)}]:[];
+    }
+    if(type==="BYPASSED") entry.acronym=file.name.replace(/^.*BYPASSED_([^_.]+)\.html$/i,"$1");
+    if(type && type!=="CSV_OTHER" && type!=="HTML_OTHER"){
+      S.reports[type]=S.reports[type]||[];
+      S.reports[type].push(entry);
+    }
+    S.filesMeta.push({name:file.name,type:type,rows:entry.rows,status:type?"ok":"err"});
+    renderFiles();
+  };
+  reader.readAsText(file);
+}
+
+function renderFiles(){
+  var tb=$("filesBody"); tb.innerHTML="";
+  S.filesMeta.forEach(function(f){
+    var tr=document.createElement("tr");
+    var tag = f.type==="MANIFEST" ? '<span class="tag ok">manifest</span>'
+           : f.type ? '<span class="tag '+(f.status==="ok"?"ok":"warn")+'">'+f.type+'</span>'
+           : '<span class="tag err">unrecognized</span>';
+    tr.innerHTML="<td>"+f.name+"</td><td>"+tag+"</td><td>"+(f.rows&&f.rows.length?f.rows.length:"—")+"</td><td>—</td>";
+    tb.appendChild(tr);
+  });
+  $("status").textContent = Object.keys(S.reports).length
+    ? Object.keys(S.reports).length+" report types loaded."
+    : "Drop your NMARS-WebEOR run folder to start.";
+}
+
+$("inpFolder").addEventListener("change",function(e){
+  Array.prototype.forEach.call(e.target.files,handleFile);
+  e.target.value="";
+});
+$("inpFiles").addEventListener("change",function(e){
+  Array.prototype.forEach.call(e.target.files,handleFile);
+  e.target.value="";
+});
+$("btnFolder").addEventListener("click",function(){ $("inpFolder").click(); });
+$("btnFiles").addEventListener("click",function(){ $("inpFiles").click(); });
+
+var drop=$("drop");
+["dragenter","dragover"].forEach(function(ev){
+  drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add("hot"); });
+});
+["dragleave","drop"].forEach(function(ev){
+  drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove("hot"); });
+});
+drop.addEventListener("drop",function(e){
+  var items=e.dataTransfer.items;
+  if(items && items[0] && items[0].webkitGetAsEntry){
+    var pending=[];
+    function walk(entry){
+      if(entry.isFile){
+        entry.file(function(f){ handleFile(f); });
+      } else if(entry.isDirectory){
+        var reader=entry.createReader();
+        reader.readEntries(function(ents){
+          ents.forEach(walk);
+        });
+      }
+    }
+    for(var i=0;i<items.length;i++){ var it=items[i].webkitGetAsEntry(); if(it) walk(it); }
+  } else {
+    Array.prototype.forEach.call(e.dataTransfer.files,handleFile);
+  }
+});
+
+/* ---- tiny chart renderer ---- */
+function drawBar(canvas,labels,values,opts){
+  opts=opts||{};
+  var W=canvas.width, H=canvas.height, L=Math.max(40,Math.min(110, 8*Math.max.apply(null,labels.map(function(l){return l.length;}))+12));
+  var padT=16, padB=26, padR=12;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  var max=Math.max.apply(null,values.concat([0]));
+  var n=values.length; if(!n) return;
+  var bw=(W-L-padR)/n*0.62;
+  ctx.font="10px Segoe UI";
+  ctx.textAlign="right"; ctx.textBaseline="middle";
+  for(var g=0;g<=4;g++){
+    var v=max*g/4, y=padT+(H-padT-padB)*(1-g/4);
+    ctx.strokeStyle="#E3E8F2"; ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillStyle="#7A8494";
+    ctx.fillText(v>=100?fmt0(v):(v>=10?fmt1(v):fmt1(v)),L-5,y);
+  }
+  for(var i=0;i<n;i++){
+    var v=values[i];
+    var x=L+(W-L-padR)*(i+0.5)/n;
+    var y=padT+(H-padT-padB)*(1-(max? v/max:0));
+    ctx.fillStyle=opts.color||"#2E4E8C";
+    ctx.fillRect(x-bw/2,y,bw,H-padB-y);
+    ctx.fillStyle="#3A4556"; ctx.textAlign="center";
+    ctx.save(); ctx.translate(x,H-padB+8); ctx.rotate(0);
+    var lab=labels[i]; if(lab.length>12) lab=lab.slice(0,11)+"…";
+    ctx.fillText(lab,x, H-padB+10); ctx.restore();
+  }
+}
+function drawLine(canvas,labels,series){
+  var W=canvas.width,H=canvas.height,L=42,padT=14,padB=24,padR=10;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  var max=0; series.forEach(function(s){ s.data.forEach(function(v){ if(v>max)max=v; }); });
+  var n=labels.length;
+  function X(i){ return L+(W-L-padR)*(n>1? i/(n-1):0.5); }
+  function Y(v){ return padT+(H-padT-padB)*(1-(max? v/max:0)); }
+  ctx.font="10px Segoe UI"; ctx.textAlign="right"; ctx.textBaseline="middle";
+  for(var g=0;g<=4;g++){
+    var v=max*g/4, y=Y(v);
+    ctx.strokeStyle="#E3E8F2"; ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillStyle="#7A8494"; ctx.fillText(fmt1(v),L-5,y);
+  }
+  var colors=["#C8102E","#2E4E8C","#1E7A46","#B26A00"];
+  series.forEach(function(s,si){
+    ctx.strokeStyle=colors[si%colors.length]; ctx.fillStyle=colors[si%colors.length]; ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var i=0;i<n;i++){ var x=X(i),y=Y(s.data[i]||0); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    ctx.stroke();
+    for(var j=0;j<n;j++){ ctx.beginPath(); ctx.arc(X(j),Y(s.data[j]||0),2.6,0,7); ctx.fill(); }
+  });
+  ctx.fillStyle="#3A4556"; ctx.textAlign="center";
+  for(var k=0;k<n;k++){ var lab=labels[k]; if(lab.length>10) lab=lab.slice(0,9)+"…"; ctx.fillText(lab,X(k),H-padB+8); }
+  // legend
+  ctx.textAlign="left";
+  var lx=L;
+  series.forEach(function(s,si){
+    ctx.fillStyle=colors[si%colors.length];
+    ctx.fillRect(lx,padT-10,10,10);
+    ctx.fillStyle="#3A4556";
+    ctx.fillText(s.name,lx+13,padT-4);
+    lx+=ctx.measureText(s.name).width+26;
+  });
+}
+function drawStacked(canvas,labels,series){
+  var W=canvas.width,H=canvas.height,L=42,padT=14,padB=24,padR=10;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  var n=labels.length; if(!n) return;
+  var max=0;
+  labels.forEach(function(_,i){ var s=0; series.forEach(function(ser){ s+=ser.data[i]||0; }); if(s>max)max=s; });
+  var colors=["#2E4E8C","#C8102E","#B26A00","#1E7A46","#7A8494"];
+  ctx.font="10px Segoe UI"; ctx.textAlign="right"; ctx.textBaseline="middle";
+  for(var g=0;g<=4;g++){
+    var v=max*g/4, y=padT+(H-padT-padB)*(1-g/4);
+    ctx.strokeStyle="#E3E8F2"; ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillStyle="#7A8494"; ctx.fillText(fmt1(v),L-5,y);
+  }
+  var bw=(W-L-padR)/n*0.6;
+  labels.forEach(function(_,i){
+    var x=L+(W-L-padR)*(i+0.5)/n, y=padT+(H-padT-padB);
+    series.forEach(function(ser,si){
+      var v=ser.data[i]||0;
+      var h=(max? v/max:0)*(H-padT-padB);
+      ctx.fillStyle=colors[si%colors.length];
+      ctx.fillRect(x-bw/2,y-h,bw,h);
+      y-=h;
+    });
+  });
+  ctx.fillStyle="#3A4556"; ctx.textAlign="center";
+  labels.forEach(function(lab,i){
+    if(lab.length>10) lab=lab.slice(0,9)+"…";
+    ctx.fillText(lab,L+(W-L-padR)*(i+0.5)/n,H-padB+8);
+  });
+  var lx=L; ctx.textAlign="left";
+  series.forEach(function(ser,si){
+    ctx.fillStyle=colors[si%colors.length]; ctx.fillRect(lx,padT-10,10,10);
+    ctx.fillStyle="#3A4556"; ctx.fillText(ser.name,lx+13,padT-4);
+    lx+=ctx.measureText(ser.name).width+26;
+  });
+}
+
+function fmt0(v){ return v===null||v===undefined?"—":Math.round(v).toLocaleString("en-US"); }
+function fmt1(v){ return v===null||v===undefined?"—":v.toLocaleString("en-US",{maximumFractionDigits:1}); }
+function fmt2(v){ return v===null||v===undefined?"—":v.toLocaleString("en-US",{maximumFractionDigits:2}); }
+function fmt$(v){ return v===null||v===undefined?"—":"$"+Math.round(v).toLocaleString("en-US"); }
+
+/* ---- deck ---- */
+function sig(goodWhen, v){
+  if(v===null||v===undefined) return {cls:"na", txt:"no data"};
+  if(goodWhen==="high") return v>0 ? {cls:"good",txt:"✓ present"} : {cls:"bad",txt:"missing"};
+  return {cls:"na",txt:""};
+}
+function slideHtml(num, kicker, title, body){
+  return '<div class="slide" id="sl'+num+'">'+
+    '<div class="head"><div class="k">'+kicker+'</div><div class="t">'+title+'</div><div class="rule"></div></div>'+
+    '<div class="body">'+body+'</div>'+
+    '<div class="foot">'+(S.siteId||"SITE ?")+' &nbsp;•&nbsp; '+(S.window||"period ?")+' &nbsp;•&nbsp; 4/10 Modified Work Week proposal &nbsp;•&nbsp; generated '+S.generated+'</div></div>';
+}
+
+function buildDeck(){
+  var M=CORE.extract(S.reports);
+  S.metrics=M;
+  var rv0=M.rpg;
+  var eff0 = (rv0.plan && rv0.actual && rv0.plan>0) ? rv0.actual/rv0.plan*100 : null;
+  M.rpg.eff=eff0;
+  var deck=$("deck"); deck.innerHTML="";
+  var slides=[];
+
+  /* 1 - title */
+  var filesDone=M.files;
+  slides.push(
+   '<div class="slide titleSlide" id="sl1">'+
+   '<div class="lr"></div>'+
+   '<div class="t1">4/10 Modified Work Week</div>'+
+   '<div class="t2">Maintenance — data-backed proposal</div>'+
+   '<div class="t3">Site <b>'+(S.siteId||"?" )+'</b> &nbsp;•&nbsp; '+ (S.window||"") +'<br>'+
+   'Built from '+filesDone+' report file(s) pulled from NMARS (eMARS) and WebEOR — '+M.rows+' data rows parsed.<br>'+
+   'Contract basis: MOU <i>Re: Modified Work Week</i> + <i>10/4 Guidelines</i> (CBA pp. 297–301), NTFT MOU ¶1 (CBA p. 289), JCIM Art. 8.2.D.</div>'+
+   '<div class="redbar"></div></div>');
+
+  /* 2 - scorecard */
+  var sc = [
+    ["eCBM PM completion (site avg)", pct(M.completion.avg), "high"],
+    ["PM tasks bypassed (period)", fmt0(M.bypassed.total), "low"],
+    ["Contract maintenance cost (period)", fmt$(M.contract.total), "low"],
+    ["Production down time share", pctTime(M.eorRuns.down,M.eorRuns.minutes), "low"],
+    ["Maintenance runs (windows kept)", fmt0(M.eorMaint.runs), "present"],
+    ["Avg maintenance window (min)", fmt0(M.eorMaint.avgWindow), "present"],
+    ["Plan-vs-actual run efficiency", pct(M.rpg.eff), "high"],
+    ["Jams per 10k pieces fed", fmt1(M.eorRuns.fed? M.eorRuns.jam/M.eorRuns.fed*10000 : null), "low"],
+    ["Parts on hand (stock room)", fmt0(M.stock.parts), "na"],
+    ["Equipment records", fmt0(M.equip.total), "na"]
+  ];
+  if(M.staffing.session){ sc.push(["MMO-required maintenance hrs/yr", fmt0(M.staffing.session.calc.maint), "na"]); }
+  if(M.staffing.csv && !M.staffing.session){ sc.push(["Maintenance hrs/yr (staffing table)", fmt0(M.staffing.csv.maint), "na"]); }
+  if(M.staffing.actuals){ sc.push(["eMARS actual labor hours", fmt0(M.staffing.actuals.hours), "na"]); }
+  var kpis='<div class="kpirow">';
+  sc.slice(0,5).forEach(function(r){
+    var v=r[1], s = r[2]==="present" ? (r[1]!=="0" && r[1]!=="—"?{cls:"good",txt:"windows on record"}:{cls:"warn",txt:"no maint-run data"})
+            : r[2]==="low" ? (r[1]==="—"||r[1]===null?{cls:"na",txt:"no data"}:{cls:"good",txt:"lower is better"})
+            : r[2]==="high"? (r[1]==="—"||r[1]===null?{cls:"na",txt:"no data"}:{cls:"good",txt:"higher is better"})
+            : {cls:"na",txt:""};
+    kpis+='<div class="kpi"><div class="v">'+r[1]+'</div><div class="l">'+r[0]+'</div><div class="s '+s.cls+'">'+s.txt+'</div></div>';
+  });
+  kpis+='</div>';
+  var table='<table class="data"><tr><th>Metric</th><th>Value</th><th>Note</th></tr>';
+  sc.forEach(function(r){
+    table+='<tr><td>'+r[0]+'</td><td><b>'+r[1]+'</b></td><td>'+r[2]+'</td></tr>';
+  });
+  table+='</table>';
+  slides.push(slideHtml(2,"SCORECARD","The numbers, on one slide",
+    kpis+'<div class="card">'+table+'</div>'+
+    '<div class="note">Same 40 hours = zero added straight-time labor cost; OT starts after 10 hours/40 per week (10/4 Guidelines ¶1). Every hour now paid at OT in the 8–10 window becomes straight time.</div>'));
+
+  /* 3 - PM completion */
+  var comp=M.completion;
+  var c3 = '<div class="kpirow">'+
+    '<div class="kpi"><div class="v">'+pct(comp.avg)+'</div><div class="l">avg site PM completion</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(comp.below100)+'</div><div class="l">rows below 100%</div></div>'+
+    '<div class="kpi"><div class="v">'+(comp.bench!==null?pct(comp.bench):"—")+'</div><div class="l">benchmark (national/area col)</div></div>'+
+    '</div>';
+  if(comp.chart.values.length){
+    c3+='<div class="card"><h3>Completion % by row (top 10)</h3><canvas id="c3" width="1200" height="330"></canvas></div>';
+  } else {
+    c3+='<div class="card"><div class="note">No percent columns detected in the completion reports — open the file list to verify parsing.</div></div>';
+  }
+  slides.push(slideHtml(3,"BUSINESS CASE — USPS","Preventive maintenance actually gets done",c3));
+
+  /* 4 - bypassed */
+  var b4='<div class="kpirow">'+
+    '<div class="kpi"><div class="v">'+fmt0(M.bypassed.total)+'</div><div class="l">eCBM tasks bypassed</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(Object.keys(M.bypassed.perAcronym).length)+'</div><div class="l">machine acronyms affected</div></div>'+
+    '</div>';
+  if(M.bypassed.chart.values.length){
+    b4+='<div class="card"><h3>Bypassed tasks by month</h3><canvas id="c4" width="1200" height="330"></canvas></div>';
+  }
+  var perA=Object.keys(M.bypassed.perAcronym).map(function(k){return {label:k,value:M.bypassed.perAcronym[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,10);
+  if(perA.length){
+    b4+='<div class="card"><h3>Tasks bypassed per machine acronym</h3><canvas id="c4b" width="1200" height="300"></canvas></div>';
+  }
+  b4+='<div class="note">Each bypassed task is deferred risk. A 10-hour window finishes jobs that currently can’t be completed without taking a machine down mid-shift or handing off to the next tour.</div>';
+  slides.push(slideHtml(4,"BUSINESS CASE — USPS","Bypassed PMs are deferred risk",b4));
+
+  /* 5 - trends */
+  var t5='<div class="card"><div class="note">Preventive Maintenance Trends report (multi-period).</div>'+
+    (M.trends.chart ? '<h3>PM trend</h3><canvas id="c5" width="1200" height="400"></canvas>'
+                    : '<div class="note">No trend series detected — check that TRENDS_* files loaded.</div>')+'</div>';
+  slides.push(slideHtml(5,"BUSINESS CASE — USPS","The trend line before the pilot",t5));
+
+  /* 6 - contract */
+  var scopes=Object.keys(M.contract.scopes);
+  var c6='<div class="kpirow"><div class="kpi"><div class="v">'+fmt$(M.contract.total)+'</div><div class="l">contract maintenance cost (period)</div></div></div>';
+  if(scopes.length){
+    c6+='<div class="card"><h3>By scope</h3><canvas id="c6" width="1200" height="330"></canvas></div>';
+  }
+  c6+='<div class="note">Every contractor call-out absorbed in-house at straight time is hard-dollar savings. Request the detailed vendor invoices via RFI to quantify per-machine substitution.</div>';
+  slides.push(slideHtml(6,"BUSINESS CASE — USPS","Less overtime, less contractor spend",c6));
+
+  /* 7 - equipment & parts */
+  var conds=Object.keys(M.equip.byCondition);
+  var c7='<div class="kpirow">'+
+    '<div class="kpi"><div class="v">'+fmt0(M.equip.total)+'</div><div class="l">equipment records</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(M.stock.parts)+'</div><div class="l">stock room parts</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(M.stock.usage)+'</div><div class="l">13-period part usage</div></div>'+
+    '</div>';
+  if(conds.length){
+    c7+='<div class="card"><h3>Equipment by condition code</h3><canvas id="c7" width="1200" height="330"></canvas></div>';
+  }
+  c7+='<div class="note">Aging machines (conditions C/D/E) carry the heaviest PM load — the machines a 10-hour crew keeps on PM schedule.</div>';
+  slides.push(slideHtml(7,"BUSINESS CASE — USPS","The machine and parts picture",c7));
+
+  /* 8 - production runs */
+  var R=M.eorRuns;
+  var tours=Object.keys(R.byTour).sort();
+  var c8='<div class="kpirow">'+
+    '<div class="kpi"><div class="v">'+fmt0(R.runs)+'</div><div class="l">production runs</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(R.fed)+'</div><div class="l">pieces fed</div></div>'+
+    '<div class="kpi"><div class="v">'+pctTime(R.down,R.minutes)+'</div><div class="l">down-time share</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(R.jam)+'</div><div class="l">jam minutes</div></div>'+
+    '</div>';
+  if(tours.length){
+    var series=[
+      {name:"run", data:tours.map(function(t){return (R.byTour[t].minutes||0);})},
+      {name:"down", data:tours.map(function(t){return R.byTour[t].down||0;})},
+      {name:"idle", data:tours.map(function(t){return R.byTour[t].idle||0;})},
+      {name:"jam",  data:tours.map(function(t){return R.byTour[t].jam||0;})}
+    ];
+    c8+='<div class="card"><h3>Minutes by tour (production runs only)</h3><canvas id="c8" width="1200" height="330"></canvas></div>';
+    S._c8={labels:tours,series:series};
+  } else {
+    S._c8=null;
+    c8+='<div class="card"><div class="note">No EOR production-run data loaded.</div></div>';
+  }
+  c8+='<div class="note">Maintenance runs are excluded from this file — they do not drive production staffing. Down/idle/jam minutes by tour show where a 10-hour shift recovers lost machine time.</div>';
+  slides.push(slideHtml(8,"BUSINESS CASE — USPS","Production runs: where the machine time goes",c8));
+
+  /* 9 - staffing & workload */
+  var ST=M.staffing;
+  var c9s='';
+  var stChart=null;
+  if(ST.session){
+    var mg=ST.session.mgmt, cl=ST.session.calc, mgTot=mg.mm7+mg.mpe9+mg.et10;
+    c9s='<div class="kpirow">'+
+      '<div class="kpi"><div class="v">'+fmt0(ST.session.machines)+'</div><div class="l">machines in staffing calc</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(mgTot)+'</div><div class="l">eWHEP claimed (hrs/yr)</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(cl.total)+'</div><div class="l">MMO required (hrs/yr)</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(cl.maint)+'</div><div class="l">operational maint (hrs/yr)</div></div>'+
+      '</div>';
+    stChart={labels:["MM7","MPE9","ET10"],
+             series:[{name:"eWHEP claimed",data:[mg.mm7,mg.mpe9,mg.et10]},
+                     {name:"MMO required",data:[cl.mm7,cl.mpe9,cl.et10]}]};
+    c9s+='<div class="card"><h3>Claimed vs required by craft (hrs/yr)</h3><canvas id="c9s" width="1200" height="330"></canvas></div>';
+    c9s+='<div class="note">Staffing-calc coverage: '+fmt1(ST.session.avgToursDay)+' tours/day and '+fmt1(ST.session.avgDaysWeek)+' days/week per machine. Same total hours repackaged as 4×10 = same labor cost, 20% fewer commutes, 52 extra off-days — the workload math does not change.</div>';
+  } else if(ST.report){
+    var t2=ST.report;
+    c9s='<div class="kpirow">'+
+      '<div class="kpi"><div class="v">'+fmt0(t2.machines)+'</div><div class="l">machines</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(t2.mm7.staff+t2.mpe9.staff+t2.et10.staff)+'</div><div class="l">staffing hrs</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(t2.mm7.calc+t2.mpe9.calc+t2.et10.calc)+'</div><div class="l">calculated hrs</div></div>'+
+      '</div>';
+    stChart={labels:["MM7","MPE9","ET10"],
+             series:[{name:"staffing",data:[t2.mm7.staff,t2.mpe9.staff,t2.et10.staff]},
+                     {name:"calculated",data:[t2.mm7.calc,t2.mpe9.calc,t2.et10.calc]}]};
+    c9s+='<div class="card"><h3>Staffing vs calculated by craft</h3><canvas id="c9s" width="1200" height="330"></canvas></div>';
+    c9s+='<div class="note">Where calculated exceeds staffing, the plant is short maintenance hours — the workload a 4/10 completes in straight time.</div>';
+  } else if(ST.csv){
+    var c3=ST.csv;
+    c9s='<div class="kpirow">'+
+      '<div class="kpi"><div class="v">'+fmt0(c3.machines)+'</div><div class="l">machines</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(c3.total)+'</div><div class="l">total maint hrs/yr</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(c3.maint)+'</div><div class="l">operational maint hrs/yr</div></div>'+
+      '</div>';
+    stChart={labels:["MM7","MPE9","ET10"], series:[{name:"hrs/yr",data:[c3.mm7,c3.mpe9,c3.et10]}]};
+    c9s+='<div class="card"><h3>Maintenance hours by craft (hrs/yr)</h3><canvas id="c9s" width="1200" height="330"></canvas></div>';
+    if(c3.avgToursDay!==null) c9s+='<div class="note">Planned tours/day from staffing tables: '+fmt1(c3.avgToursDay)+'</div>';
+  } else {
+    c9s='<div class="card"><div class="note">No staffing data loaded — drop the Machine Staffing Report HTML, the *-Staffing-Table.csv / *-Calculated-Staffing-Table.csv files, or a Staffing Calculator session JSON (staffing-calculator-session-v1).</div></div>';
+  }
+  S._c9s=stChart;
+  slides.push(slideHtml(9,"BUSINESS CASE — USPS","Staffing & workload: the labor math",c9s));
+
+  /* 10 - labor actuals */
+  var c10s='';
+  var labChart=null;
+  if(ST.actuals){
+    var a=ST.actuals;
+    c10s='<div class="kpirow">'+
+      '<div class="kpi"><div class="v">'+fmt0(a.hours)+'</div><div class="l">eMARS actual labor hrs</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(a.woCount)+'</div><div class="l">work orders</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(a.activeDays)+'</div><div class="l">active days</div></div>'+
+      '<div class="kpi"><div class="v">'+fmt0(a.rows)+'</div><div class="l">labor transactions</div></div>'+
+      '</div>';
+    var acr=Object.keys(a.byAcr).map(function(k){return {label:k,value:a.byAcr[k]};}).sort(function(x,y){return y.value-x.value;}).slice(0,8);
+    if(acr.length){
+      labChart={labels:acr.map(function(x){return x.label;}), values:acr.map(function(x){return x.value;})};
+      c10s+='<div class="card"><h3>Actual hours by machine acronym (top 8)</h3><canvas id="c10s" width="1200" height="330"></canvas></div>';
+    }
+    var lvls=Object.keys(a.byLvl).sort(function(x,y){return a.byLvl[y]-a.byLvl[x];}).slice(0,8);
+    if(lvls.length){
+      c10s+='<div class="card"><h3>Hours by level code (top 8)</h3><table class="data"><tr><th>Level</th><th>Hours</th></tr>';
+      lvls.forEach(function(k){ c10s+='<tr><td>'+k+'</td><td>'+fmt0(a.byLvl[k])+'</td></tr>'; });
+      c10s+='</table></div>';
+    }
+    if(ST.session){
+      var mg2=ST.session.mgmt, mgTot2=mg2.mm7+mg2.mpe9+mg2.et10;
+      var ratio = ST.session.calc.total>0 ? Math.round(a.hours/ST.session.calc.total*100)+"%" : "—";
+      c10s+='<div class="note">Three-way: eWHEP claimed '+fmt0(mgTot2)+' hrs/yr · MMO required '+fmt0(ST.session.calc.total)+' · eMARS actual '+fmt0(a.hours)+' (≈'+ratio+' of required in the exported window).</div>';
+    }
+  } else {
+    c10s='<div class="card"><div class="note">No eMARS labor-transaction export loaded — export it (Completed Actions → Print Daily Entries, eMARS User Guide §7.0) and drop the CSV here for the claimed-vs-required-vs-actual comparison.</div></div>';
+  }
+  S._c10s=labChart;
+  slides.push(slideHtml(10,"BUSINESS CASE — USPS","Labor actuals: where the hours really go",c10s));
+
+  /* 11 - maintenance windows */
+  var RM=M.eorMaint;
+  var mtours=Object.keys(RM.byTour).sort();
+  var c9='<div class="kpirow">'+
+    '<div class="kpi"><div class="v">'+fmt0(RM.runs)+'</div><div class="l">maintenance runs recorded</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(RM.avgWindow)+'</div><div class="l">avg window (minutes)</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt0(RM.minutes)+'</div><div class="l">total maintenance time</div></div>'+
+    '</div>';
+  if(mtours.length){
+    c9+='<div class="card"><h3>Maintenance windows by tour (minutes)</h3><canvas id="c9" width="1200" height="330"></canvas></div>';
+    S._c9={labels:mtours,values:mtours.map(function(t){return RM.byTour[t].minutes||0;})};
+  } else { S._c9=null; c9+='<div class="card"><div class="note">No maintenance runs recorded for this period — either none were scheduled, or check the EOR_MAINT file.</div></div>'; }
+  c9+='<div class="note">This file answers: are maintenance windows being KEPT? Compare actual windows vs plan and vs PM due dates — a 10-hour shift matches the windows the plant already gives up.</div>';
+  slides.push(slideHtml(11,"BUSINESS CASE — USPS","Are maintenance windows being kept?",c9));
+
+  /* 10 - plan vs actual */
+  var rv=M.rpg;
+  var eff = M.rpg.eff;
+  var c10='<div class="kpirow">'+
+    '<div class="kpi"><div class="v">'+fmt2(rv.actual)+'</div><div class="l">actual (sum)</div></div>'+
+    '<div class="kpi"><div class="v">'+fmt2(rv.plan)+'</div><div class="l">plan (sum)</div></div>'+
+    '<div class="kpi"><div class="v">'+(eff!==null?pct(eff):"—")+'</div><div class="l">plan-vs-actual efficiency</div></div>'+
+    '</div>';
+  if(eff!==null){
+    c10+='<div class="card"><h3>Plan vs actual</h3><canvas id="c10" width="1200" height="330"></canvas></div>';
+    S._c10={labels:["Plan","Actual"],values:[rv.plan,rv.actual]};
+  } else { S._c10=null; }
+  if(rv.note) c10+='<div class="note">'+rv.note+'</div>';
+  c10+='<div class="note">Join on (site, MODS date, machine type, operation, tour). Gaps where actual &lt; plan — and where down time spikes — are the efficiency loss a 4/10 recovers.</div>';
+  slides.push(slideHtml(12,"BUSINESS CASE — USPS","Run plan vs actual runs",c10));
+
+  /* 11 - business narrative */
+  var c11='<ul class="bullets">'+
+   '<li><b class="lead">Same 40 hours, zero added labor cost.</b> 4×10 = 40. Overtime only after 10 hours in pay status or 40/week; penalty rules and 56/60 limits unchanged; Sunday premium capped at 16 hrs/week (10/4 Guidelines).</li>'+
+   '<li><b class="lead">More PMs in straight time.</b> One uninterrupted window: LOTO, setup, and post-dispatch machine access happen once — not twice. Current completion '+pct(M.completion.avg)+' with '+fmt0(M.bypassed.total)+' bypassed tasks shows the gap.</li>'+
+   '<li><b class="lead">Less OT and contractor spend.</b> Contract cost this period: '+fmt$(M.contract.total)+'. Production down time '+pctTime(M.eorRuns.down,M.eorRuns.minutes)+' of run time.</li>'+
+   '<li><b class="lead">Coverage &amp; retention.</b> Staggered Mon–Thu / Tue–Fri crews give 6-day coverage at the same hours; a 3-day weekend recruits and retains maintenance skills at zero payroll cost.</li>'+
+   '</ul>';
+  slides.push(slideHtml(13,"THE PITCH","Why this makes business sense",c11));
+
+  /* 12 - union case */
+  var c12='<ul class="bullets">'+
+   '<li><b class="lead">Every protection intact.</b> 88 holiday hours guaranteed; leave charged ≤10 hrs/day; OTDL rights unchanged; NS-day guarantee stays 8 hrs; training 5+ days reverts to 8/5 (CBA pp. 298–301).</li>'+
+   '<li><b class="lead">Voluntary and reversible.</b> Either side declines freely — no impasse, no grievance. 30-day written cancellation (CBA p. 297).</li>'+
+   '<li><b class="lead">No NTFT creep in Maintenance.</b> 4/10 keeps every assignment full-time regular — posted and bid by seniority under Article 38.</li>'+
+   '<li><b class="lead">52 extra days off a year.</b> 20% fewer commutes. A real quality-of-life win with nothing traded away.</li>'+
+   '</ul>';
+  slides.push(slideHtml(14,"UNION CASE — APWU","A win our members keep",c12));
+
+  /* 13 - RFI */
+  var c13='<table class="data"><tr><th>Request via RFI</th><th>What it proves</th></tr>'+
+   '<tr><td>TACS overtime + penalty-OT hours and dollars by tour, pay period, occupational group</td><td>The 8–10 window conversion to straight time ($ and hours)</td></tr>'+
+   '<tr><td>Staffing complement vs vacancies (PS 4852) by occupational group</td><td>Staffing leverage of 4/10; posting/bidding options</td></tr>'+
+   '<tr><td>eCBM/MS-47 PM workload hours due vs completed (detail export)</td><td>PM backlog in hours — the pilot’s target</td></tr>'+
+   '<tr><td>Contractor maintenance invoices (vendor, machine, work type)</td><td>Per-machine contractor substitution savings</td></tr>'+
+   '<tr><td>MODS/EDW downtime extract (97/98 transactions)</td><td>Independent cross-check of WebEOR down time</td></tr>'+
+   '<tr><td>Plant operating hours + utility data</td><td>Window alignment for 10-hour tours</td></tr>'+
+   '<tr><td>Safety incident records (OSHA 300/301)</td><td>Fatigue-objection baseline for the pilot</td></tr>'+
+   '<tr><td>Leave/absence usage by day of week (TACS)</td><td>Quality-of-life / commute impact</td></tr>'+
+   '</table>';
+  slides.push(slideHtml(15,"NEXT STEP","Request for Information — data that completes the case",c13));
+
+  deck.innerHTML=slides.join("");
+  S.slides=deck.querySelectorAll(".slide");
+  S.current=0;
+
+  // draw charts
+  if(comp.chart.values.length) drawBar($("c3"),comp.chart.labels,comp.chart.values,{});
+  if(M.bypassed.chart.values.length) drawBar($("c4"),M.bypassed.chart.labels,M.bypassed.chart.values,{color:"#C8102E"});
+  if(perA.length) drawBar($("c4b"),perA.map(function(x){return x.label;}),perA.map(function(x){return x.value;}),{color:"#B26A00"});
+  if(M.trends.chart) drawLine($("c5"),M.trends.chart.labels,M.trends.chart.series);
+  if(scopes.length) drawBar($("c6"),scopes,scopes.map(function(k){return M.contract.scopes[k];}),{color:"#1E7A46"});
+  if(conds.length) drawBar($("c7"),conds,conds.map(function(k){return M.equip.byCondition[k];}),{});
+  if(S._c8) drawStacked($("c8"),S._c8.labels,S._c8.series);
+  if(S._c9s) drawStacked($("c9s"),S._c9s.labels,S._c9s.series);
+  if(S._c10s) drawBar($("c10s"),S._c10s.labels,S._c10s.values,{color:"#C8102E"});
+  if(S._c9) drawBar($("c9"),S._c9.labels,S._c9.values,{color:"#1E7A46"});
+  if(S._c10) drawBar($("c10"),S._c10.labels,S._c10.values,{color:"#2E4E8C"});
+
+  $("deckWrap").hidden=false;
+  showSlide(0);
+  $("deckWrap").scrollIntoView({behavior:"smooth"});
+}
+
+function pct(v){ return v===null||v===undefined?"—":fmt1(v)+"%"; }
+function pctTime(part,total){ if(!total) return "—"; return fmt1(part/total*100)+"%"; }
+
+function showSlide(i){
+  if(!S.slides||!S.slides.length) return;
+  S.current=Math.max(0,Math.min(S.slides.length-1,i));
+  S.slides.forEach(function(s,idx){ s.style.display = idx===S.current?"block":"none"; });
+  $("slideNo").textContent=(S.current+1)+" / "+S.slides.length;
+}
+$("btnPrev").addEventListener("click",function(){ showSlide(S.current-1); });
+$("btnNext").addEventListener("click",function(){ showSlide(S.current+1); });
+document.addEventListener("keydown",function(e){
+  if($("deckWrap").hidden) return;
+  if(e.key==="ArrowRight"||e.key==="ArrowDown") showSlide(S.current+1);
+  if(e.key==="ArrowLeft"||e.key==="ArrowUp") showSlide(S.current-1);
+});
+$("btnBuild").addEventListener("click",function(){
+  S.siteId=$("siteId").value.trim()||"(enter site)";
+  var fy=$("fy").value.trim(), aps=$("aps").value.trim();
+  S.window = (fy||aps) ? ("FY"+(fy||"?")+(aps?(" AP"+aps):"")) : "";
+  S.generated=new Date().toLocaleString();
+  if(!Object.keys(S.reports).length){
+    $("status").textContent="Load report files first (drop the run folder or use the buttons).";
+    return;
+  }
+  try{ buildDeck(); $("status").textContent="Deck built from "+S.metrics.files+" files, "+S.metrics.rows+" rows."; }
+  catch(err){ $("status").textContent="Build error: "+err.message; console.error(err); }
+});
+$("btnBack").addEventListener("click",function(){ $("deckWrap").hidden=true; });
+$("btnPrint").addEventListener("click",function(){
+  S.slides.forEach(function(s){ s.style.display="block"; });
+  window.print();
+  showSlide(S.current);
+});
+
+/* export JSON (feeds Build-Presentation.ps1 -> real PPTX) */
+function deckJson(){
+  var M=S.metrics; if(!M) return null;
+  return {
+    site:S.siteId, window:S.window, generated:S.generated,
+    scorecard:{
+      pmCompletion:pct(M.completion.avg),
+      pmBelow100:fmt0(M.completion.below100),
+      bypassed:fmt0(M.bypassed.total),
+      contractCost:fmt$(M.contract.total),
+      downTimeShare:pctTime(M.eorRuns.down,M.eorRuns.minutes),
+      maintRuns:fmt0(M.eorMaint.runs),
+      maintAvgMin:fmt0(M.eorMaint.avgWindow),
+      planVsActual:pct(M.rpg.eff),
+      jamsPer10k:fmt1(M.eorRuns.fed? M.eorRuns.jam/M.eorRuns.fed*10000:null),
+      stockParts:fmt0(M.stock.parts),
+      equipment:fmt0(M.equip.total)
+    },
+    charts:{
+      completion:M.completion.chart,
+      bypassMonthly:M.bypassed.chart,
+      bypassAcronym:{labels:Object.keys(M.bypassed.perAcronym), values:Object.keys(M.bypassed.perAcronym).map(function(k){return M.bypassed.perAcronym[k];})},
+      trends:M.trends.chart,
+      contract:{labels:Object.keys(M.contract.scopes), values:Object.keys(M.contract.scopes).map(function(k){return M.contract.scopes[k];})},
+      equipCondition:{labels:Object.keys(M.equip.byCondition), values:Object.keys(M.equip.byCondition).map(function(k){return M.equip.byCondition[k];})},
+      prodTour:S._c8||null,
+      maintTour:S._c9?{labels:S._c9.labels,values:S._c9.values}:null,
+      planActual:S._c10?{labels:S._c10.labels,values:S._c10.values}:null,
+      staffing:S._c9s||null,
+      laborByAcr:S._c10s||null
+    },
+    staffing:{
+      session: M.staffing.session?{machines:M.staffing.session.machines, mgmt:M.staffing.session.mgmt, calc:M.staffing.session.calc,
+                 avgToursDay:M.staffing.session.avgToursDay, avgDaysWeek:M.staffing.session.avgDaysWeek}:null,
+      report: M.staffing.report||null,
+      csv: M.staffing.csv?{machines:M.staffing.csv.machines, mm7:M.staffing.csv.mm7, mpe9:M.staffing.csv.mpe9,
+           et10:M.staffing.csv.et10, total:M.staffing.csv.total, maint:M.staffing.csv.maint, avgToursDay:M.staffing.csv.avgToursDay}:null,
+      actuals: M.staffing.actuals?{hours:M.staffing.actuals.hours, woCount:M.staffing.actuals.woCount,
+               activeDays:M.staffing.actuals.activeDays, rows:M.staffing.actuals.rows}:null
+    },
+    rpgNote:M.rpg.note||""
+  };
+}
+$("btnJson").addEventListener("click",function(){
+  var j=deckJson(); if(!j){ $("status").textContent="Build the deck first."; return; }
+  var blob=new Blob([JSON.stringify(j,null,2)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="4x10_deck_data_"+Date.now()+".json";
+  a.click();
+});
+$("btnCopy").addEventListener("click",function(){
+  var M=S.metrics; if(!M){ $("status").textContent="Build the deck first."; return; }
+  var lines=[
+    "4x10 scorecard — site "+(S.siteId||"?")+" ("+(S.window||"?")+")",
+    "eCBM PM completion: "+pct(M.completion.avg),
+    "Tasks bypassed: "+fmt0(M.bypassed.total),
+    "Contract cost: "+fmt$(M.contract.total),
+    "Production down-time share: "+pctTime(M.eorRuns.down,M.eorRuns.minutes),
+    "Maintenance runs: "+fmt0(M.eorMaint.runs)+" (avg "+fmt0(M.eorMaint.avgWindow)+" min)",
+    "Plan-vs-actual: "+pct(M.rpg.eff),
+    "Jams/10k fed: "+fmt1(M.eorRuns.fed? M.eorRuns.jam/M.eorRuns.fed*10000:null),
+    "Stock parts: "+fmt0(M.stock.parts)+", equipment: "+fmt0(M.equip.total)
+  ];
+  if(navigator.clipboard) navigator.clipboard.writeText(lines.join("\n")).then(function(){
+    $("status").textContent="Scorecard copied to clipboard.";
+  });
+  else $("status").textContent="Clipboard unavailable in this browser.";
+});
+</script>
+</body>
+</html>
